@@ -1,0 +1,911 @@
+/**
+ * Seed script – populates the Exercise catalog with sample data.
+ * Run: `cd server && npm run seed`
+ */
+require("dotenv").config({ path: "../.env" });
+const mongoose = require("mongoose");
+const Exercise = require("../models/Exercise");
+
+const exercises = [
+  // ══════════════ PECHO ══════════════
+  {
+    name: "Press de Banca",
+    muscleGroup: "chest",
+    secondaryMuscles: ["triceps", "shoulders"],
+    difficulty: "intermediate",
+    equipment: "barbell",
+    category: "hypertrophy",
+    youtubeVideoId: "jlFl7WJ1TzI",
+    instructions: [
+      "Acuéstate en el banco plano",
+      "Agarra la barra un poco más ancho que los hombros",
+      "Baja al pecho y empuja hacia arriba",
+    ],
+    tips: [
+      "Mantén los pies firmes en el suelo",
+      "Arquea ligeramente la espalda",
+    ],
+  },
+  {
+    name: "Flexiones",
+    muscleGroup: "chest",
+    secondaryMuscles: ["triceps", "shoulders", "abs"],
+    difficulty: "beginner",
+    equipment: "bodyweight",
+    category: "endurance",
+    youtubeVideoId: "H71IbSu4PDg",
+    instructions: [
+      "Comienza en posición de plancha",
+      "Baja el pecho al suelo",
+      "Empuja hacia arriba",
+    ],
+  },
+  {
+    name: "Press Inclinado con Mancuernas",
+    muscleGroup: "chest",
+    secondaryMuscles: ["shoulders", "triceps"],
+    difficulty: "intermediate",
+    equipment: "dumbbell",
+    category: "hypertrophy",
+    youtubeVideoId: "sL6xN9EVDfE",
+    instructions: [
+      "Ajusta el banco a 30-45°",
+      "Empuja las mancuernas hacia arriba",
+      "Baja con control",
+    ],
+  },
+  {
+    name: "Aperturas con Mancuernas",
+    muscleGroup: "chest",
+    secondaryMuscles: ["shoulders"],
+    difficulty: "intermediate",
+    equipment: "dumbbell",
+    category: "hypertrophy",
+    youtubeVideoId: "QENKPHhQVi4",
+    instructions: [
+      "Acuéstate en banco plano con mancuernas",
+      "Abre los brazos en arco hasta sentir estiramiento",
+      "Junta las mancuernas arriba apretando el pecho",
+    ],
+    tips: [
+      "Mantén una ligera flexión en los codos",
+      "Controla la bajada, no dejes caer los brazos",
+    ],
+  },
+  {
+    name: "Press Declinado con Barra",
+    muscleGroup: "chest",
+    secondaryMuscles: ["triceps", "shoulders"],
+    difficulty: "intermediate",
+    equipment: "barbell",
+    category: "hypertrophy",
+    youtubeVideoId: "OR6WM5Z2Hqs",
+    instructions: [
+      "Ajusta el banco en posición declinada",
+      "Baja la barra a la parte baja del pecho",
+      "Empuja hacia arriba hasta extender los brazos",
+    ],
+    tips: [
+      "Asegúrate de anclar bien los pies",
+      "Pide ayuda de un compañero si usas peso elevado",
+    ],
+  },
+  {
+    name: "Cruces en Polea",
+    muscleGroup: "chest",
+    secondaryMuscles: ["shoulders"],
+    difficulty: "intermediate",
+    equipment: "cable",
+    category: "hypertrophy",
+    youtubeVideoId: "taI4XduLpTk",
+    instructions: [
+      "De pie entre las poleas, agarra las asas",
+      "Da un paso al frente y cruza las manos al centro",
+      "Vuelve con control a la posición inicial",
+    ],
+    tips: [
+      "Mantén el torso ligeramente inclinado",
+      "Aprieta el pecho en cada contracción",
+    ],
+  },
+  // ══════════════ ESPALDA ══════════════
+  {
+    name: "Peso Muerto",
+    muscleGroup: "back",
+    secondaryMuscles: ["legs", "glutes", "forearms"],
+    difficulty: "advanced",
+    equipment: "barbell",
+    category: "strength",
+    youtubeVideoId: "Ysfd_ExNKbM",
+    instructions: [
+      "Párate con los pies al ancho de caderas",
+      "Flexiona en la cadera, agarra la barra",
+      "Empuja con los talones para levantarte",
+    ],
+  },
+  {
+    name: "Dominadas",
+    muscleGroup: "back",
+    secondaryMuscles: ["biceps", "forearms"],
+    difficulty: "intermediate",
+    equipment: "bodyweight",
+    category: "strength",
+    youtubeVideoId: "8mhDd9Ahl1M",
+    instructions: [
+      "Cuélgate de la barra con agarre prono",
+      "Sube la barbilla por encima de la barra",
+      "Baja con control",
+    ],
+  },
+  {
+    name: "Remo con Barra",
+    muscleGroup: "back",
+    secondaryMuscles: ["biceps", "forearms"],
+    difficulty: "intermediate",
+    equipment: "barbell",
+    category: "hypertrophy",
+    youtubeVideoId: "HgeOVKf9ZO4",
+    instructions: [
+      "Inclínate a 45°",
+      "Tira la barra hacia el pecho bajo",
+      "Aprieta los omóplatos",
+    ],
+  },
+  {
+    name: "Jalón al Pecho en Polea",
+    muscleGroup: "back",
+    secondaryMuscles: ["biceps", "forearms"],
+    difficulty: "beginner",
+    equipment: "cable",
+    category: "hypertrophy",
+    youtubeVideoId: "oLQj4fySWQQ",
+    instructions: [
+      "Siéntate en la máquina de polea alta",
+      "Agarra la barra ancha con agarre prono",
+      "Tira hacia el pecho apretando la espalda",
+    ],
+    tips: [
+      "No te inclines demasiado hacia atrás",
+      "Concéntrate en apretar los omóplatos",
+    ],
+  },
+  {
+    name: "Remo con Mancuerna a Una Mano",
+    muscleGroup: "back",
+    secondaryMuscles: ["biceps", "forearms"],
+    difficulty: "beginner",
+    equipment: "dumbbell",
+    category: "hypertrophy",
+    youtubeVideoId: "Vvnw0EYAlgc",
+    instructions: [
+      "Apoya una rodilla y mano en el banco",
+      "Con la otra mano tira la mancuerna hacia la cadera",
+      "Baja con control",
+    ],
+    tips: [
+      "Mantén la espalda recta y paralela al suelo",
+      "Evita rotar el torso",
+    ],
+  },
+  {
+    name: "Remo en Polea Baja",
+    muscleGroup: "back",
+    secondaryMuscles: ["biceps", "forearms"],
+    difficulty: "beginner",
+    equipment: "cable",
+    category: "hypertrophy",
+    youtubeVideoId: "UCXxvVItLoM",
+    instructions: [
+      "Siéntate con los pies en la plataforma",
+      "Tira el agarre hacia el abdomen",
+      "Vuelve lentamente a la posición inicial",
+    ],
+    tips: [
+      "Mantén el pecho arriba y la espalda recta",
+      "No uses impulso del tronco",
+    ],
+  },
+  {
+    name: "Face Pull",
+    muscleGroup: "back",
+    secondaryMuscles: ["shoulders"],
+    difficulty: "beginner",
+    equipment: "cable",
+    category: "hypertrophy",
+    youtubeVideoId: "0Po47vvj9g4",
+    instructions: [
+      "Ajusta la polea a la altura de la cara",
+      "Tira la cuerda hacia la cara abriendo los codos",
+      "Aprieta los omóplatos al final",
+    ],
+    tips: [
+      "Excelente ejercicio para la postura",
+      "Usa un peso ligero y controla el movimiento",
+    ],
+  },
+  // ══════════════ HOMBROS ══════════════
+  {
+    name: "Press Militar",
+    muscleGroup: "shoulders",
+    secondaryMuscles: ["triceps"],
+    difficulty: "intermediate",
+    equipment: "barbell",
+    category: "strength",
+    youtubeVideoId: "f3E1jQFRONs",
+    instructions: [
+      "De pie con la barra a la altura de los hombros",
+      "Empuja por encima de la cabeza",
+      "Extiende los brazos completamente",
+    ],
+  },
+  {
+    name: "Elevaciones Laterales",
+    muscleGroup: "shoulders",
+    secondaryMuscles: [],
+    difficulty: "beginner",
+    equipment: "dumbbell",
+    category: "hypertrophy",
+    youtubeVideoId: "hgLpdwMtEEs",
+    instructions: [
+      "De pie con mancuernas a los lados",
+      "Sube hasta la altura de los hombros",
+      "Baja lentamente",
+    ],
+  },
+  {
+    name: "Elevaciones Frontales",
+    muscleGroup: "shoulders",
+    secondaryMuscles: ["chest"],
+    difficulty: "beginner",
+    equipment: "dumbbell",
+    category: "hypertrophy",
+    youtubeVideoId: "kLbvYQ-l4BA",
+    instructions: [
+      "De pie con mancuernas frente a los muslos",
+      "Sube un brazo al frente hasta la altura de los hombros",
+      "Baja con control y alterna",
+    ],
+    tips: ["No balancees el cuerpo", "Mantén una ligera flexión en los codos"],
+  },
+  {
+    name: "Press Arnold",
+    muscleGroup: "shoulders",
+    secondaryMuscles: ["triceps"],
+    difficulty: "intermediate",
+    equipment: "dumbbell",
+    category: "hypertrophy",
+    youtubeVideoId: "6Z15_WdXmVw",
+    instructions: [
+      "Sentado, mancuernas frente a la cara con las palmas hacia ti",
+      "Rota las palmas hacia fuera mientras empujas arriba",
+      "Baja invirtiendo la rotación",
+    ],
+    tips: [
+      "Combina rotación y press en un movimiento fluido",
+      "No uses peso excesivo al principio",
+    ],
+  },
+  {
+    name: "Pájaros (Elevaciones Posteriores)",
+    muscleGroup: "shoulders",
+    secondaryMuscles: ["back"],
+    difficulty: "intermediate",
+    equipment: "dumbbell",
+    category: "hypertrophy",
+    youtubeVideoId: "ttvfGg9d76c",
+    instructions: [
+      "Inclínate hacia delante con el torso casi paralelo al suelo",
+      "Eleva las mancuernas hacia los lados",
+      "Aprieta los omóplatos arriba y baja con control",
+    ],
+    tips: [
+      "Trabaja el deltoides posterior",
+      "Usa un peso ligero y siente la contracción",
+    ],
+  },
+  // ══════════════ PIERNAS ══════════════
+  {
+    name: "Sentadilla con Barra",
+    muscleGroup: "legs",
+    secondaryMuscles: ["glutes", "abs"],
+    difficulty: "intermediate",
+    equipment: "barbell",
+    category: "strength",
+    youtubeVideoId: "12i31bzJuL4",
+    instructions: [
+      "Barra en la espalda alta",
+      "Baja hasta que los muslos estén paralelos",
+      "Sube empujando con los talones",
+    ],
+  },
+  {
+    name: "Prensa de Piernas",
+    muscleGroup: "legs",
+    secondaryMuscles: ["glutes"],
+    difficulty: "beginner",
+    equipment: "machine",
+    category: "hypertrophy",
+    youtubeVideoId: "ch85L6ladCo",
+    instructions: [
+      "Siéntate en la máquina de prensa",
+      "Baja la plataforma hacia el pecho",
+      "Empuja de vuelta hacia arriba",
+    ],
+  },
+  {
+    name: "Peso Muerto Rumano",
+    muscleGroup: "legs",
+    secondaryMuscles: ["glutes", "back"],
+    difficulty: "intermediate",
+    equipment: "barbell",
+    category: "hypertrophy",
+    youtubeVideoId: "UgqrPwoTick",
+    instructions: [
+      "Sostén la barra a la altura de la cadera",
+      "Flexiona en la cadera manteniendo las piernas casi rectas",
+      "Siente el estiramiento en los isquiotibiales",
+    ],
+  },
+  {
+    name: "Zancadas (Lunges)",
+    muscleGroup: "legs",
+    secondaryMuscles: ["glutes", "abs"],
+    difficulty: "beginner",
+    equipment: "dumbbell",
+    category: "hypertrophy",
+    youtubeVideoId: "QOVaHwm-Q6U",
+    instructions: [
+      "De pie con mancuernas a los lados",
+      "Da un paso largo al frente y flexiona ambas rodillas",
+      "Empuja con el pie delantero para volver a la posición inicial",
+    ],
+    tips: [
+      "La rodilla delantera no debe pasar la punta del pie",
+      "Mantén el torso erguido",
+    ],
+  },
+  {
+    name: "Sentadilla Búlgara",
+    muscleGroup: "legs",
+    secondaryMuscles: ["glutes"],
+    difficulty: "intermediate",
+    equipment: "dumbbell",
+    category: "hypertrophy",
+    youtubeVideoId: "IdilLr9nyuQ",
+    instructions: [
+      "Apoya el empeine trasero en un banco",
+      "Baja la cadera hasta que el muslo delantero esté paralelo",
+      "Sube con fuerza y control",
+    ],
+    tips: [
+      "Excelente para corregir desbalances entre piernas",
+      "Empieza sin peso para dominar la técnica",
+    ],
+  },
+  {
+    name: "Extensiones de Cuádriceps",
+    muscleGroup: "legs",
+    secondaryMuscles: [],
+    difficulty: "beginner",
+    equipment: "machine",
+    category: "hypertrophy",
+    youtubeVideoId: "m0FOpMEgero",
+    instructions: [
+      "Siéntate en la máquina con los tobillos bajo la almohadilla",
+      "Extiende las piernas hasta arriba",
+      "Baja con control sin soltar el peso",
+    ],
+    tips: ["No uses impulso", "Aprieta el cuádriceps arriba por un segundo"],
+  },
+  {
+    name: "Curl Femoral",
+    muscleGroup: "legs",
+    secondaryMuscles: [],
+    difficulty: "beginner",
+    equipment: "machine",
+    category: "hypertrophy",
+    youtubeVideoId: "Orxowest56U",
+    instructions: [
+      "Acuéstate boca abajo en la máquina",
+      "Flexiona las piernas llevando los talones a los glúteos",
+      "Baja lentamente",
+    ],
+    tips: [
+      "No levantes las caderas del banco",
+      "Contrae los isquiotibiales al máximo arriba",
+    ],
+  },
+  {
+    name: "Peso Muerto Sumo",
+    muscleGroup: "legs",
+    secondaryMuscles: ["glutes", "back"],
+    difficulty: "intermediate",
+    equipment: "barbell",
+    category: "strength",
+    youtubeVideoId: "fJNVzyGV_Yo",
+    instructions: [
+      "Pies más anchos que los hombros, puntas hacia fuera",
+      "Agarra la barra entre las piernas con agarre estrecho",
+      "Levántate extendiendo caderas y rodillas",
+    ],
+    tips: [
+      "Ideal para trabajar aductores y glúteos",
+      "Mantén la espalda recta durante todo el movimiento",
+    ],
+  },
+  // ══════════════ BÍCEPS ══════════════
+  {
+    name: "Curl con Barra",
+    muscleGroup: "biceps",
+    secondaryMuscles: ["forearms"],
+    difficulty: "beginner",
+    equipment: "barbell",
+    category: "hypertrophy",
+    youtubeVideoId: "VS8SDGynKqM",
+    instructions: [
+      "De pie con barra, agarre supino",
+      "Curl hacia los hombros",
+      "Baja lentamente",
+    ],
+  },
+  {
+    name: "Curl Martillo",
+    muscleGroup: "biceps",
+    secondaryMuscles: ["forearms"],
+    difficulty: "beginner",
+    equipment: "dumbbell",
+    category: "hypertrophy",
+    youtubeVideoId: "TwD-YGVP4Bk",
+    instructions: [
+      "De pie con mancuernas a los lados, palmas enfrentadas",
+      "Sube las mancuernas sin rotar las muñecas",
+      "Baja lentamente",
+    ],
+    tips: [
+      "Trabaja tanto el bíceps como el braquiorradial",
+      "Mantén los codos pegados al cuerpo",
+    ],
+  },
+  {
+    name: "Curl Concentrado",
+    muscleGroup: "biceps",
+    secondaryMuscles: [],
+    difficulty: "beginner",
+    equipment: "dumbbell",
+    category: "hypertrophy",
+    youtubeVideoId: "0AUGkch3tzc",
+    instructions: [
+      "Sentado, apoya el codo en el interior del muslo",
+      "Sube la mancuerna hacia el hombro",
+      "Baja con control total",
+    ],
+    tips: ["Excelente para aislar el bíceps", "No balancees el torso"],
+  },
+  {
+    name: "Curl en Polea Baja",
+    muscleGroup: "biceps",
+    secondaryMuscles: ["forearms"],
+    difficulty: "beginner",
+    equipment: "cable",
+    category: "hypertrophy",
+    youtubeVideoId: "ZzjMo9mzrHg",
+    instructions: [
+      "De pie frente a la polea baja con agarre recto o cuerda",
+      "Flexiona los codos llevando las manos a los hombros",
+      "Baja con control manteniendo los codos fijos",
+    ],
+    tips: [
+      "La polea ofrece tensión constante durante todo el recorrido",
+      "Ideal como ejercicio de finalización",
+    ],
+  },
+  // ══════════════ TRÍCEPS ══════════════
+  {
+    name: "Fondos en Paralelas",
+    muscleGroup: "triceps",
+    secondaryMuscles: ["chest", "shoulders"],
+    difficulty: "intermediate",
+    equipment: "bodyweight",
+    category: "hypertrophy",
+    youtubeVideoId: "CjGPpeM_Kog",
+    instructions: [
+      "Apóyate en barras paralelas",
+      "Baja el cuerpo doblando los codos",
+      "Empuja hacia arriba",
+    ],
+  },
+  {
+    name: "Press Francés (Rompecráneos)",
+    muscleGroup: "triceps",
+    secondaryMuscles: [],
+    difficulty: "intermediate",
+    equipment: "barbell",
+    category: "hypertrophy",
+    youtubeVideoId: "d_KZxkY_0cM",
+    instructions: [
+      "Acuéstate en banco plano con barra EZ o recta",
+      "Baja la barra hacia la frente flexionando los codos",
+      "Extiende los brazos para volver a la posición inicial",
+    ],
+    tips: [
+      "Mantén los codos apuntando al techo",
+      "Usa un peso que puedas controlar para evitar lesiones",
+    ],
+  },
+  {
+    name: "Extensión de Tríceps en Polea",
+    muscleGroup: "triceps",
+    secondaryMuscles: [],
+    difficulty: "beginner",
+    equipment: "cable",
+    category: "hypertrophy",
+    youtubeVideoId: "HAS8uy73HqM",
+    instructions: [
+      "De pie frente a la polea alta",
+      "Empuja la barra/cuerda hacia abajo extendiendo los codos",
+      "Vuelve lentamente sin mover los hombros",
+    ],
+    tips: [
+      "Mantén los codos pegados al cuerpo",
+      "Aprieta el tríceps al final de la extensión",
+    ],
+  },
+  {
+    name: "Patada de Tríceps (Kickback)",
+    muscleGroup: "triceps",
+    secondaryMuscles: [],
+    difficulty: "beginner",
+    equipment: "dumbbell",
+    category: "hypertrophy",
+    youtubeVideoId: "ZO81bExngMI",
+    instructions: [
+      "Inclínate hacia delante apoyando una mano en el banco",
+      "Mantén el brazo pegado al cuerpo, codo a 90°",
+      "Extiende el brazo completamente hacia atrás",
+    ],
+    tips: [
+      "Usa peso ligero para sentir la contracción",
+      "No balancees el brazo",
+    ],
+  },
+  // ══════════════ ABDOMINALES ══════════════
+  {
+    name: "Plancha",
+    muscleGroup: "abs",
+    secondaryMuscles: ["shoulders"],
+    difficulty: "beginner",
+    equipment: "bodyweight",
+    category: "endurance",
+    youtubeVideoId: "5JMakqxdT5c",
+    instructions: [
+      "Antebrazos en el suelo",
+      "Cuerpo recto de la cabeza a los talones",
+      "Mantén la posición",
+    ],
+  },
+  {
+    name: "Elevación de Piernas Colgado",
+    muscleGroup: "abs",
+    secondaryMuscles: ["forearms"],
+    difficulty: "advanced",
+    equipment: "bodyweight",
+    category: "strength",
+    youtubeVideoId: "avBTqxnboRo",
+    instructions: [
+      "Cuélgate de la barra",
+      "Sube las piernas a 90°",
+      "Baja con control",
+    ],
+  },
+  {
+    name: "Crunch Abdominal",
+    muscleGroup: "abs",
+    secondaryMuscles: [],
+    difficulty: "beginner",
+    equipment: "bodyweight",
+    category: "hypertrophy",
+    youtubeVideoId: "5ER5Of4MOPI",
+    instructions: [
+      "Acuéstate boca arriba con las rodillas flexionadas",
+      "Eleva los hombros del suelo contrayendo el abdomen",
+      "Baja lentamente sin relajar del todo",
+    ],
+    tips: [
+      "No tires del cuello con las manos",
+      "Exhala al subir, inhala al bajar",
+    ],
+  },
+  {
+    name: "Russian Twist",
+    muscleGroup: "abs",
+    secondaryMuscles: [],
+    difficulty: "intermediate",
+    equipment: "bodyweight",
+    category: "hypertrophy",
+    youtubeVideoId: "Ly0k-DuFxm4",
+    instructions: [
+      "Sentado con las rodillas flexionadas, inclina el torso hacia atrás",
+      "Rota el torso de lado a lado",
+      "Puedes sostener un peso o balón medicinal",
+    ],
+    tips: [
+      "Mantén el abdomen contraído durante todo el movimiento",
+      "Levanta los pies del suelo para mayor dificultad",
+    ],
+  },
+  {
+    name: "Mountain Climbers",
+    muscleGroup: "abs",
+    secondaryMuscles: ["shoulders", "legs"],
+    difficulty: "beginner",
+    equipment: "bodyweight",
+    category: "endurance",
+    youtubeVideoId: "FPLXxBxYcmE",
+    instructions: [
+      "Posición de plancha alta con brazos extendidos",
+      "Lleva una rodilla al pecho rápidamente",
+      "Alterna las piernas como si corrieras en el suelo",
+    ],
+    tips: [
+      "Mantén las caderas bajas y el core activado",
+      "Aumenta la velocidad para mayor intensidad cardiovascular",
+    ],
+  },
+  // ══════════════ GLÚTEOS ══════════════
+  {
+    name: "Hip Thrust",
+    muscleGroup: "glutes",
+    secondaryMuscles: ["legs"],
+    difficulty: "intermediate",
+    equipment: "barbell",
+    category: "hypertrophy",
+    youtubeVideoId: "3aTb9Megbuo",
+    instructions: [
+      "Espalda alta apoyada en el banco",
+      "Barra sobre las caderas",
+      "Empuja las caderas hacia arriba, aprieta glúteos",
+    ],
+  },
+  {
+    name: "Patada de Glúteo en Polea",
+    muscleGroup: "glutes",
+    secondaryMuscles: ["legs"],
+    difficulty: "beginner",
+    equipment: "cable",
+    category: "hypertrophy",
+    youtubeVideoId: "c0Fb2DBwjis",
+    instructions: [
+      "De pie frente a la polea baja con tobillera",
+      "Extiende la pierna hacia atrás sin arquear la espalda",
+      "Vuelve lentamente a la posición inicial",
+    ],
+    tips: [
+      "Aprieta el glúteo al final del movimiento",
+      "Mantén el core activo para estabilizar",
+    ],
+  },
+  {
+    name: "Puente de Glúteos",
+    muscleGroup: "glutes",
+    secondaryMuscles: ["legs", "abs"],
+    difficulty: "beginner",
+    equipment: "bodyweight",
+    category: "hypertrophy",
+    youtubeVideoId: "OUgsJ8-Vi0E",
+    instructions: [
+      "Acuéstate boca arriba con las rodillas flexionadas",
+      "Eleva las caderas apretando los glúteos",
+      "Baja lentamente sin tocar el suelo",
+    ],
+    tips: [
+      "Ideal para principiantes antes de avanzar al hip thrust",
+      "Puedes añadir una banda elástica en las rodillas",
+    ],
+  },
+  // ══════════════ PANTORRILLAS ══════════════
+  {
+    name: "Elevaciones de Pantorrilla de Pie",
+    muscleGroup: "calves",
+    secondaryMuscles: [],
+    difficulty: "beginner",
+    equipment: "machine",
+    category: "hypertrophy",
+    youtubeVideoId: "gwLzBJYoWlI",
+    instructions: [
+      "De pie en la máquina con los hombros bajo las almohadillas",
+      "Ponte de puntillas lo más alto posible",
+      "Baja lentamente hasta sentir el estiramiento",
+    ],
+    tips: [
+      "Haz una pausa arriba para mayor contracción",
+      "Puedes variar la posición de los pies",
+    ],
+  },
+  {
+    name: "Elevaciones de Pantorrilla Sentado",
+    muscleGroup: "calves",
+    secondaryMuscles: [],
+    difficulty: "beginner",
+    equipment: "machine",
+    category: "hypertrophy",
+    youtubeVideoId: "JbyjNymZOt0",
+    instructions: [
+      "Sentado en la máquina con las rodillas bajo las almohadillas",
+      "Ponte de puntillas elevando los talones",
+      "Baja lentamente controlando el peso",
+    ],
+    tips: [
+      "Trabaja principalmente el sóleo",
+      "Usa repeticiones altas (15-20) para mejores resultados",
+    ],
+  },
+  // ══════════════ ANTEBRAZOS ══════════════
+  {
+    name: "Curl de Muñeca con Barra",
+    muscleGroup: "forearms",
+    secondaryMuscles: [],
+    difficulty: "beginner",
+    equipment: "barbell",
+    category: "hypertrophy",
+    youtubeVideoId: "s5lhlt5FeP4",
+    instructions: [
+      "Sentado con los antebrazos apoyados en los muslos",
+      "Flexiona las muñecas hacia arriba sosteniendo la barra",
+      "Baja lentamente controlando el peso",
+    ],
+    tips: [
+      "Usa un peso ligero y muchas repeticiones",
+      "Fortalece el agarre para otros ejercicios",
+    ],
+  },
+  {
+    name: "Farmer's Walk (Paseo del Granjero)",
+    muscleGroup: "forearms",
+    secondaryMuscles: ["shoulders", "abs", "legs"],
+    difficulty: "intermediate",
+    equipment: "dumbbell",
+    category: "strength",
+    youtubeVideoId: "Fkzk_RqlYig",
+    instructions: [
+      "Agarra mancuernas pesadas a los lados",
+      "Camina con pasos cortos y controlados",
+      "Mantén los hombros atrás y el core activo",
+    ],
+    tips: [
+      "Fortalece el agarre, core y estabilidad general",
+      "Camina de 20 a 40 metros por serie",
+    ],
+  },
+  // ══════════════ CUERPO COMPLETO ══════════════
+  {
+    name: "Burpees",
+    muscleGroup: "full_body",
+    secondaryMuscles: ["chest", "legs", "abs"],
+    difficulty: "intermediate",
+    equipment: "bodyweight",
+    category: "endurance",
+    youtubeVideoId: "IYusabTdFEo",
+    instructions: [
+      "Agáchate, manos en el suelo",
+      "Salta los pies hacia atrás a plancha",
+      "Haz una flexión y salta hacia arriba",
+    ],
+  },
+  {
+    name: "Clean and Press (Cargada y Press)",
+    muscleGroup: "full_body",
+    secondaryMuscles: ["shoulders", "legs", "back"],
+    difficulty: "advanced",
+    equipment: "barbell",
+    category: "power",
+    youtubeVideoId: "mPsxlNjv7Aw",
+    instructions: [
+      "Desde el suelo, levanta la barra con un tirón explosivo",
+      "Recíbela en los hombros (posición de rack)",
+      "Empuja la barra por encima de la cabeza",
+    ],
+    tips: [
+      "Ejercicio olímpico que trabaja todo el cuerpo",
+      "Aprende la técnica con peso ligero antes de cargar",
+    ],
+  },
+  {
+    name: "Thrusters",
+    muscleGroup: "full_body",
+    secondaryMuscles: ["legs", "shoulders", "abs"],
+    difficulty: "intermediate",
+    equipment: "barbell",
+    category: "power",
+    youtubeVideoId: "L219ltL15zk",
+    instructions: [
+      "Barra en posición de rack (hombros), pies al ancho de hombros",
+      "Haz una sentadilla profunda",
+      "Sube explosivamente y empuja la barra sobre la cabeza en un solo movimiento",
+    ],
+    tips: [
+      "Combina sentadilla frontal + press militar",
+      "Ideal para entrenamientos metabólicos",
+    ],
+  },
+  // ══════════════ CARDIO ══════════════
+  {
+    name: "Saltos de Tijera (Jumping Jacks)",
+    muscleGroup: "cardio",
+    secondaryMuscles: ["legs", "shoulders"],
+    difficulty: "beginner",
+    equipment: "bodyweight",
+    category: "endurance",
+    youtubeVideoId: "iSSAk4XCsRA",
+    instructions: [
+      "De pie con brazos a los lados",
+      "Salta abriendo piernas y subiendo brazos",
+      "Vuelve a la posición inicial y repite",
+    ],
+    tips: [
+      "Excelente para calentar o circuitos de cardio",
+      "Mantén un ritmo constante",
+    ],
+  },
+  {
+    name: "Salto a Cajón (Box Jump)",
+    muscleGroup: "cardio",
+    secondaryMuscles: ["legs", "glutes"],
+    difficulty: "intermediate",
+    equipment: "other",
+    category: "power",
+    youtubeVideoId: "hxldG9FX4j4",
+    instructions: [
+      "De pie frente a un cajón pliométrico",
+      "Flexiona las rodillas y salta con ambos pies sobre el cajón",
+      "Aterriza suavemente y baja con control",
+    ],
+    tips: [
+      "Empieza con un cajón bajo y ve subiendo la altura",
+      "Aterriza con las rodillas ligeramente flexionadas",
+    ],
+  },
+  {
+    name: "Sentadilla con Salto",
+    muscleGroup: "cardio",
+    secondaryMuscles: ["legs", "glutes"],
+    difficulty: "intermediate",
+    equipment: "bodyweight",
+    category: "power",
+    youtubeVideoId: "Ow5Mx-V8FsU",
+    instructions: [
+      "Haz una sentadilla normal",
+      "Sube explosivamente con un salto",
+      "Aterriza suavemente y repite",
+    ],
+    tips: [
+      "Ideal para potencia y acondicionamiento",
+      "Mantén el core activo al aterrizar",
+    ],
+  },
+];
+
+async function seed() {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log("Connected to MongoDB");
+
+    let upserted = 0;
+    for (const ex of exercises) {
+      await Exercise.findOneAndUpdate(
+        { name: ex.name },
+        { $set: ex },
+        { upsert: true, new: true },
+      );
+      upserted++;
+    }
+    console.log(`✅ Seeded ${upserted} exercises (upsert by name)`);
+
+    await mongoose.disconnect();
+    process.exit(0);
+  } catch (err) {
+    console.error("❌ Seed error:", err);
+    process.exit(1);
+  }
+}
+
+seed();

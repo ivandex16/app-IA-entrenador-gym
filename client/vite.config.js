@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -10,6 +9,5 @@ export default defineConfig({
       "/api": "http://localhost:5000",
     },
     allowedHosts: ["a819-181-207-3-18.ngrok-free.app"],
-  },
   },
 });

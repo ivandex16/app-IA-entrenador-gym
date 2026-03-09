@@ -1,6 +1,7 @@
 const {
   recommend,
   generateRoutineWithAI,
+  saveAIRoutine,
 } = require("../services/recommendationEngine");
 const AIRecommendation = require("../models/AIRecommendation");
 
@@ -50,9 +51,51 @@ exports.generateRoutine = async (req, res, next) => {
     const result = await generateRoutineWithAI(req.user, req.body);
     res.status(201).json(result);
   } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/recommendations/confirm-routine
+exports.confirmRoutine = async (req, res, next) => {
+  try {
+    // TODO: Implement logic to confirm a generated routine (save to user, etc)
+    res.json({ message: 'Rutina confirmada (mock)' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Add any additional admin/AI endpoints here
+    const result = await generateRoutineWithAI(req.user, req.body);
+    res.json(result);
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
+  } catch (err) {
     if (err.message.includes("GEMINI_API_KEY") || err.message.includes("IA")) {
       return res.status(400).json({ message: err.message });
     }
     next(err);
   }
 };
+<<<<<<< HEAD
+=======
+
+// POST /api/recommendations/confirm-routine  (save previewed routine)
+exports.confirmRoutine = async (req, res, next) => {
+  try {
+    const { routineData, goalType, engine } = req.body;
+    if (!routineData || !routineData.days) {
+      return res
+        .status(400)
+        .json({ message: "No hay datos de rutina para confirmar" });
+    }
+    const result = await saveAIRoutine(req.user, {
+      routineData,
+      goalType,
+      engine,
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))

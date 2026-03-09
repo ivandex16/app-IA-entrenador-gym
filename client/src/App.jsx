@@ -6,6 +6,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import GuidedTour from './components/GuidedTour';
 import { useAuth } from './context/AuthContext';
 
+
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -19,6 +20,7 @@ import Goals from './pages/Goals';
 import Progress from './pages/Progress';
 import Recommendations from './pages/Recommendations';
 import Profile from './pages/Profile';
+import AdminDashboard from './pages/AdminDashboard';
 
 export default function App() {
   const { user, setUser } = useAuth();
@@ -59,6 +61,7 @@ export default function App() {
         <Route path="/progress" element={<ProtectedRoute><Progress /></ProtectedRoute>} />
         <Route path="/recommendations" element={<ProtectedRoute><Recommendations /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
       </Routes>
     </>
   );

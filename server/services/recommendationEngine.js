@@ -195,12 +195,46 @@ const Routine = require("../models/Routine");
 // ── Local fallback routine generator (multi-day) ──
 
 // Day splits by weekly frequency
+<<<<<<< HEAD
 const WEEKDAY_NAMES = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
 const DAY_SPLITS = {
   1: [{ label: "Full Body", muscles: ["chest", "back", "shoulders", "legs", "biceps", "triceps", "abs", "glutes"] }],
   2: [
     { label: "Tren Superior", muscles: ["chest", "back", "shoulders", "biceps", "triceps"] },
+=======
+const WEEKDAY_NAMES = [
+  "Lunes",
+  "Martes",
+  "Miércoles",
+  "Jueves",
+  "Viernes",
+  "Sábado",
+  "Domingo",
+];
+
+const DAY_SPLITS = {
+  1: [
+    {
+      label: "Full Body",
+      muscles: [
+        "chest",
+        "back",
+        "shoulders",
+        "legs",
+        "biceps",
+        "triceps",
+        "abs",
+        "glutes",
+      ],
+    },
+  ],
+  2: [
+    {
+      label: "Tren Superior",
+      muscles: ["chest", "back", "shoulders", "biceps", "triceps"],
+    },
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
     { label: "Tren Inferior", muscles: ["legs", "glutes", "abs"] },
   ],
   3: [
@@ -219,7 +253,14 @@ const DAY_SPLITS = {
     { label: "Espalda y Bíceps", muscles: ["back", "biceps"] },
     { label: "Hombros y Abs", muscles: ["shoulders", "abs"] },
     { label: "Piernas y Glúteos", muscles: ["legs", "glutes"] },
+<<<<<<< HEAD
     { label: "Full Body", muscles: ["chest", "back", "shoulders", "legs", "abs"] },
+=======
+    {
+      label: "Full Body",
+      muscles: ["chest", "back", "shoulders", "legs", "abs"],
+    },
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
   ],
   6: [
     { label: "Empuje A", muscles: ["chest", "shoulders", "triceps"] },
@@ -241,6 +282,7 @@ const DAY_SPLITS = {
 };
 
 function buildLocalRoutine(allExercises, opts) {
+<<<<<<< HEAD
   const {
     level, goalType, frequency, minutes, equipment, focusMuscleGroups,
   } = opts;
@@ -253,12 +295,75 @@ function buildLocalRoutine(allExercises, opts) {
     toning:       { sets: 3, repsMin: 12, repsMax: 15, rest: 60,  category: "hypertrophy",  exerciseCount: 6 },
     strength:     { sets: 5, repsMin: 3,  repsMax: 6,  rest: 180, category: "strength",     exerciseCount: 5 },
     general:      { sets: 3, repsMin: 10, repsMax: 12, rest: 60,  category: "hypertrophy",  exerciseCount: 6 },
+=======
+  const { level, goalType, frequency, minutes, equipment, focusMuscleGroups } =
+    opts;
+
+  // Goal → training config
+  const goalConfig = {
+    muscle_gain: {
+      sets: 4,
+      repsMin: 8,
+      repsMax: 12,
+      rest: 90,
+      category: "hypertrophy",
+      exerciseCount: 6,
+    },
+    fat_loss: {
+      sets: 3,
+      repsMin: 12,
+      repsMax: 15,
+      rest: 45,
+      category: "endurance",
+      exerciseCount: 7,
+    },
+    endurance: {
+      sets: 3,
+      repsMin: 15,
+      repsMax: 20,
+      rest: 30,
+      category: "endurance",
+      exerciseCount: 7,
+    },
+    toning: {
+      sets: 3,
+      repsMin: 12,
+      repsMax: 15,
+      rest: 60,
+      category: "hypertrophy",
+      exerciseCount: 6,
+    },
+    strength: {
+      sets: 5,
+      repsMin: 3,
+      repsMax: 6,
+      rest: 180,
+      category: "strength",
+      exerciseCount: 5,
+    },
+    general: {
+      sets: 3,
+      repsMin: 10,
+      repsMax: 12,
+      rest: 60,
+      category: "hypertrophy",
+      exerciseCount: 6,
+    },
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
   };
   const cfg = { ...(goalConfig[goalType] || goalConfig.general) };
 
   // Adjust exercise count based on available time
+<<<<<<< HEAD
   const estimatedTimePerExercise = (cfg.sets * 0.75 + cfg.rest * cfg.sets / 60);
   let targetCountPerDay = Math.min(cfg.exerciseCount, Math.floor(minutes / estimatedTimePerExercise) || 4);
+=======
+  const estimatedTimePerExercise = cfg.sets * 0.75 + (cfg.rest * cfg.sets) / 60;
+  let targetCountPerDay = Math.min(
+    cfg.exerciseCount,
+    Math.floor(minutes / estimatedTimePerExercise) || 4,
+  );
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
   targetCountPerDay = Math.max(3, Math.min(targetCountPerDay, 10));
 
   // Level adjustments
@@ -275,12 +380,22 @@ function buildLocalRoutine(allExercises, opts) {
     const eqSet = new Set(equipment.map((e) => e.toLowerCase()));
     const filtered = pool.filter((ex) => {
       const exEquip = (ex.equipment || "").toLowerCase();
+<<<<<<< HEAD
       return eqSet.has(exEquip) || exEquip === "bodyweight" || exEquip === "ninguno" || exEquip === "";
+=======
+      return (
+        eqSet.has(exEquip) ||
+        exEquip === "bodyweight" ||
+        exEquip === "ninguno" ||
+        exEquip === ""
+      );
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
     });
     if (filtered.length >= targetCountPerDay) pool = filtered;
   }
 
   const goalLabels = {
+<<<<<<< HEAD
     muscle_gain: "ganancia muscular", fat_loss: "pérdida de grasa",
     endurance: "resistencia", toning: "tonificación",
     strength: "fuerza", general: "fitness general",
@@ -289,6 +404,34 @@ function buildLocalRoutine(allExercises, opts) {
   const levelLabel = level === "beginner" ? "Principiante" : level === "intermediate" ? "Intermedio" : "Avanzado";
 
   const compoundKeywords = ["press", "sentadilla", "peso muerto", "dominadas", "fondos", "remo", "clean", "thruster", "burpee"];
+=======
+    muscle_gain: "ganancia muscular",
+    fat_loss: "pérdida de grasa",
+    endurance: "resistencia",
+    toning: "tonificación",
+    strength: "fuerza",
+    general: "fitness general",
+  };
+  const goalLabel = goalLabels[goalType] || goalType;
+  const levelLabel =
+    level === "beginner"
+      ? "Principiante"
+      : level === "intermediate"
+        ? "Intermedio"
+        : "Avanzado";
+
+  const compoundKeywords = [
+    "press",
+    "sentadilla",
+    "peso muerto",
+    "dominadas",
+    "fondos",
+    "remo",
+    "clean",
+    "thruster",
+    "burpee",
+  ];
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
   const split = DAY_SPLITS[Math.min(Math.max(frequency, 1), 7)];
 
   // Track globally used exercises to diversify across days
@@ -300,7 +443,15 @@ function buildLocalRoutine(allExercises, opts) {
     if (focusMuscleGroups.length > 0) {
       // Add focus muscles to each day that has overlap, prioritize them
       const overlap = focusMuscleGroups.filter((m) => dayMuscles.includes(m));
+<<<<<<< HEAD
       if (overlap.length > 0) dayMuscles = [...overlap, ...dayMuscles.filter((m) => !overlap.includes(m))];
+=======
+      if (overlap.length > 0)
+        dayMuscles = [
+          ...overlap,
+          ...dayMuscles.filter((m) => !overlap.includes(m)),
+        ];
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
     }
 
     const selected = [];
@@ -310,7 +461,14 @@ function buildLocalRoutine(allExercises, opts) {
     for (const mg of dayMuscles) {
       if (selected.length >= targetCountPerDay) break;
       const candidates = pool.filter(
+<<<<<<< HEAD
         (e) => e.muscleGroup === mg && !dayUsedIds.has(e._id.toString()) && !globalUsedIds.has(e._id.toString()),
+=======
+        (e) =>
+          e.muscleGroup === mg &&
+          !dayUsedIds.has(e._id.toString()) &&
+          !globalUsedIds.has(e._id.toString()),
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
       );
       if (candidates.length > 0) {
         const pick = candidates[Math.floor(Math.random() * candidates.length)];
@@ -344,8 +502,21 @@ function buildLocalRoutine(allExercises, opts) {
 
     // Compound exercises first
     selected.sort((a, b) => {
+<<<<<<< HEAD
       const aCompound = compoundKeywords.some((k) => a.name.toLowerCase().includes(k)) ? 0 : 1;
       const bCompound = compoundKeywords.some((k) => b.name.toLowerCase().includes(k)) ? 0 : 1;
+=======
+      const aCompound = compoundKeywords.some((k) =>
+        a.name.toLowerCase().includes(k),
+      )
+        ? 0
+        : 1;
+      const bCompound = compoundKeywords.some((k) =>
+        b.name.toLowerCase().includes(k),
+      )
+        ? 0
+        : 1;
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
       return aCompound - bCompound;
     });
 
@@ -363,10 +534,27 @@ function buildLocalRoutine(allExercises, opts) {
     };
   });
 
+<<<<<<< HEAD
   const allUsedMuscles = [...new Set(days.flatMap((d) => d.exercises.map((e) => {
     const ex = allExercises.find((ae) => ae._id.toString() === e.exercise.toString());
     return ex?.muscleGroup;
   }).filter(Boolean)))];
+=======
+  const allUsedMuscles = [
+    ...new Set(
+      days.flatMap((d) =>
+        d.exercises
+          .map((e) => {
+            const ex = allExercises.find(
+              (ae) => ae._id.toString() === e.exercise.toString(),
+            );
+            return ex?.muscleGroup;
+          })
+          .filter(Boolean),
+      ),
+    ),
+  ];
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
 
   const totalExercises = days.reduce((s, d) => s + d.exercises.length, 0);
 
@@ -474,7 +662,13 @@ Responde SOLO con un JSON válido con esta estructura exacta (sin markdown):
 
       // Map exercise names to database ObjectIds
       const exerciseMap = {};
+<<<<<<< HEAD
       allExercises.forEach((e) => { exerciseMap[e.name.toLowerCase()] = e; });
+=======
+      allExercises.forEach((e) => {
+        exerciseMap[e.name.toLowerCase()] = e;
+      });
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
 
       // Parse multi-day structure from Gemini
       const days = (aiPlan.days || []).map((aiDay) => {
@@ -521,7 +715,14 @@ Responde SOLO con un JSON válido con esta estructura exacta (sin markdown):
           }
         });
         if (routineExercises.length > 0) {
+<<<<<<< HEAD
           days.push({ dayLabel: "Día 1 — Full Body", exercises: routineExercises });
+=======
+          days.push({
+            dayLabel: "Día 1 — Full Body",
+            exercises: routineExercises,
+          });
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
         }
       }
 
@@ -530,27 +731,95 @@ Responde SOLO con un JSON válido con esta estructura exacta (sin markdown):
 
       routineData = {
         name: aiPlan.name || "Rutina IA",
+<<<<<<< HEAD
         description: aiPlan.description || "Rutina generada por inteligencia artificial",
+=======
+        description:
+          aiPlan.description || "Rutina generada por inteligencia artificial",
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
         targetMuscleGroups: aiPlan.targetMuscleGroups || [],
         days,
         exercises: [],
       };
     } catch (geminiErr) {
+<<<<<<< HEAD
       console.log("⚠️ Gemini falló, usando generador local:", geminiErr.message);
       usedEngine = "scoring";
       routineData = buildLocalRoutine(allExercises, {
         level, goalType, frequency, minutes, equipment, focusMuscleGroups,
+=======
+      console.log(
+        "⚠️ Gemini falló, usando generador local:",
+        geminiErr.message,
+      );
+      usedEngine = "scoring";
+      routineData = buildLocalRoutine(allExercises, {
+        level,
+        goalType,
+        frequency,
+        minutes,
+        equipment,
+        focusMuscleGroups,
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
       });
     }
   } else {
     // No API key — use local generator
     usedEngine = "scoring";
     routineData = buildLocalRoutine(allExercises, {
+<<<<<<< HEAD
       level, goalType, frequency, minutes, equipment, focusMuscleGroups,
     });
   }
 
   // Create the routine in the database
+=======
+      level,
+      goalType,
+      frequency,
+      minutes,
+      equipment,
+      focusMuscleGroups,
+    });
+  }
+
+  // Populate exercise details for the preview
+  const exerciseMap = {};
+  allExercises.forEach((e) => {
+    exerciseMap[e._id.toString()] = e;
+  });
+
+  const populatedDays = routineData.days.map((d) => ({
+    dayLabel: d.dayLabel,
+    exercises: d.exercises.map((ex) => ({
+      ...ex,
+      exercise: exerciseMap[ex.exercise.toString()] || {
+        _id: ex.exercise,
+        name: "Ejercicio",
+      },
+    })),
+  }));
+
+  return {
+    preview: {
+      name: routineData.name,
+      description: routineData.description,
+      targetMuscleGroups: routineData.targetMuscleGroups,
+      goal: goalType,
+      days: populatedDays,
+    },
+    _routineData: routineData,
+    _goalType: goalType,
+    unmatchedExercises,
+    engine: usedEngine,
+  };
+}
+
+/**
+ * Save a previously previewed AI routine to the database.
+ */
+async function saveAIRoutine(user, { routineData, goalType, engine }) {
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
   const routine = await Routine.create({
     user: user._id,
     name: routineData.name,
@@ -567,6 +836,7 @@ Responde SOLO con un JSON válido con esta estructura exacta (sin markdown):
     "name muscleGroup equipment youtubeVideoId",
   );
 
+<<<<<<< HEAD
   // Collect all exercise IDs for the recommendation record
   const allExerciseIds = routineData.days.flatMap((d) => d.exercises.map((e) => e.exercise));
 
@@ -575,6 +845,16 @@ Responde SOLO con un JSON válido con esta estructura exacta (sin markdown):
     user: user._id,
     type: "routine",
     engine: usedEngine,
+=======
+  const allExerciseIds = routineData.days.flatMap((d) =>
+    d.exercises.map((e) => e.exercise),
+  );
+
+  const rec = await AIRecommendation.create({
+    user: user._id,
+    type: "routine",
+    engine: engine,
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
     title: routine.name,
     body: routine.description,
     exercises: allExerciseIds,
@@ -584,8 +864,11 @@ Responde SOLO con un JSON válido con esta estructura exacta (sin markdown):
   return {
     routine,
     recommendationId: rec._id,
+<<<<<<< HEAD
     unmatchedExercises,
     engine: usedEngine,
+=======
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
   };
 }
 
@@ -622,4 +905,243 @@ async function recommend(user, tier = "scoring") {
   return { ...result, recommendationId: rec._id };
 }
 
-module.exports = { recommend, generateRoutineWithAI };
+<<<<<<< HEAD
+module.exports = {
+  recommend,
+  generateRoutineWithAI,
+  saveAIRoutine,
+  aiExerciseRecommend,
+};
+=======
+// ─────────────────────────────────────────────
+//  AI Exercise Recommender (free-text query)
+// ─────────────────────────────────────────────
+async function aiExerciseRecommend(user, userQuery) {
+  const allExercises = await Exercise.find({});
+  const exerciseCatalog = allExercises.map((e) => ({
+    name: e.name,
+    muscleGroup: e.muscleGroup,
+    difficulty: e.difficulty,
+    equipment: e.equipment,
+    category: e.category,
+  }));
+
+  const model = getGeminiModel();
+  if (!model) {
+    throw new Error(
+      "GEMINI_API_KEY no configurada. No se puede usar la recomendación con IA.",
+    );
+  }
+
+  // Build detailed catalog with muscle groups clearly labeled
+  const catalogLines = exerciseCatalog.map(
+    (e) =>
+      `• "${e.name}" | grupo: ${e.muscleGroup} | equipo: ${e.equipment} | dificultad: ${e.difficulty} | categoría: ${e.category}`,
+  );
+
+  const prompt = `Eres un entrenador personal certificado experto en ejercicios de gimnasio. Responde preguntas sobre ejercicios basándote ÚNICAMENTE en el catálogo proporcionado.
+
+CATÁLOGO DE EJERCICIOS DISPONIBLES:
+${catalogLines.join("\n")}
+
+PERFIL DEL USUARIO:
+- Nivel: ${user.level || "intermediate"}
+- Equipamiento disponible: ${user.preferences?.equipment?.join(", ") || "todo"}
+
+SOLICITUD DEL USUARIO:
+"${userQuery}"
+
+TIPOS DE CONSULTA QUE DEBES MANEJAR:
+
+A) EJERCICIOS POR GRUPO MUSCULAR (ej: "ejercicios para abdomen", "quiero trabajar pecho"):
+   - Identifica el grupo muscular usando estas equivalencias:
+     abdomen/abdominales/core/abs → "abs", pecho/pectoral → "chest", espalda/dorsal → "back",
+     hombros/deltoides → "shoulders", bíceps → "biceps", tríceps → "triceps",
+     piernas/cuádriceps/muslos → "legs", glúteos/pompas/cola → "glutes",
+     antebrazos → "forearms", pantorrillas/gemelos → "calves", cardio/aeróbico → "cardio"
+   - Recomienda SOLO ejercicios cuyo campo "grupo" coincida con ese grupo muscular.
+
+B) REEMPLAZO / ALTERNATIVA (ej: "con qué reemplazo el hip thrust", "alternativa a press de banca"):
+   - Identifica el ejercicio mencionado (puede NO estar en el catálogo, ej: "hip thrust").
+   - Determina qué músculos trabaja ese ejercicio y su patrón de movimiento.
+   - Busca en el catálogo ejercicios que trabajen los MISMOS músculos con un patrón de movimiento similar.
+   - Explica por qué cada ejercicio sirve como reemplazo.
+
+C) CONSEJO / PREGUNTA GENERAL (ej: "qué ejercicio es mejor para ganar masa", "cómo mejorar fuerza de agarre"):
+   - Responde la pregunta seleccionando los ejercicios más relevantes del catálogo.
+   - Da una explicación clara de por qué esos ejercicios responden a la pregunta.
+
+D) POR EQUIPAMIENTO (ej: "ejercicios con mancuernas", "sin equipamiento"):
+   - Filtra ejercicios del catálogo que usen ese equipamiento específico.
+
+REGLAS OBLIGATORIAS:
+1. Usa SOLO nombres EXACTOS del campo "name" del catálogo. NUNCA inventes ejercicios que no estén listados.
+2. Si el ejercicio que el usuario menciona NO está en el catálogo (ej: "hip thrust"), NO lo incluyas en la respuesta, pero úsalo para entender qué busca y recomendar ALTERNATIVAS que SÍ estén en el catálogo.
+3. Máximo 8 ejercicios recomendados. Ordénalos del más relevante al menos.
+4. Adapta sets y reps al nivel del usuario y al objetivo.
+5. Los tips deben ser consejos prácticos y relevantes a la solicitud.
+
+Responde SOLO con JSON válido (sin markdown ni texto adicional):
+{
+  "title": "título descriptivo que resuma la recomendación",
+  "explanation": "respuesta directa a lo que el usuario preguntó, explicando tu razonamiento",
+  "exercises": [
+    {
+      "name": "nombre EXACTO del catálogo",
+      "reason": "por qué este ejercicio responde a lo que el usuario pidió",
+      "sets": 3,
+      "reps": "8-12",
+      "priority": 1
+    }
+  ],
+  "tips": ["consejo práctico 1", "consejo práctico 2"]
+}`;
+
+  // Map exercise names to DB documents (used in both AI and fallback paths)
+  const exerciseMap = {};
+  allExercises.forEach((e) => {
+    exerciseMap[e.name.toLowerCase()] = e;
+  });
+
+  try {
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    console.log("🤖 Gemini raw response length:", text.length);
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("Formato de respuesta inválido");
+
+    const aiResult = JSON.parse(jsonMatch[0]);
+
+    const matched = (aiResult.exercises || [])
+      .map((aiEx) => {
+        const dbEx = exerciseMap[aiEx.name?.toLowerCase()];
+        if (!dbEx) console.log("⚠️ Ejercicio no encontrado en DB:", aiEx.name);
+        return dbEx
+          ? {
+              exercise: dbEx,
+              reason: aiEx.reason,
+              sets: aiEx.sets,
+              reps: aiEx.reps,
+              priority: aiEx.priority,
+            }
+          : null;
+      })
+      .filter(Boolean);
+
+    if (matched.length === 0) throw new Error("Ningún ejercicio coincidió con el catálogo");
+
+    return {
+      title: aiResult.title || "Recomendación de ejercicios",
+      explanation: aiResult.explanation || "",
+      exercises: matched,
+      tips: aiResult.tips || [],
+    };
+  } catch (err) {
+    console.error("❌ AI Exercise Recommend error:", err.message);
+
+    // ── Smart fallback ──
+    const query = userQuery.toLowerCase();
+
+    // 1. Keyword → muscle group mapping
+    const muscleKeywords = {
+      pecho: "chest", pectoral: "chest",
+      espalda: "back", dorsal: "back",
+      hombros: "shoulders", hombro: "shoulders", deltoides: "shoulders",
+      bíceps: "biceps", biceps: "biceps",
+      tríceps: "triceps", triceps: "triceps",
+      piernas: "legs", pierna: "legs", cuádriceps: "legs", muslos: "legs",
+      glúteos: "glutes", gluteos: "glutes",
+      abdomen: "abs", abdominales: "abs", abs: "abs", core: "abs",
+      antebrazos: "forearms", pantorrillas: "calves", gemelos: "calves",
+      cardio: "cardio", cuerpo: "full_body",
+    };
+
+    // 2. Common exercises (including ones NOT in catalog) → muscle group
+    const exerciseMuscleMap = {
+      "hip thrust": "glutes", "hipthrust": "glutes",
+      "sentadilla búlgara": "legs", "sentadilla bulgara": "legs",
+      "zancada": "legs", "zancadas": "legs", "lunges": "legs", "lunge": "legs",
+      "peso muerto": "back", "deadlift": "back",
+      "dominadas": "back", "dominada": "back", "pull up": "back", "pullup": "back",
+      "flexiones": "chest", "flexión": "chest", "push up": "chest", "pushup": "chest",
+      "press de banca": "chest", "bench press": "chest",
+      "press militar": "shoulders", "military press": "shoulders",
+      "curl": "biceps", "curl de bíceps": "biceps",
+      "fondos": "triceps", "dips": "triceps",
+      "plancha": "abs", "plank": "abs", "crunch": "abs",
+      "sentadilla": "legs", "squat": "legs",
+      "burpee": "cardio", "burpees": "cardio",
+      "prensa": "legs", "leg press": "legs",
+      "elevación de cadera": "glutes", "puente de glúteos": "glutes", "glute bridge": "glutes",
+      "patada de glúteo": "glutes", "kickback": "glutes",
+      "extensión de cuádriceps": "legs", "leg extension": "legs",
+      "curl femoral": "legs", "leg curl": "legs",
+      "remo": "back", "row": "back",
+      "jalón": "back", "lat pulldown": "back",
+    };
+
+    // Find target muscle from keywords
+    let targetMuscle = null;
+    const words = query.split(/\s+/);
+    for (const kw of words) {
+      if (muscleKeywords[kw]) { targetMuscle = muscleKeywords[kw]; break; }
+    }
+
+    // If no muscle keyword found, try to match exercise names in the query
+    if (!targetMuscle) {
+      for (const [exName, muscle] of Object.entries(exerciseMuscleMap)) {
+        if (query.includes(exName)) { targetMuscle = muscle; break; }
+      }
+    }
+
+    // If still no match, try to match against catalog exercise names
+    if (!targetMuscle) {
+      for (const ex of allExercises) {
+        if (query.includes(ex.name.toLowerCase())) {
+          targetMuscle = ex.muscleGroup;
+          break;
+        }
+      }
+    }
+
+    let filtered = targetMuscle
+      ? allExercises.filter((e) => e.muscleGroup === targetMuscle)
+      : allExercises;
+    filtered = filtered.slice(0, 8);
+
+    const muscleLabels = {
+      chest: "Pecho", back: "Espalda", shoulders: "Hombros",
+      biceps: "Bíceps", triceps: "Tríceps", legs: "Piernas",
+      glutes: "Glúteos", abs: "Abdominales", forearms: "Antebrazos",
+      calves: "Pantorrillas", cardio: "Cardio", full_body: "Cuerpo completo",
+    };
+
+    return {
+      title: targetMuscle
+        ? `Ejercicios de ${muscleLabels[targetMuscle] || targetMuscle}`
+        : "Ejercicios recomendados",
+      explanation: targetMuscle
+        ? `Mostrando ejercicios de ${muscleLabels[targetMuscle] || targetMuscle} relacionados con tu búsqueda. (La IA no pudo responder, se usó búsqueda inteligente.)`
+        : `No se pudo procesar la consulta con IA. Mostrando ejercicios generales.`,
+      exercises: filtered.map((e, i) => ({
+        exercise: e,
+        reason: `Ejercicio de ${muscleLabels[e.muscleGroup] || e.muscleGroup} — ${e.difficulty}`,
+        sets: 3,
+        reps: "8-12",
+        priority: i + 1,
+      })),
+      tips: targetMuscle
+        ? [`Estos ejercicios trabajan ${muscleLabels[targetMuscle] || targetMuscle}.`, "Consulta a un entrenador para personalizar tu rutina."]
+        : [],
+    };
+  }
+}
+
+module.exports = {
+  recommend,
+  generateRoutineWithAI,
+  saveAIRoutine,
+  aiExerciseRecommend,
+};
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))

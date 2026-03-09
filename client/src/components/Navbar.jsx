@@ -4,11 +4,11 @@ import { useState, useEffect, useRef } from 'react';
 import {
   LuDumbbell, LuLayoutDashboard, LuListChecks, LuSword, LuSearch,
   LuTarget, LuTrendingUp, LuSparkles, LuUser, LuLogOut, LuMenu, LuX,
-  LuChevronDown, LuCompass,
+  LuChevronDown, LuCompass, LuShield,
 } from 'react-icons/lu';
 import api from '../api/axios';
 
-const navLinks = [
+const baseNavLinks = [
   { to: '/dashboard', label: 'Inicio', icon: LuLayoutDashboard, tourId: 'nav-dashboard' },
   { to: '/routines', label: 'Rutinas', icon: LuListChecks, tourId: 'nav-routines' },
   { to: '/workouts', label: 'Entrenos', icon: LuSword, tourId: 'nav-workouts' },
@@ -16,6 +16,14 @@ const navLinks = [
   { to: '/goals', label: 'Objetivos', icon: LuTarget, tourId: 'nav-goals' },
   { to: '/progress', label: 'Progreso', icon: LuTrendingUp, tourId: 'nav-progress' },
   { to: '/recommendations', label: 'IA', icon: LuSparkles, tourId: 'nav-ia' },
+];
+{ to: '/dashboard', label: 'Inicio', icon: LuLayoutDashboard, tourId: 'nav-dashboard' },
+{ to: '/routines', label: 'Rutinas', icon: LuListChecks, tourId: 'nav-routines' },
+{ to: '/workouts', label: 'Entrenos', icon: LuSword, tourId: 'nav-workouts' },
+{ to: '/exercises', label: 'Ejercicios', icon: LuSearch, tourId: 'nav-exercises' },
+{ to: '/goals', label: 'Objetivos', icon: LuTarget, tourId: 'nav-goals' },
+{ to: '/progress', label: 'Progreso', icon: LuTrendingUp, tourId: 'nav-progress' },
+{ to: '/recommendations', label: 'IA', icon: LuSparkles, tourId: 'nav-ia' },
 ];
 
 export default function Navbar({ onStartTour }) {
@@ -40,7 +48,11 @@ export default function Navbar({ onStartTour }) {
   // Fetch avatar
   useEffect(() => {
     if (user) {
-      api.get('/users/profile').then((r) => setAvatarUrl(r.data.avatar || '')).catch(() => {});
+<<<<<<< HEAD
+      api.get('/users/profile').then((r) => setAvatarUrl(r.data.avatar || '')).catch(() => { });
+=======
+      api.get('/users/profile').then((r) => setAvatarUrl(r.data.avatar || '')).catch(() => { });
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
     }
   }, [user]);
 
@@ -58,16 +70,25 @@ export default function Navbar({ onStartTour }) {
 
   if (!user) return null;
 
+  const navLinks = user.role === 'admin'
+    ? [...baseNavLinks, { to: '/admin', label: 'Admin', icon: LuShield, tourId: 'nav-admin' }]
+    : baseNavLinks;
   const initials = (user.name || 'U').split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 
   return (
     <>
       <nav
-        className={`sticky top-0 z-50 transition-all duration-300 ${
-          scrolled
+<<<<<<< HEAD
+        className={`sticky top-0 z-50 transition-all duration-300 ${scrolled
             ? 'bg-slate-900/95 backdrop-blur-xl shadow-xl shadow-black/20 border-b border-slate-700/40'
             : 'bg-slate-900/80 backdrop-blur-md border-b border-transparent'
-        }`}
+          }`}
+=======
+        className={`sticky top-0 z-50 transition-all duration-300 ${scrolled
+            ? 'bg-slate-900/95 backdrop-blur-xl shadow-xl shadow-black/20 border-b border-slate-700/40'
+            : 'bg-slate-900/80 backdrop-blur-md border-b border-transparent'
+          }`}
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
       >
         {/* Top accent line */}
         <div className="h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent" />
@@ -98,11 +119,17 @@ export default function Navbar({ onStartTour }) {
                     key={l.to}
                     to={l.to}
                     data-tour={l.tourId}
-                    className={`relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      active
+<<<<<<< HEAD
+                    className={`relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${active
                         ? 'text-white'
                         : 'text-slate-400 hover:text-white hover:bg-white/5'
-                    }`}
+                      }`}
+=======
+                    className={`relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${active
+                        ? 'text-white'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                      }`}
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
                   >
                     <Icon className={`w-4 h-4 ${active ? 'text-primary' : ''}`} />
                     <span>{l.label}</span>
@@ -121,11 +148,17 @@ export default function Navbar({ onStartTour }) {
                 <button
                   onClick={() => setProfileOpen(!profileOpen)}
                   data-tour="nav-profile"
-                  className={`flex items-center gap-2 py-1.5 pl-1.5 pr-3 rounded-xl transition-all duration-200 ${
-                    profileOpen || isActive('/profile')
+<<<<<<< HEAD
+                  className={`flex items-center gap-2 py-1.5 pl-1.5 pr-3 rounded-xl transition-all duration-200 ${profileOpen || isActive('/profile')
                       ? 'bg-white/10 ring-1 ring-primary/30'
                       : 'hover:bg-white/5'
-                  }`}
+                    }`}
+=======
+                  className={`flex items-center gap-2 py-1.5 pl-1.5 pr-3 rounded-xl transition-all duration-200 ${profileOpen || isActive('/profile')
+                      ? 'bg-white/10 ring-1 ring-primary/30'
+                      : 'hover:bg-white/5'
+                    }`}
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
                 >
                   {avatarUrl ? (
                     <img
@@ -198,23 +231,35 @@ export default function Navbar({ onStartTour }) {
 
       {/* ── Mobile menu overlay ── */}
       <div
-        className={`fixed inset-0 z-40 lg:hidden transition-all duration-300 ${
-          open ? 'visible' : 'invisible'
-        }`}
+<<<<<<< HEAD
+        className={`fixed inset-0 z-40 lg:hidden transition-all duration-300 ${open ? 'visible' : 'invisible'
+          }`}
       >
         {/* Backdrop */}
         <div
-          className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
-            open ? 'opacity-100' : 'opacity-0'
+          className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0'
+            }`}
+=======
+        className={`fixed inset-0 z-40 lg:hidden transition-all duration-300 ${open ? 'visible' : 'invisible'
           }`}
+      >
+        {/* Backdrop */}
+        <div
+          className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0'
+            }`}
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
           onClick={() => setOpen(false)}
         />
 
         {/* Panel */}
         <div
-          className={`absolute top-0 right-0 h-full w-72 bg-slate-900/98 backdrop-blur-xl border-l border-slate-700/50 shadow-2xl transition-transform duration-300 ease-out ${
-            open ? 'translate-x-0' : 'translate-x-full'
-          }`}
+<<<<<<< HEAD
+          className={`absolute top-0 right-0 h-full w-72 bg-slate-900/98 backdrop-blur-xl border-l border-slate-700/50 shadow-2xl transition-transform duration-300 ease-out ${open ? 'translate-x-0' : 'translate-x-full'
+            }`}
+=======
+          className={`absolute top-0 right-0 h-full w-72 bg-slate-900/98 backdrop-blur-xl border-l border-slate-700/50 shadow-2xl transition-transform duration-300 ease-out ${open ? 'translate-x-0' : 'translate-x-full'
+            }`}
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
         >
           {/* Close button */}
           <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
@@ -259,11 +304,17 @@ export default function Navbar({ onStartTour }) {
                   key={l.to}
                   to={l.to}
                   onClick={() => setOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                    active
+<<<<<<< HEAD
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${active
                       ? 'bg-primary/10 text-white border border-primary/20'
                       : 'text-slate-400 hover:text-white hover:bg-white/5'
-                  }`}
+                    }`}
+=======
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${active
+                      ? 'bg-primary/10 text-white border border-primary/20'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
                   style={{ animationDelay: `${i * 30}ms` }}
                 >
                   <Icon className={`w-4.5 h-4.5 ${active ? 'text-primary' : 'text-slate-500'}`} />
@@ -281,11 +332,17 @@ export default function Navbar({ onStartTour }) {
             <Link
               to="/profile"
               onClick={() => setOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                isActive('/profile')
+<<<<<<< HEAD
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive('/profile')
                   ? 'bg-primary/10 text-white border border-primary/20'
                   : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`}
+                }`}
+=======
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive('/profile')
+                  ? 'bg-primary/10 text-white border border-primary/20'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+>>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
             >
               <LuUser className="w-4.5 h-4.5 text-primary" />
               Mi Perfil

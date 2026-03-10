@@ -175,8 +175,8 @@ export default function Recommendations() {
                   type="button"
                   onClick={() => setForm({ ...form, level: lvl.v })}
                   className={`p-3 rounded-xl text-center transition-all border ${form.level === lvl.v
-                      ? 'bg-indigo-600/40 border-indigo-400 text-white'
-                      : 'bg-slate-800/50 border-slate-600/50 text-gray-400 hover:border-slate-500'
+                    ? 'bg-indigo-600/40 border-indigo-400 text-white'
+                    : 'bg-slate-800/50 border-slate-600/50 text-gray-400 hover:border-slate-500'
                     }`}
                 >
                   <p className="text-sm font-semibold">{lvl.l}</p>
@@ -196,8 +196,8 @@ export default function Recommendations() {
                   type="button"
                   onClick={() => setForm({ ...form, goalType: g.v })}
                   className={`p-3 rounded-xl text-left transition-all border flex items-center gap-2 ${form.goalType === g.v
-                      ? 'bg-indigo-600/40 border-indigo-400 text-white'
-                      : 'bg-slate-800/50 border-slate-600/50 text-gray-400 hover:border-slate-500'
+                    ? 'bg-indigo-600/40 border-indigo-400 text-white'
+                    : 'bg-slate-800/50 border-slate-600/50 text-gray-400 hover:border-slate-500'
                     }`}
                 >
                   <g.Icon className="w-5 h-5" />
@@ -295,8 +295,8 @@ export default function Recommendations() {
                   type="button"
                   onClick={() => toggleArrayItem('equipment', eq.v)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border flex items-center gap-1.5 ${form.equipment.includes(eq.v)
-                      ? 'bg-indigo-600/40 border-indigo-400 text-white'
-                      : 'bg-slate-800/50 border-slate-600/50 text-gray-400 hover:border-slate-500'
+                    ? 'bg-indigo-600/40 border-indigo-400 text-white'
+                    : 'bg-slate-800/50 border-slate-600/50 text-gray-400 hover:border-slate-500'
                     }`}
                 >
                   <eq.Icon className="w-3.5 h-3.5" /> {eq.l}
@@ -317,8 +317,8 @@ export default function Recommendations() {
                   type="button"
                   onClick={() => toggleArrayItem('focusMuscleGroups', mg.v)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border flex items-center gap-1.5 ${form.focusMuscleGroups.includes(mg.v)
-                      ? 'bg-purple-600/40 border-purple-400 text-white'
-                      : 'bg-slate-800/50 border-slate-600/50 text-gray-400 hover:border-slate-500'
+                    ? 'bg-purple-600/40 border-purple-400 text-white'
+                    : 'bg-slate-800/50 border-slate-600/50 text-gray-400 hover:border-slate-500'
                     }`}
                 >
                   <mg.Icon className="w-3.5 h-3.5" /> {mg.l}

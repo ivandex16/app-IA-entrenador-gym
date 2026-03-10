@@ -253,11 +253,10 @@ export default function Progress() {
                 return (
                   <div
                     key={g}
-                    className={`relative overflow-hidden rounded-xl p-3 border transition-all ${
-                      trained
-                        ? 'border-emerald-500/30 bg-emerald-500/10'
-                        : 'border-slate-700/50 bg-slate-800/40'
-                    }`}
+                    className={`relative overflow-hidden rounded-xl p-3 border transition-all ${trained
+                      ? 'border-emerald-500/30 bg-emerald-500/10'
+                      : 'border-slate-700/50 bg-slate-800/40'
+                      }`}
                   >
                     {trained && (
                       <div className={`absolute top-0 right-0 w-12 h-12 bg-gradient-to-br ${MG_COLORS[g]} opacity-20 rounded-bl-full`} />
@@ -562,11 +561,10 @@ export default function Progress() {
                       {ALL_GROUPS.map((g) => (
                         <span
                           key={g}
-                          className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                            cw.muscleGroups?.[g]
-                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                              : 'bg-slate-800/60 text-gray-600 border border-slate-700/30'
-                          }`}
+                          className={`text-xs px-2.5 py-1 rounded-full font-medium ${cw.muscleGroups?.[g]
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-slate-800/60 text-gray-600 border border-slate-700/30'
+                            }`}
                         >
                           {MG_ES[g]}
                         </span>

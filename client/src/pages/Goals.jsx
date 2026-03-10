@@ -9,10 +9,10 @@ import {
 
 const GOAL_TYPES = [
   { v: 'muscle_gain', l: 'Ganar músculo', icon: <LuDumbbell className="w-5 h-5" />, gradient: 'from-purple-500 to-violet-600', bg: 'bg-purple-500/15', text: 'text-purple-400', shadow: 'shadow-purple-500/20' },
-  { v: 'fat_loss',    l: 'Perder grasa',  icon: <LuFlame className="w-5 h-5" />,    gradient: 'from-orange-500 to-red-600',    bg: 'bg-orange-500/15', text: 'text-orange-400', shadow: 'shadow-orange-500/20' },
-  { v: 'endurance',   l: 'Resistencia',   icon: <LuHeart className="w-5 h-5" />,    gradient: 'from-rose-500 to-pink-600',     bg: 'bg-rose-500/15',   text: 'text-rose-400',   shadow: 'shadow-rose-500/20' },
-  { v: 'toning',      l: 'Tonificación',  icon: <LuZap className="w-5 h-5" />,      gradient: 'from-cyan-500 to-teal-600',     bg: 'bg-cyan-500/15',   text: 'text-cyan-400',   shadow: 'shadow-cyan-500/20' },
-  { v: 'strength',    l: 'Fuerza',        icon: <LuShield className="w-5 h-5" />,   gradient: 'from-amber-500 to-yellow-600',  bg: 'bg-amber-500/15',  text: 'text-amber-400',  shadow: 'shadow-amber-500/20' },
+  { v: 'fat_loss', l: 'Perder grasa', icon: <LuFlame className="w-5 h-5" />, gradient: 'from-orange-500 to-red-600', bg: 'bg-orange-500/15', text: 'text-orange-400', shadow: 'shadow-orange-500/20' },
+  { v: 'endurance', l: 'Resistencia', icon: <LuHeart className="w-5 h-5" />, gradient: 'from-rose-500 to-pink-600', bg: 'bg-rose-500/15', text: 'text-rose-400', shadow: 'shadow-rose-500/20' },
+  { v: 'toning', l: 'Tonificación', icon: <LuZap className="w-5 h-5" />, gradient: 'from-cyan-500 to-teal-600', bg: 'bg-cyan-500/15', text: 'text-cyan-400', shadow: 'shadow-cyan-500/20' },
+  { v: 'strength', l: 'Fuerza', icon: <LuShield className="w-5 h-5" />, gradient: 'from-amber-500 to-yellow-600', bg: 'bg-amber-500/15', text: 'text-amber-400', shadow: 'shadow-amber-500/20' },
 ];
 
 const getTypeConfig = (type) => GOAL_TYPES.find(g => g.v === type) || GOAL_TYPES[0];
@@ -243,11 +243,10 @@ export default function Goals() {
                     key={g.v}
                     type="button"
                     onClick={() => setForm({ ...form, type: g.v })}
-                    className={`flex flex-col items-center gap-2 p-3 rounded-xl text-xs font-bold transition-all duration-300 ${
-                      form.type === g.v
-                        ? `bg-gradient-to-br ${g.gradient} text-white shadow-lg ${g.shadow} scale-[1.03]`
-                        : 'bg-slate-700/60 text-gray-400 border border-slate-600/50 hover:border-slate-500/70 hover:text-white'
-                    }`}
+                    className={`flex flex-col items-center gap-2 p-3 rounded-xl text-xs font-bold transition-all duration-300 ${form.type === g.v
+                      ? `bg-gradient-to-br ${g.gradient} text-white shadow-lg ${g.shadow} scale-[1.03]`
+                      : 'bg-slate-700/60 text-gray-400 border border-slate-600/50 hover:border-slate-500/70 hover:text-white'
+                      }`}
                   >
                     {g.icon}
                     {g.l}

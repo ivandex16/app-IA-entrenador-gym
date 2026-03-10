@@ -217,7 +217,7 @@ export default function Routines() {
               <h3 className="text-sm font-semibold text-primary flex items-center gap-1.5"><LuLightbulb className="w-4 h-4" /> ¿Qué debe contener el PDF?</h3>
               <p className="text-xs text-gray-300">Para que el sistema pueda leer correctamente tu rutina, el PDF debe tener este formato:</p>
               <div className="bg-slate-900/80 rounded-lg p-3 text-xs text-gray-300 font-mono whitespace-pre-line border border-slate-700/50">
-{`Nombre: Mi Rutina Personalizada
+                {`Nombre: Mi Rutina Personalizada
 Descripción: Rutina de fuerza 4 días
 
 Lunes - Pecho y Tríceps
@@ -304,11 +304,10 @@ Jueves - Piernas
                               : [...f.selectedDays, wd.v],
                           }));
                         }}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
-                          selected
-                            ? 'bg-gradient-to-r from-primary/30 to-indigo-500/30 border-primary text-white shadow-md shadow-primary/10'
-                            : 'bg-slate-700/60 border-slate-600/50 text-gray-400 hover:border-primary/50 hover:text-gray-200'
-                        }`}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${selected
+                          ? 'bg-gradient-to-r from-primary/30 to-indigo-500/30 border-primary text-white shadow-md shadow-primary/10'
+                          : 'bg-slate-700/60 border-slate-600/50 text-gray-400 hover:border-primary/50 hover:text-gray-200'
+                          }`}
                       >
                         {wd.l}
                       </button>

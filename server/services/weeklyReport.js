@@ -1,6 +1,6 @@
-const WorkoutLog = require('../models/WorkoutLog');
-const WeightLog = require('../models/WeightLog');
-const Goal = require('../models/Goal');
+const WorkoutLog = require("../models/WorkoutLog");
+const WeightLog = require("../models/WeightLog");
+const Goal = require("../models/Goal");
 
 /**
  * Generate a weekly progress report for the authenticated user.
@@ -31,15 +31,15 @@ const generateWeeklyReport = async (userId, referenceDate = new Date()) => {
     WorkoutLog.find({
       user: userId,
       date: { $gte: currentMonday, $lte: currentSunday },
-    }).populate('exercises.exercise', 'name muscleGroup'),
+    }).populate("exercises.exercise", "name muscleGroup"),
     WorkoutLog.find({
       user: userId,
       date: { $gte: previousMonday, $lte: previousSunday },
-    }).populate('exercises.exercise', 'name muscleGroup'),
+    }).populate("exercises.exercise", "name muscleGroup"),
   ]);
 
   const summarize = (logs) => {
-    let totalVolume = 0;       // sum of (reps × weight) across all sets
+    let totalVolume = 0; // sum of (reps × weight) across all sets
     let totalSets = 0;
     let totalReps = 0;
     let maxWeight = 0;
@@ -50,8 +50,8 @@ const generateWeeklyReport = async (userId, referenceDate = new Date()) => {
     logs.forEach((log) => {
       totalCalories += log.caloriesBurned || 0;
       log.exercises.forEach((entry) => {
-        const exName = entry.exercise?.name || 'Unknown';
-        const mg = entry.exercise?.muscleGroup || 'unknown';
+        const exName = entry.exercise?.name || "Unknown";
+        const mg = entry.exercise?.muscleGroup || "unknown";
         exercisesPerformed.add(exName);
         muscleGroups[mg] = (muscleGroups[mg] || 0) + 1;
         entry.sets.forEach((s) => {
@@ -91,73 +91,108 @@ const generateWeeklyReport = async (userId, referenceDate = new Date()) => {
   // ── Automatic insights ──
   const insights = [];
   if (comparison.volumeChange > 0)
-    insights.push(`📈 El volumen aumentó un ${comparison.volumeChange}% respecto a la semana pasada.`);
+    insights.push(
+      `📈 El volumen aumentó un ${comparison.volumeChange}% respecto a la semana pasada.`,
+    );
   else if (comparison.volumeChange < 0)
-    insights.push(`📉 El volumen disminuyó un ${Math.abs(comparison.volumeChange)}% respecto a la semana pasada.`);
+    insights.push(
+      `📉 El volumen disminuyó un ${Math.abs(comparison.volumeChange)}% respecto a la semana pasada.`,
+    );
   if (current.workouts === 0)
-    insights.push('⚠️ No registraste entrenamientos esta semana. ¡Mantén la constancia!');
+    insights.push(
+      "⚠️ No registraste entrenamientos esta semana. ¡Mantén la constancia!",
+    );
   if (current.maxWeight > previous.maxWeight)
-    insights.push(`🏆 Nuevo peso máximo: ${current.maxWeight} kg (+${comparison.maxWeightChange} kg). ¡Sigue así!`);
+    insights.push(
+      `🏆 Nuevo peso máximo: ${current.maxWeight} kg (+${comparison.maxWeightChange} kg). ¡Sigue así!`,
+    );
 
   // Muscle coverage alert
   const mgTranslate = {
-    chest: 'pecho', back: 'espalda', shoulders: 'hombros',
-    legs: 'piernas', biceps: 'bíceps', triceps: 'tríceps', abs: 'abdominales',
+    chest: "pecho",
+    back: "espalda",
+    shoulders: "hombros",
+    legs: "piernas",
+    biceps: "bíceps",
+    triceps: "tríceps",
+    abs: "abdominales",
   };
   const allGroups = [
-    'chest', 'back', 'shoulders', 'legs', 'biceps', 'triceps', 'abs',
+    "chest",
+    "back",
+    "shoulders",
+    "legs",
+    "biceps",
+    "triceps",
+    "abs",
   ];
   const missed = allGroups.filter((g) => !current.muscleGroups[g]);
   if (missed.length > 0 && current.workouts > 0)
-    insights.push(`💡 Grupos musculares sin entrenar esta semana: ${missed.map(g => mgTranslate[g] || g).join(', ')}.`);
+    insights.push(
+      `💡 Grupos musculares sin entrenar esta semana: ${missed.map((g) => mgTranslate[g] || g).join(", ")}.`,
+    );
 
   // ── Weight progress ──
   const weightLogs = await WeightLog.find({
     user: userId,
     date: { $gte: currentMonday, $lte: currentSunday },
-  }).sort('date');
+  }).sort("date");
 
   const prevWeightLogs = await WeightLog.find({
     user: userId,
     date: { $gte: previousMonday, $lte: previousSunday },
-  }).sort('date');
+  }).sort("date");
 
   let weightProgress = null;
   if (weightLogs.length > 0 || prevWeightLogs.length > 0) {
-    const latestWeight = weightLogs.length > 0
-      ? weightLogs[weightLogs.length - 1].weight
-      : null;
-    const prevWeight = prevWeightLogs.length > 0
-      ? prevWeightLogs[prevWeightLogs.length - 1].weight
-      : null;
+    const latestWeight =
+      weightLogs.length > 0 ? weightLogs[weightLogs.length - 1].weight : null;
+    const prevWeight =
+      prevWeightLogs.length > 0
+        ? prevWeightLogs[prevWeightLogs.length - 1].weight
+        : null;
 
     weightProgress = {
       currentWeekWeight: latestWeight,
       previousWeekWeight: prevWeight,
-      change: latestWeight != null && prevWeight != null
-        ? +(latestWeight - prevWeight).toFixed(1)
-        : null,
+      change:
+        latestWeight != null && prevWeight != null
+          ? +(latestWeight - prevWeight).toFixed(1)
+          : null,
       entries: weightLogs.length,
     };
 
     // Weight insight
     if (latestWeight != null && prevWeight != null) {
       const wChange = latestWeight - prevWeight;
-      const activeGoal = await Goal.findOne({ user: userId, isActive: true }).sort('-createdAt');
+      const activeGoal = await Goal.findOne({
+        user: userId,
+        isActive: true,
+      }).sort("-createdAt");
       const goalType = activeGoal?.type;
 
-      if (goalType === 'fat_loss' || goalType === 'toning') {
+      if (goalType === "fat_loss" || goalType === "toning") {
         if (wChange < 0)
-          insights.push(`⚖️ Peso bajó ${Math.abs(wChange).toFixed(1)} kg esta semana. ¡Buen progreso!`);
+          insights.push(
+            `⚖️ Peso bajó ${Math.abs(wChange).toFixed(1)} kg esta semana. ¡Buen progreso!`,
+          );
         else if (wChange > 0)
-          insights.push(`⚖️ Peso subió ${wChange.toFixed(1)} kg. Revisa tu alimentación.`);
-      } else if (goalType === 'muscle_gain' || goalType === 'strength') {
+          insights.push(
+            `⚖️ Peso subió ${wChange.toFixed(1)} kg. Revisa tu alimentación.`,
+          );
+      } else if (goalType === "muscle_gain" || goalType === "strength") {
         if (wChange > 0)
-          insights.push(`⚖️ Peso subió ${wChange.toFixed(1)} kg esta semana. ¡Buen progreso!`);
+          insights.push(
+            `⚖️ Peso subió ${wChange.toFixed(1)} kg esta semana. ¡Buen progreso!`,
+          );
         else if (wChange < 0)
-          insights.push(`⚖️ Peso bajó ${Math.abs(wChange).toFixed(1)} kg. Asegúrate de comer suficiente.`);
+          insights.push(
+            `⚖️ Peso bajó ${Math.abs(wChange).toFixed(1)} kg. Asegúrate de comer suficiente.`,
+          );
       } else if (wChange !== 0) {
-        insights.push(`⚖️ Cambio de peso: ${wChange > 0 ? '+' : ''}${wChange.toFixed(1)} kg esta semana.`);
+        insights.push(
+          `⚖️ Cambio de peso: ${wChange > 0 ? "+" : ""}${wChange.toFixed(1)} kg esta semana.`,
+        );
       }
     }
   }

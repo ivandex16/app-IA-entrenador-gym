@@ -9,24 +9,24 @@ import {
 
 /* ─── muscle-group config ─── */
 const MUSCLE_GROUPS = [
-  { v: 'chest',      l: 'Pecho',           icon: <LuShield className="w-4 h-4" />,   emoji: '💪' },
-  { v: 'back',       l: 'Espalda',         icon: <LuActivity className="w-4 h-4" />,  emoji: '🏋️' },
-  { v: 'shoulders',  l: 'Hombros',         icon: <LuTarget className="w-4 h-4" />,    emoji: '🎯' },
-  { v: 'biceps',     l: 'Bíceps',          icon: <LuDumbbell className="w-4 h-4" />,  emoji: '💪' },
-  { v: 'triceps',    l: 'Tríceps',         icon: <LuDumbbell className="w-4 h-4" />,  emoji: '🔥' },
-  { v: 'legs',       l: 'Piernas',         icon: <LuZap className="w-4 h-4" />,       emoji: '🦵' },
-  { v: 'glutes',     l: 'Glúteos',         icon: <LuTrendingUp className="w-4 h-4" />,emoji: '🍑' },
-  { v: 'abs',        l: 'Abdominales',     icon: <LuFlame className="w-4 h-4" />,     emoji: '🔥' },
-  { v: 'forearms',   l: 'Antebrazos',      icon: <LuDumbbell className="w-4 h-4" />,  emoji: '✊' },
-  { v: 'calves',     l: 'Pantorrillas',    icon: <LuZap className="w-4 h-4" />,       emoji: '🦵' },
-  { v: 'full_body',  l: 'Cuerpo completo', icon: <LuHeart className="w-4 h-4" />,     emoji: '⚡' },
-  { v: 'cardio',     l: 'Cardio',          icon: <LuActivity className="w-4 h-4" />,  emoji: '❤️' },
+  { v: 'chest', l: 'Pecho', icon: <LuShield className="w-4 h-4" />, emoji: '💪' },
+  { v: 'back', l: 'Espalda', icon: <LuActivity className="w-4 h-4" />, emoji: '🏋️' },
+  { v: 'shoulders', l: 'Hombros', icon: <LuTarget className="w-4 h-4" />, emoji: '🎯' },
+  { v: 'biceps', l: 'Bíceps', icon: <LuDumbbell className="w-4 h-4" />, emoji: '💪' },
+  { v: 'triceps', l: 'Tríceps', icon: <LuDumbbell className="w-4 h-4" />, emoji: '🔥' },
+  { v: 'legs', l: 'Piernas', icon: <LuZap className="w-4 h-4" />, emoji: '🦵' },
+  { v: 'glutes', l: 'Glúteos', icon: <LuTrendingUp className="w-4 h-4" />, emoji: '🍑' },
+  { v: 'abs', l: 'Abdominales', icon: <LuFlame className="w-4 h-4" />, emoji: '🔥' },
+  { v: 'forearms', l: 'Antebrazos', icon: <LuDumbbell className="w-4 h-4" />, emoji: '✊' },
+  { v: 'calves', l: 'Pantorrillas', icon: <LuZap className="w-4 h-4" />, emoji: '🦵' },
+  { v: 'full_body', l: 'Cuerpo completo', icon: <LuHeart className="w-4 h-4" />, emoji: '⚡' },
+  { v: 'cardio', l: 'Cardio', icon: <LuActivity className="w-4 h-4" />, emoji: '❤️' },
 ];
 
 const DIFFICULTY_CONFIG = {
-  beginner:     { label: 'Principiante', text: 'text-emerald-400', bg: 'bg-emerald-500/15', dot: 'bg-emerald-400' },
-  intermediate: { label: 'Intermedio',   text: 'text-amber-400',   bg: 'bg-amber-500/15',   dot: 'bg-amber-400' },
-  advanced:     { label: 'Avanzado',     text: 'text-red-400',     bg: 'bg-red-500/15',     dot: 'bg-red-400' },
+  beginner: { label: 'Principiante', text: 'text-emerald-400', bg: 'bg-emerald-500/15', dot: 'bg-emerald-400' },
+  intermediate: { label: 'Intermedio', text: 'text-amber-400', bg: 'bg-amber-500/15', dot: 'bg-amber-400' },
+  advanced: { label: 'Avanzado', text: 'text-red-400', bg: 'bg-red-500/15', dot: 'bg-red-400' },
 };
 
 const EQUIPMENT_LABELS = {
@@ -36,41 +36,41 @@ const EQUIPMENT_LABELS = {
 
 /* Each muscle group gets its own Unsplash preview + gradient overlay */
 const MUSCLE_IMAGE = {
-  chest:     'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&q=80',
-  back:      'https://images.unsplash.com/photo-1603287681836-b174ce5074c2?w=400&q=80',
+  chest: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&q=80',
+  back: 'https://images.unsplash.com/photo-1603287681836-b174ce5074c2?w=400&q=80',
   shoulders: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400&q=80',
-  biceps:    'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=400&q=80',
-  triceps:   'https://images.unsplash.com/photo-1530822847156-5df684ec5ee1?w=400&q=80',
-  legs:      'https://images.unsplash.com/photo-1434608519344-49d77a699e1d?w=400&q=80',
-  glutes:    'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=400&q=80',
-  abs:       'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=80',
-  forearms:  'https://images.unsplash.com/photo-1534368959876-26bf04f2c947?w=400&q=80',
-  calves:    'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=400&q=80',
+  biceps: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=400&q=80',
+  triceps: 'https://images.unsplash.com/photo-1530822847156-5df684ec5ee1?w=400&q=80',
+  legs: 'https://images.unsplash.com/photo-1434608519344-49d77a699e1d?w=400&q=80',
+  glutes: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=400&q=80',
+  abs: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=80',
+  forearms: 'https://images.unsplash.com/photo-1534368959876-26bf04f2c947?w=400&q=80',
+  calves: 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=400&q=80',
   full_body: 'https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=400&q=80',
-  cardio:    'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=400&q=80',
+  cardio: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=400&q=80',
 };
 
 const MUSCLE_GRADIENT = {
-  chest:     'from-red-600/90 to-rose-800/90',
-  back:      'from-blue-600/90 to-indigo-800/90',
+  chest: 'from-red-600/90 to-rose-800/90',
+  back: 'from-blue-600/90 to-indigo-800/90',
   shoulders: 'from-orange-600/90 to-amber-800/90',
-  biceps:    'from-purple-600/90 to-violet-800/90',
-  triceps:   'from-fuchsia-600/90 to-pink-800/90',
-  legs:      'from-emerald-600/90 to-green-800/90',
-  glutes:    'from-pink-600/90 to-rose-800/90',
-  abs:       'from-cyan-600/90 to-teal-800/90',
-  forearms:  'from-indigo-600/90 to-blue-800/90',
-  calves:    'from-teal-600/90 to-cyan-800/90',
+  biceps: 'from-purple-600/90 to-violet-800/90',
+  triceps: 'from-fuchsia-600/90 to-pink-800/90',
+  legs: 'from-emerald-600/90 to-green-800/90',
+  glutes: 'from-pink-600/90 to-rose-800/90',
+  abs: 'from-cyan-600/90 to-teal-800/90',
+  forearms: 'from-indigo-600/90 to-blue-800/90',
+  calves: 'from-teal-600/90 to-cyan-800/90',
   full_body: 'from-amber-600/90 to-yellow-800/90',
-  cardio:    'from-rose-600/90 to-red-800/90',
+  cardio: 'from-rose-600/90 to-red-800/90',
 };
 
 const MUSCLE_FILTER_GRADIENT = {
-  chest: 'from-red-500 to-rose-600',       back: 'from-blue-500 to-indigo-600',
+  chest: 'from-red-500 to-rose-600', back: 'from-blue-500 to-indigo-600',
   shoulders: 'from-orange-500 to-amber-600', biceps: 'from-purple-500 to-violet-600',
-  triceps: 'from-fuchsia-500 to-pink-600',  legs: 'from-emerald-500 to-green-600',
-  glutes: 'from-pink-500 to-rose-600',      abs: 'from-cyan-500 to-teal-600',
-  forearms: 'from-indigo-500 to-blue-600',  calves: 'from-teal-500 to-cyan-600',
+  triceps: 'from-fuchsia-500 to-pink-600', legs: 'from-emerald-500 to-green-600',
+  glutes: 'from-pink-500 to-rose-600', abs: 'from-cyan-500 to-teal-600',
+  forearms: 'from-indigo-500 to-blue-600', calves: 'from-teal-500 to-cyan-600',
   full_body: 'from-amber-500 to-yellow-600', cardio: 'from-rose-500 to-red-600',
 };
 
@@ -185,11 +185,10 @@ export default function Exercises() {
                   <button
                     key={mg.v}
                     onClick={() => toggleGroup(mg.v)}
-                    className={`group/pill flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${
-                      isActive
-                        ? `bg-gradient-to-r ${grad} text-white shadow-lg shadow-primary/20 scale-[1.03]`
-                        : 'bg-slate-800/80 text-gray-400 border border-slate-700/50 hover:border-slate-500/70 hover:text-white hover:bg-slate-700/80'
-                    }`}
+                    className={`group/pill flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${isActive
+                      ? `bg-gradient-to-r ${grad} text-white shadow-lg shadow-primary/20 scale-[1.03]`
+                      : 'bg-slate-800/80 text-gray-400 border border-slate-700/50 hover:border-slate-500/70 hover:text-white hover:bg-slate-700/80'
+                      }`}
                   >
                     {isActive ? (
                       <span className="w-4 h-4 bg-white/25 rounded-md flex items-center justify-center">

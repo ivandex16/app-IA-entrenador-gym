@@ -260,11 +260,10 @@ export default function Profile() {
                   key={lvl.v}
                   type="button"
                   onClick={() => setForm({ ...form, level: lvl.v })}
-                  className={`relative overflow-hidden rounded-xl p-4 text-center border-2 transition-all ${
-                    active
+                  className={`relative overflow-hidden rounded-xl p-4 text-center border-2 transition-all ${active
                       ? `${lvl.border} ${lvl.bg}`
                       : 'border-slate-700/50 bg-slate-900/40 hover:border-slate-600'
-                  }`}
+                    }`}
                 >
                   {active && (
                     <div className={`absolute top-0 right-0 w-16 h-16 bg-gradient-to-br ${lvl.color} opacity-15 rounded-bl-full`} />
@@ -301,11 +300,10 @@ export default function Profile() {
                     key={d}
                     type="button"
                     onClick={() => setForm({ ...form, weeklyFrequency: d })}
-                    className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${
-                      form.weeklyFrequency === d
+                    className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${form.weeklyFrequency === d
                         ? 'bg-gradient-to-br from-primary to-cyan-500 text-white shadow-lg shadow-primary/20'
                         : 'bg-slate-900/60 border border-slate-600/50 text-gray-500 hover:text-white hover:border-slate-500'
-                    }`}
+                      }`}
                   >
                     {d}
                   </button>
@@ -346,11 +344,10 @@ export default function Profile() {
                   key={eq}
                   type="button"
                   onClick={() => toggleArray('equipment', eq)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
-                    active
+                  className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${active
                       ? 'bg-purple-500/15 border-purple-500/50 text-purple-300'
                       : 'bg-slate-900/40 border-slate-700/50 text-gray-500 hover:text-gray-300 hover:border-slate-600'
-                  }`}
+                    }`}
                 >
                   {active && <LuCheck className="w-3.5 h-3.5 inline mr-1.5" />}
                   {EQ_LABELS[eq]}
@@ -375,11 +372,10 @@ export default function Profile() {
                   key={mg}
                   type="button"
                   onClick={() => toggleArray('focusMuscleGroups', mg)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
-                    active
+                  className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${active
                       ? 'bg-rose-500/15 border-rose-500/50 text-rose-300'
                       : 'bg-slate-900/40 border-slate-700/50 text-gray-500 hover:text-gray-300 hover:border-slate-600'
-                  }`}
+                    }`}
                 >
                   {active && <LuCheck className="w-3.5 h-3.5 inline mr-1.5" />}
                   {MG_LABELS[mg]}

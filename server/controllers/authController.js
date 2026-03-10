@@ -18,7 +18,16 @@ exports.register = async (req, res, next) => {
     const token = signToken(user._id);
     res
       .status(201)
-      .json({ token, user: { id: user._id, name, email, role: user.role, tourCompleted: false } });
+      .json({
+        token,
+        user: {
+          id: user._id,
+          name,
+          email,
+          role: user.role,
+          tourCompleted: false,
+        },
+      });
   } catch (err) {
     next(err);
   }
@@ -35,7 +44,13 @@ exports.login = async (req, res, next) => {
     const token = signToken(user._id);
     res.json({
       token,
-      user: { id: user._id, name: user.name, email, role: user.role, tourCompleted: user.tourCompleted },
+      user: {
+        id: user._id,
+        name: user.name,
+        email,
+        role: user.role,
+        tourCompleted: user.tourCompleted,
+      },
     });
   } catch (err) {
     next(err);

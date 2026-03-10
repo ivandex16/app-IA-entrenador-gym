@@ -1,20 +1,20 @@
-const Exercise = require('../models/Exercise');
+const Exercise = require("../models/Exercise");
 
 // GET /api/exercises?muscleGroup=chest&difficulty=beginner&equipment=barbell
 exports.list = async (req, res, next) => {
   try {
     const filter = {};
     if (req.query.muscleGroup) {
-      const groups = req.query.muscleGroup.split(',').filter(Boolean);
+      const groups = req.query.muscleGroup.split(",").filter(Boolean);
       filter.muscleGroup = groups.length === 1 ? groups[0] : { $in: groups };
     }
     if (req.query.difficulty) filter.difficulty = req.query.difficulty;
     if (req.query.equipment) filter.equipment = req.query.equipment;
     if (req.query.category) filter.category = req.query.category;
     if (req.query.search)
-      filter.name = { $regex: req.query.search, $options: 'i' };
+      filter.name = { $regex: req.query.search, $options: "i" };
 
-    const exercises = await Exercise.find(filter).sort('muscleGroup name');
+    const exercises = await Exercise.find(filter).sort("muscleGroup name");
     res.json(exercises);
   } catch (err) {
     next(err);
@@ -25,7 +25,7 @@ exports.list = async (req, res, next) => {
 exports.getById = async (req, res, next) => {
   try {
     const ex = await Exercise.findById(req.params.id);
-    if (!ex) return res.status(404).json({ message: 'Exercise not found' });
+    if (!ex) return res.status(404).json({ message: "Exercise not found" });
     res.json(ex);
   } catch (err) {
     next(err);
@@ -49,7 +49,7 @@ exports.update = async (req, res, next) => {
       new: true,
       runValidators: true,
     });
-    if (!ex) return res.status(404).json({ message: 'Exercise not found' });
+    if (!ex) return res.status(404).json({ message: "Exercise not found" });
     res.json(ex);
   } catch (err) {
     next(err);
@@ -60,8 +60,8 @@ exports.update = async (req, res, next) => {
 exports.remove = async (req, res, next) => {
   try {
     const ex = await Exercise.findByIdAndDelete(req.params.id);
-    if (!ex) return res.status(404).json({ message: 'Exercise not found' });
-    res.json({ message: 'Exercise deleted' });
+    if (!ex) return res.status(404).json({ message: "Exercise not found" });
+    res.json({ message: "Exercise deleted" });
   } catch (err) {
     next(err);
   }

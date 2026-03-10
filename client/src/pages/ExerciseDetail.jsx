@@ -13,9 +13,9 @@ const MUSCLE_LABELS = {
 };
 
 const DIFFICULTY_CONFIG = {
-  beginner:     { label: 'Principiante', text: 'text-emerald-400', bg: 'bg-emerald-500/15', dot: 'bg-emerald-400' },
-  intermediate: { label: 'Intermedio',   text: 'text-amber-400',   bg: 'bg-amber-500/15',   dot: 'bg-amber-400' },
-  advanced:     { label: 'Avanzado',     text: 'text-red-400',     bg: 'bg-red-500/15',     dot: 'bg-red-400' },
+  beginner: { label: 'Principiante', text: 'text-emerald-400', bg: 'bg-emerald-500/15', dot: 'bg-emerald-400' },
+  intermediate: { label: 'Intermedio', text: 'text-amber-400', bg: 'bg-amber-500/15', dot: 'bg-amber-400' },
+  advanced: { label: 'Avanzado', text: 'text-red-400', bg: 'bg-red-500/15', dot: 'bg-red-400' },
 };
 
 const EQUIPMENT_LABELS = {
@@ -29,27 +29,27 @@ const CATEGORY_LABELS = {
 };
 
 const MUSCLE_GRADIENT = {
-  chest: 'from-red-600 to-rose-700',       back: 'from-blue-600 to-indigo-700',
+  chest: 'from-red-600 to-rose-700', back: 'from-blue-600 to-indigo-700',
   shoulders: 'from-orange-600 to-amber-700', biceps: 'from-purple-600 to-violet-700',
-  triceps: 'from-fuchsia-600 to-pink-700',  legs: 'from-emerald-600 to-green-700',
-  glutes: 'from-pink-600 to-rose-700',      abs: 'from-cyan-600 to-teal-700',
-  forearms: 'from-indigo-600 to-blue-700',  calves: 'from-teal-600 to-cyan-700',
+  triceps: 'from-fuchsia-600 to-pink-700', legs: 'from-emerald-600 to-green-700',
+  glutes: 'from-pink-600 to-rose-700', abs: 'from-cyan-600 to-teal-700',
+  forearms: 'from-indigo-600 to-blue-700', calves: 'from-teal-600 to-cyan-700',
   full_body: 'from-amber-600 to-yellow-700', cardio: 'from-rose-600 to-red-700',
 };
 
 const MUSCLE_IMAGE = {
-  chest:     'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1400&q=80',
-  back:      'https://images.unsplash.com/photo-1603287681836-b174ce5074c2?w=1400&q=80',
+  chest: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1400&q=80',
+  back: 'https://images.unsplash.com/photo-1603287681836-b174ce5074c2?w=1400&q=80',
   shoulders: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=1400&q=80',
-  biceps:    'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=1400&q=80',
-  triceps:   'https://images.unsplash.com/photo-1530822847156-5df684ec5ee1?w=1400&q=80',
-  legs:      'https://images.unsplash.com/photo-1434608519344-49d77a699e1d?w=1400&q=80',
-  glutes:    'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=1400&q=80',
-  abs:       'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1400&q=80',
-  forearms:  'https://images.unsplash.com/photo-1534368959876-26bf04f2c947?w=1400&q=80',
-  calves:    'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=1400&q=80',
+  biceps: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=1400&q=80',
+  triceps: 'https://images.unsplash.com/photo-1530822847156-5df684ec5ee1?w=1400&q=80',
+  legs: 'https://images.unsplash.com/photo-1434608519344-49d77a699e1d?w=1400&q=80',
+  glutes: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=1400&q=80',
+  abs: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1400&q=80',
+  forearms: 'https://images.unsplash.com/photo-1534368959876-26bf04f2c947?w=1400&q=80',
+  calves: 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=1400&q=80',
   full_body: 'https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=1400&q=80',
-  cardio:    'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=1400&q=80',
+  cardio: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=1400&q=80',
 };
 
 export default function ExerciseDetail() {

@@ -49,10 +49,15 @@ exports.updateProfile = async (req, res, next) => {
 // POST /api/users/avatar — upload profile photo (stored as base64 in DB)
 exports.updateAvatar = async (req, res, next) => {
   try {
-    if (!req.file) return res.status(400).json({ message: 'No se envió ninguna imagen' });
+    if (!req.file)
+      return res.status(400).json({ message: "No se envió ninguna imagen" });
 
-    const base64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-    const user = await User.findByIdAndUpdate(req.user._id, { avatar: base64 }, { new: true });
+    const base64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { avatar: base64 },
+      { new: true },
+    );
     res.json({ avatar: user.avatar });
   } catch (err) {
     next(err);
@@ -62,8 +67,8 @@ exports.updateAvatar = async (req, res, next) => {
 // DELETE /api/users/avatar — remove profile photo
 exports.removeAvatar = async (req, res, next) => {
   try {
-    await User.findByIdAndUpdate(req.user._id, { avatar: '' });
-    res.json({ message: 'Avatar eliminado' });
+    await User.findByIdAndUpdate(req.user._id, { avatar: "" });
+    res.json({ message: "Avatar eliminado" });
   } catch (err) {
     next(err);
   }

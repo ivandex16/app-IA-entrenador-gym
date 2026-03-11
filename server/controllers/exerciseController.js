@@ -1,6 +1,51 @@
-<<<<<<< HEAD
 const Exercise = require("../models/Exercise");
-const { aiExerciseRecommend } = require("../services/recommendationEngine");
+const {
+  aiExerciseRecommend,
+  aiExerciseSuggestOpen,
+} = require("../services/recommendationEngine");
+
+const MUSCLE_GROUPS = new Set([
+  "chest",
+  "back",
+  "shoulders",
+  "biceps",
+  "triceps",
+  "legs",
+  "glutes",
+  "abs",
+  "forearms",
+  "calves",
+  "full_body",
+  "cardio",
+]);
+const DIFFICULTIES = new Set(["beginner", "intermediate", "advanced"]);
+const EQUIPMENT = new Set([
+  "barbell",
+  "dumbbell",
+  "machine",
+  "cable",
+  "bodyweight",
+  "kettlebell",
+  "band",
+  "other",
+]);
+const CATEGORIES = new Set([
+  "strength",
+  "hypertrophy",
+  "endurance",
+  "power",
+  "flexibility",
+]);
+
+const pickValid = (value, allowed, fallback) =>
+  allowed.has(value) ? value : fallback;
+const toSlug = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+const escapeRegex = (value) =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // POST /api/exercises/ai-recommend  (protected)
 exports.aiRecommend = async (req, res, next) => {
@@ -17,53 +62,106 @@ exports.aiRecommend = async (req, res, next) => {
     next(err);
   }
 };
-=======
-const Exercise = require("../models/Exercise");
-const { aiExerciseRecommend } = require("../services/recommendationEngine");
-
-// POST /api/exercises/ai-recommend  (protected)
-exports.aiRecommend = async (req, res, next) => {
-  try {
-    const { query } = req.body;
-    if (!query || !query.trim()) {
-      return res
-        .status(400)
-        .json({ message: "Debes escribir qué tipo de ejercicios buscas" });
-    }
-    const result = await aiExerciseRecommend(req.user, query.trim());
-    res.json(result);
-  } catch (err) {
-    next(err);
-  }
-};
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
 
 // GET /api/exercises?muscleGroup=chest&difficulty=beginner&equipment=barbell
 exports.list = async (req, res, next) => {
   try {
     const filter = {};
     if (req.query.muscleGroup) {
-<<<<<<< HEAD
       const groups = req.query.muscleGroup.split(",").filter(Boolean);
-=======
-      const groups = req.query.muscleGroup.split(",").filter(Boolean);
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
       filter.muscleGroup = groups.length === 1 ? groups[0] : { $in: groups };
     }
     if (req.query.difficulty) filter.difficulty = req.query.difficulty;
     if (req.query.equipment) filter.equipment = req.query.equipment;
     if (req.query.category) filter.category = req.query.category;
     if (req.query.search)
-<<<<<<< HEAD
       filter.name = { $regex: req.query.search, $options: "i" };
-
-    const exercises = await Exercise.find(filter).sort("muscleGroup name");
-=======
-      filter.name = { $regex: req.query.search, $options: "i" };
-
-    const exercises = await Exercise.find(filter).sort("muscleGroup name");
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
+    const exercises = await Exercise.find(filter).sort({ name: 1 });
     res.json(exercises);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/exercises/custom  (protected)
+exports.createCustom = async (req, res, next) => {
+  try {
+    const rawName = String(req.body?.name || "").trim();
+    if (!rawName) {
+      return res.status(400).json({ message: "El nombre del ejercicio es obligatorio" });
+    }
+
+    const existing = await Exercise.findOne({
+      name: { $regex: new RegExp(`^${escapeRegex(rawName)}$`, "i") },
+    });
+    if (existing) {
+      return res.status(200).json({
+        message: "El ejercicio ya existe en el catalogo",
+        created: false,
+        exercise: existing,
+      });
+    }
+
+    const muscleGroup = pickValid(
+      toSlug(req.body?.muscleGroup),
+      MUSCLE_GROUPS,
+      "full_body",
+    );
+    const difficulty = pickValid(
+      toSlug(req.body?.difficulty),
+      DIFFICULTIES,
+      "intermediate",
+    );
+    const equipment = pickValid(
+      toSlug(req.body?.equipment),
+      EQUIPMENT,
+      "other",
+    );
+    const category = pickValid(
+      toSlug(req.body?.category),
+      CATEGORIES,
+      "hypertrophy",
+    );
+
+    const exercise = await Exercise.create({
+      name: rawName,
+      description: String(req.body?.description || "").trim(),
+      muscleGroup,
+      difficulty,
+      equipment,
+      category,
+      imageUrl: String(req.body?.imageUrl || "").trim(),
+      instructions: Array.isArray(req.body?.instructions)
+        ? req.body.instructions.filter(Boolean).slice(0, 10)
+        : [],
+      tips: Array.isArray(req.body?.tips)
+        ? req.body.tips.filter(Boolean).slice(0, 8)
+        : [],
+      isUserCreated: true,
+      createdBy: req.user._id,
+    });
+
+    res.status(201).json({
+      message: "Ejercicio agregado al catalogo",
+      created: true,
+      exercise,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/exercises/ai-suggest-open  (public)
+exports.aiSuggestOpen = async (req, res, next) => {
+  try {
+    const { query } = req.body;
+    if (!query || !query.trim()) {
+      return res
+        .status(400)
+        .json({ message: "Debes escribir que tipo de ejercicios buscas" });
+    }
+    const result = await aiExerciseSuggestOpen(req.user || null, query.trim());
+    res.json(result);
   } catch (err) {
     next(err);
   }
@@ -73,11 +171,7 @@ exports.list = async (req, res, next) => {
 exports.getById = async (req, res, next) => {
   try {
     const ex = await Exercise.findById(req.params.id);
-<<<<<<< HEAD
     if (!ex) return res.status(404).json({ message: 'Exercise not found' });
-=======
-    if (!ex) return res.status(404).json({ message: "Exercise not found" });
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
     res.json(ex);
   } catch (err) {
     next(err);
@@ -101,11 +195,7 @@ exports.update = async (req, res, next) => {
       new: true,
       runValidators: true,
     });
-<<<<<<< HEAD
     if (!ex) return res.status(404).json({ message: 'Exercise not found' });
-=======
-    if (!ex) return res.status(404).json({ message: "Exercise not found" });
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
     res.json(ex);
   } catch (err) {
     next(err);
@@ -116,13 +206,8 @@ exports.update = async (req, res, next) => {
 exports.remove = async (req, res, next) => {
   try {
     const ex = await Exercise.findByIdAndDelete(req.params.id);
-<<<<<<< HEAD
     if (!ex) return res.status(404).json({ message: 'Exercise not found' });
     res.json({ message: 'Exercise deleted' });
-=======
-    if (!ex) return res.status(404).json({ message: "Exercise not found" });
-    res.json({ message: "Exercise deleted" });
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
   } catch (err) {
     next(err);
   }

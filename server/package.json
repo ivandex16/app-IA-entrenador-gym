@@ -1,7 +1,7 @@
 {
-  "name": "appgym-server",
+  "name": "stephfit-server",
   "version": "1.0.0",
-  "description": "APP-GYM backend – Express + MongoDB + AI recommendations",
+  "description": "StephFit backend â€“ Express + MongoDB + AI recommendations",
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
@@ -30,3 +30,4 @@
     "supertest": "^7.0.0"
   }
 }
+

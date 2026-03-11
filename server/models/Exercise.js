@@ -51,6 +51,8 @@ const exerciseSchema = new mongoose.Schema(
     youtubeVideoId: { type: String, default: '' }, // e.g. 'dQw4w9WgXcQ'
     instructions: [String],
     tips: [String],
+    isUserCreated: { type: Boolean, default: false },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 );

@@ -19,6 +19,7 @@ import ExerciseDetail from './pages/ExerciseDetail';
 import Goals from './pages/Goals';
 import Progress from './pages/Progress';
 import Recommendations from './pages/Recommendations';
+import FitRecipes from './pages/FitRecipes';
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
 
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="/goals" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
         <Route path="/progress" element={<ProtectedRoute><Progress /></ProtectedRoute>} />
         <Route path="/recommendations" element={<ProtectedRoute><Recommendations /></ProtectedRoute>} />
+        <Route path="/fit-recipes" element={<ProtectedRoute><FitRecipes /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
       </Routes>

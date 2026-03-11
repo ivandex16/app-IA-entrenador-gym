@@ -14,7 +14,7 @@ import {
   LineChart, Line, AreaChart, Area,
 } from 'recharts';
 
-/* ─── muscle group translations ─── */
+/* â”€â”€â”€ muscle group translations â”€â”€â”€ */
 const MG_ES = {
   chest: 'Pecho', back: 'Espalda', shoulders: 'Hombros',
   legs: 'Piernas', biceps: 'Bíceps', triceps: 'Tríceps', abs: 'Abdominales',
@@ -30,7 +30,7 @@ const MG_COLORS = {
 };
 const ALL_GROUPS = ['chest', 'back', 'shoulders', 'legs', 'biceps', 'triceps', 'abs'];
 
-/* ─── helpers ─── */
+/* â”€â”€â”€ helpers â”€â”€â”€ */
 const fmtDate = (iso) => {
   const d = new Date(iso + 'T00:00:00');
   return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
@@ -82,7 +82,7 @@ export default function Progress() {
     loadWeight();
   };
 
-  /* ── share image generation ── */
+  /* â”€â”€ share image generation â”€â”€ */
   const downloadShareImage = async () => {
     if (!shareRef.current) return;
     setGenerating(true);
@@ -93,7 +93,7 @@ export default function Progress() {
         useCORS: true,
       });
       const link = document.createElement('a');
-      link.download = `app-gym-progreso-${report.period.from}.png`;
+      link.download = `StephFit-progreso-${report.period.from}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     } catch {
@@ -108,7 +108,7 @@ export default function Progress() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <LuActivity className="w-10 h-10 text-primary animate-pulse" />
-          <p className="text-gray-400">Cargando tu progreso…</p>
+          <p className="text-gray-400">Cargando tu progresoâ€¦</p>
         </div>
       </div>
     );
@@ -127,7 +127,7 @@ export default function Progress() {
 
   return (
     <div className="min-h-screen pb-16">
-      {/* ═══════ HERO ═══════ */}
+      {/* â•â•â•â•â•â•â• HERO â•â•â•â•â•â•â• */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-600/30 via-slate-900 to-cyan-600/20" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
@@ -144,7 +144,7 @@ export default function Progress() {
           <div className="flex flex-wrap items-center gap-3 text-sm text-gray-400">
             <span className="inline-flex items-center gap-1.5 bg-slate-800/60 px-3 py-1.5 rounded-full border border-slate-700/50">
               <LuCalendar className="w-4 h-4 text-primary" />
-              {fmtDate(report.period.from)} — {fmtDate(report.period.to)}
+              {fmtDate(report.period.from)} â€” {fmtDate(report.period.to)}
             </span>
             <button
               onClick={() => setShowShareCard(!showShareCard)}
@@ -159,7 +159,7 @@ export default function Progress() {
 
       <div className="max-w-6xl mx-auto px-4 mt-8 space-y-8">
 
-        {/* ═══════ MAIN KPI CARDS ═══════ */}
+        {/* â•â•â•â•â•â•â• MAIN KPI CARDS â•â•â•â•â•â•â• */}
         <div data-tour="progress-kpis" className="grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ animation: 'fadeInUp 0.5s ease-out' }}>
           <KpiCard
             icon={<LuDumbbell className="w-6 h-6" />}
@@ -194,7 +194,7 @@ export default function Progress() {
           />
         </div>
 
-        {/* ═══════ SECONDARY KPI STRIP ═══════ */}
+        {/* â•â•â•â•â•â•â• SECONDARY KPI STRIP â•â•â•â•â•â•â• */}
         <div className="grid grid-cols-3 gap-3" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
           <div className="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-xl p-4 text-center">
             <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Series</p>
@@ -210,7 +210,7 @@ export default function Progress() {
           </div>
         </div>
 
-        {/* ═══════ CHARTS ROW ═══════ */}
+        {/* â•â•â•â•â•â•â• CHARTS ROW â•â•â•â•â•â•â• */}
         <div className="grid lg:grid-cols-2 gap-6" style={{ animation: 'fadeInUp 0.7s ease-out' }}>
           {/* Volume comparison */}
           <div className="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl p-5">
@@ -292,7 +292,7 @@ export default function Progress() {
           </div>
         </div>
 
-        {/* ═══════ INSIGHTS ═══════ */}
+        {/* â•â•â•â•â•â•â• INSIGHTS â•â•â•â•â•â•â• */}
         {report.insights.length > 0 && (
           <div style={{ animation: 'fadeInUp 0.8s ease-out' }}>
             <h2 className="font-bold text-lg mb-3 flex items-center gap-2">
@@ -315,7 +315,7 @@ export default function Progress() {
           </div>
         )}
 
-        {/* ═══════ EXERCISES PERFORMED ═══════ */}
+        {/* â•â•â•â•â•â•â• EXERCISES PERFORMED â•â•â•â•â•â•â• */}
         {cw.exercisesPerformed.length > 0 && (
           <div className="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl p-5" style={{ animation: 'fadeInUp 0.85s ease-out' }}>
             <h2 className="font-bold text-lg mb-3 flex items-center gap-2">
@@ -335,7 +335,7 @@ export default function Progress() {
           </div>
         )}
 
-        {/* ═══════ WEIGHT SECTION ═══════ */}
+        {/* â•â•â•â•â•â•â• WEIGHT SECTION â•â•â•â•â•â•â• */}
         <div className="space-y-6" style={{ animation: 'fadeInUp 0.9s ease-out' }}>
           <h2 className="font-bold text-xl flex items-center gap-2">
             <LuScale className="w-6 h-6 text-primary" />
@@ -415,7 +415,7 @@ export default function Progress() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-400 flex items-center gap-1.5">
                     <LuTarget className="w-4 h-4 text-primary" />
-                    Meta: {weightData.goalProgress.startWeight} kg → {weightData.goalProgress.targetWeight} kg
+                    Meta: {weightData.goalProgress.startWeight} kg â†’ {weightData.goalProgress.targetWeight} kg
                   </span>
                   <span className="text-gray-300 font-semibold">
                     Actual: {weightData.goalProgress.currentWeight} kg
@@ -492,7 +492,7 @@ export default function Progress() {
           )}
         </div>
 
-        {/* ═══════ SHARE CARD MODAL ═══════ */}
+        {/* â•â•â•â•â•â•â• SHARE CARD MODAL â•â•â•â•â•â•â• */}
         {showShareCard && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ animation: 'fadeIn 0.25s ease-out' }}>
             {/* Backdrop */}
@@ -534,10 +534,10 @@ export default function Progress() {
                       <div className="w-8 h-8 bg-gradient-to-br from-primary to-cyan-400 rounded-lg flex items-center justify-center">
                         <LuDumbbell className="w-4 h-4 text-white" />
                       </div>
-                      <span className="text-lg font-black text-white tracking-tight">APP-GYM</span>
+                      <span className="text-lg font-black text-white tracking-tight">StephFit</span>
                     </div>
                     <span className="text-xs text-gray-400 bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700/50">
-                      {fmtDate(report.period.from)} — {fmtDate(report.period.to)}
+                      {fmtDate(report.period.from)} â€” {fmtDate(report.period.to)}
                     </span>
                   </div>
 
@@ -601,7 +601,7 @@ export default function Progress() {
 
                   {/* Footer */}
                   <div className="relative flex items-center justify-between">
-                    <p className="text-xs text-gray-500">Compartido desde APP-GYM</p>
+                    <p className="text-xs text-gray-500">Compartido desde StephFit</p>
                     <p className="text-xs text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-400 font-bold">
                       💪 ¡Sigue superándote!
                     </p>
@@ -615,7 +615,7 @@ export default function Progress() {
                 className="inline-flex items-center gap-2 bg-gradient-to-r from-primary to-cyan-500 hover:shadow-lg hover:shadow-primary/25 text-white px-8 py-3 rounded-xl font-bold text-base transition-all disabled:opacity-50"
               >
                 <LuDownload className="w-5 h-5" />
-                {generating ? 'Generando…' : 'Descargar Imagen'}
+                {generating ? 'Generandoâ€¦' : 'Descargar Imagen'}
               </button>
             </div>
           </div>
@@ -625,7 +625,7 @@ export default function Progress() {
   );
 }
 
-/* ─── KPI Card component ─── */
+/* â”€â”€â”€ KPI Card component â”€â”€â”€ */
 function KpiCard({ icon, label, value, trend, gradient, iconBg }) {
   return (
     <div className="relative overflow-hidden bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl p-5 hover:border-slate-600/50 transition-all group">
@@ -640,7 +640,7 @@ function KpiCard({ icon, label, value, trend, gradient, iconBg }) {
   );
 }
 
-/* ─── Share card stat ─── */
+/* â”€â”€â”€ Share card stat â”€â”€â”€ */
 function ShareStat({ icon, label, value, change }) {
   return (
     <div className="bg-slate-800/50 rounded-xl p-3 border border-slate-700/30">
@@ -655,3 +655,4 @@ function ShareStat({ icon, label, value, change }) {
     </div>
   );
 }
+

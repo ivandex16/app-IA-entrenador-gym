@@ -1,9 +1,15 @@
+﻿import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../api/axios';
+import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
+import {
   LuDumbbell, LuFlame, LuHeart, LuSparkles, LuZap, LuActivity,
   LuLink2, LuCog, LuPersonStanding, LuWeight, LuGripHorizontal,
   LuShield, LuMoveHorizontal, LuFootprints, LuTrendingUp, LuGrid3X3, LuCircleDot,
   LuThumbsUp, LuThumbsDown, LuCircleCheck, LuTriangleAlert,
-  LuArrowBigUp, LuTrash2,
-} from 'react-icons/lu';
+  LuArrowBigUp,
+  LuChefHat,
 } from 'react-icons/lu';
 
 const TIERS = ['rules', 'scoring', 'llm'];
@@ -48,29 +54,6 @@ const MUSCLE_GROUP_OPTIONS = [
 export default function Recommendations() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [tier, setTier] = useState('rules');
-  const [goal, setGoal] = useState('');
-  const [level, setLevel] = useState('beginner');
-  const [equipment, setEquipment] = useState('');
-  const [recommendations, setRecommendations] = useState([]);
-  const [error, setError] = useState(null);
-  const [history, setHistory] = useState([]);
-  const fetchRecommendations = () => {
-    setLoading(true);
-    setError(null);
-    api.get(`/recommendations?tier=${tier}&goal=${goal}&level=${level}&equipment=${equipment}`)
-      .then(res => {
-        setRecommendations(res.data);
-        setHistory(prev => [...prev, { goal, level, equipment, recommendations: res.data }]);
-        setLoading(false);
-      })
-      .catch(() => {
-        setError('Error al obtener recomendaciones');
-        setLoading(false);
-        toast.error('Error al obtener recomendaciones');
-      });
-  };
 
   // --- Recommendation tabs ---
   const [tier, setTier] = useState('scoring');
@@ -79,6 +62,7 @@ export default function Recommendations() {
 
   // --- AI routine generation ---
   const [generating, setGenerating] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [generatedRoutine, setGeneratedRoutine] = useState(null);
 
   // --- Form state ---
@@ -95,11 +79,7 @@ export default function Recommendations() {
     customNotes: '',
   });
 
-<<<<<<< HEAD
   // Pre-fill form from user profile
-=======
-  // Pre-fill form from user profile + latest weight log
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
   useEffect(() => {
     if (user) {
       setForm((prev) => ({
@@ -113,19 +93,6 @@ export default function Recommendations() {
         focusMuscleGroups: user.preferences?.focusMuscleGroups?.length ? user.preferences.focusMuscleGroups : prev.focusMuscleGroups,
       }));
     }
-<<<<<<< HEAD
-=======
-    // Fetch latest weight log as fallback for weight field
-    api.get('/weight').then(({ data }) => {
-      if (data?.length > 0) {
-        const latestWeight = data[0].weight;
-        setForm((prev) => ({
-          ...prev,
-          weight: prev.weight || latestWeight,
-        }));
-      }
-    }).catch(() => { });
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
     // Also pre-fill goal from active goal
     api.get('/goals').then(({ data }) => {
       const active = data.find((g) => g.isActive);
@@ -173,11 +140,7 @@ export default function Recommendations() {
     try {
       const { data } = await api.post('/recommendations/generate-routine', form);
       setGeneratedRoutine(data);
-<<<<<<< HEAD
-      toast.success('¡Rutina generada con éxito! Se guardó en tus rutinas.');
-=======
-      toast.success('¡Vista previa lista! Revisa la rutina y confírmala si te gusta.');
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
+      toast.success('Rutina generada. Revísala y confirma si deseas guardarla.');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Error al generar rutina');
     } finally {
@@ -185,36 +148,45 @@ export default function Recommendations() {
     }
   };
 
-<<<<<<< HEAD
-=======
-  const [confirming, setConfirming] = useState(false);
-
   const handleConfirmRoutine = async () => {
-    if (!generatedRoutine) return;
+    if (!generatedRoutine?.routine) return;
     setConfirming(true);
     try {
       const { data } = await api.post('/recommendations/confirm-routine', {
-        routineData: generatedRoutine._routineData,
-        goalType: generatedRoutine._goalType,
+        routine: generatedRoutine.routine,
         engine: generatedRoutine.engine,
+        unmatchedExercises: generatedRoutine.unmatchedExercises || [],
       });
-      toast.success('¡Rutina guardada en tus rutinas!');
-      navigate(`/routines/${data.routine._id}`);
+      setGeneratedRoutine(data);
+      toast.success('¡Rutina confirmada y guardada en tus rutinas!');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Error al guardar rutina');
+      toast.error(err.response?.data?.message || 'No se pudo confirmar la rutina');
     } finally {
       setConfirming(false);
     }
   };
 
-  const handleDiscardRoutine = () => {
-    setGeneratedRoutine(null);
-    toast('Rutina descartada. Puedes generar otra.', { icon: '🗑️' });
-  };
-
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-8">
+      <section className="bg-slate-800 border border-slate-700 rounded-2xl p-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+            <LuChefHat className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <p className="font-semibold">Nuevo: Recetas Fit con IA</p>
+            <p className="text-xs text-gray-400">Recibe ideas de comidas segun tus objetivos y recuerda que no reemplaza a nutricionista.</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate('/fit-recipes')}
+          className="bg-primary hover:bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
+        >
+          Ir a recetas
+        </button>
+      </section>
+
       {/* ══════════ AI ROUTINE GENERATOR FORM ══════════ */}
       <section data-tour="recommendations-form" className="bg-gradient-to-br from-indigo-900/60 to-purple-900/40 rounded-2xl border border-indigo-500/30 overflow-hidden">
         {/* Header */}
@@ -242,13 +214,8 @@ export default function Recommendations() {
                   type="button"
                   onClick={() => setForm({ ...form, level: lvl.v })}
                   className={`p-3 rounded-xl text-center transition-all border ${form.level === lvl.v
-<<<<<<< HEAD
                       ? 'bg-indigo-600/40 border-indigo-400 text-white'
                       : 'bg-slate-800/50 border-slate-600/50 text-gray-400 hover:border-slate-500'
-=======
-                    ? 'bg-indigo-600/40 border-indigo-400 text-white'
-                    : 'bg-slate-800/50 border-slate-600/50 text-gray-400 hover:border-slate-500'
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
                     }`}
                 >
                   <p className="text-sm font-semibold">{lvl.l}</p>
@@ -268,13 +235,8 @@ export default function Recommendations() {
                   type="button"
                   onClick={() => setForm({ ...form, goalType: g.v })}
                   className={`p-3 rounded-xl text-left transition-all border flex items-center gap-2 ${form.goalType === g.v
-<<<<<<< HEAD
                       ? 'bg-indigo-600/40 border-indigo-400 text-white'
                       : 'bg-slate-800/50 border-slate-600/50 text-gray-400 hover:border-slate-500'
-=======
-                    ? 'bg-indigo-600/40 border-indigo-400 text-white'
-                    : 'bg-slate-800/50 border-slate-600/50 text-gray-400 hover:border-slate-500'
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
                     }`}
                 >
                   <g.Icon className="w-5 h-5" />
@@ -372,13 +334,8 @@ export default function Recommendations() {
                   type="button"
                   onClick={() => toggleArrayItem('equipment', eq.v)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border flex items-center gap-1.5 ${form.equipment.includes(eq.v)
-<<<<<<< HEAD
                       ? 'bg-indigo-600/40 border-indigo-400 text-white'
                       : 'bg-slate-800/50 border-slate-600/50 text-gray-400 hover:border-slate-500'
-=======
-                    ? 'bg-indigo-600/40 border-indigo-400 text-white'
-                    : 'bg-slate-800/50 border-slate-600/50 text-gray-400 hover:border-slate-500'
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
                     }`}
                 >
                   <eq.Icon className="w-3.5 h-3.5" /> {eq.l}
@@ -399,13 +356,8 @@ export default function Recommendations() {
                   type="button"
                   onClick={() => toggleArrayItem('focusMuscleGroups', mg.v)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border flex items-center gap-1.5 ${form.focusMuscleGroups.includes(mg.v)
-<<<<<<< HEAD
                       ? 'bg-purple-600/40 border-purple-400 text-white'
                       : 'bg-slate-800/50 border-slate-600/50 text-gray-400 hover:border-slate-500'
-=======
-                    ? 'bg-purple-600/40 border-purple-400 text-white'
-                    : 'bg-slate-800/50 border-slate-600/50 text-gray-400 hover:border-slate-500'
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
                     }`}
                 >
                   <mg.Icon className="w-3.5 h-3.5" /> {mg.l}
@@ -456,70 +408,59 @@ export default function Recommendations() {
 
       {/* ══════════ Generated Routine Result ══════════ */}
       {generatedRoutine && (
-<<<<<<< HEAD
         <section className="bg-slate-800 rounded-2xl p-6 border border-green-500/30 animate-fade-in">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <div>
               <h3 className="text-xl font-bold text-green-400 flex items-center gap-2"><LuCircleCheck className="w-5 h-5" /> {generatedRoutine.routine.name}</h3>
               <p className="text-sm text-gray-400">{generatedRoutine.routine.description}</p>
+              {generatedRoutine.needsConfirmation && (
+                <p className="text-xs text-amber-300 mt-1 flex items-center gap-1">
+                  <LuTriangleAlert className="w-3.5 h-3.5" /> Esta es una vista previa. Debes confirmar para guardarla.
+                </p>
+              )}
               {generatedRoutine.engine === 'scoring' && (
                 <p className="text-xs text-amber-400 mt-1 flex items-center gap-1"><LuZap className="w-3.5 h-3.5" /> Generada por el motor local (Gemini no disponible). Cuando la cuota se renueve, se usará IA.</p>
               )}
             </div>
             <div className="flex gap-2">
-              <button
-                onClick={() => navigate(`/routines/${generatedRoutine.routine._id}`)}
-                className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
-              >
-                Ver Rutina Completa
-              </button>
-              <button
-                onClick={() => navigate('/routines')}
-                className="bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
-              >
-                Ir a Mis Rutinas
-=======
-        <section className="bg-slate-800 rounded-2xl p-6 border border-amber-500/30 animate-fade-in">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-            <div>
-              <h3 className="text-xl font-bold text-amber-400 flex items-center gap-2"><LuSparkles className="w-5 h-5" /> Vista Previa: {generatedRoutine.preview.name}</h3>
-              <p className="text-sm text-gray-400">{generatedRoutine.preview.description}</p>
-              {generatedRoutine.engine === 'scoring' && (
-                <p className="text-xs text-amber-400 mt-1 flex items-center gap-1"><LuZap className="w-3.5 h-3.5" /> Generada por el motor local (Gemini no disponible). Cuando la cuota se renueve, se usará IA.</p>
+              {generatedRoutine.routine?._id ? (
+                <>
+                  <button
+                    onClick={() => navigate(`/routines/${generatedRoutine.routine._id}`)}
+                    className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
+                  >
+                    Ver Rutina Completa
+                  </button>
+                  <button
+                    onClick={() => navigate('/routines')}
+                    className="bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
+                  >
+                    Ir a Mis Rutinas
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleConfirmRoutine}
+                    disabled={confirming}
+                    className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-60"
+                  >
+                    {confirming ? 'Guardando...' : 'Confirmar y Guardar'}
+                  </button>
+                  <button
+                    onClick={() => setGeneratedRoutine(null)}
+                    className="bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
+                  >
+                    Cancelar
+                  </button>
+                </>
               )}
-              <p className="text-xs text-gray-500 mt-1">Esta rutina aún no se ha guardado. Revísala y confirma si te gusta.</p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handleConfirmRoutine}
-                disabled={confirming}
-                className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition flex items-center gap-2"
-              >
-                {confirming ? (
-                  <><svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> Guardando...</>
-                ) : (
-                  <><LuCircleCheck className="w-4 h-4" /> Confirmar y Guardar</>
-                )}
-              </button>
-              <button
-                onClick={handleDiscardRoutine}
-                className="bg-red-600/80 hover:bg-red-500 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition flex items-center gap-2"
-              >
-                <LuTrash2 className="w-4 h-4" /> Descartar
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
-              </button>
             </div>
           </div>
 
-<<<<<<< HEAD
           {generatedRoutine.routine.targetMuscleGroups?.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-4">
               {generatedRoutine.routine.targetMuscleGroups.map((mg) => (
-=======
-          {generatedRoutine.preview.targetMuscleGroups?.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              {generatedRoutine.preview.targetMuscleGroups.map((mg) => (
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
                 <span key={mg} className="bg-indigo-600/30 text-indigo-300 text-xs px-3 py-1 rounded-full border border-indigo-500/30">
                   {mg}
                 </span>
@@ -528,15 +469,9 @@ export default function Recommendations() {
           )}
 
           {/* Multi-day display */}
-<<<<<<< HEAD
           {generatedRoutine.routine.days?.length > 0 ? (
             <div className="space-y-4">
               {generatedRoutine.routine.days.map((day, dayIdx) => (
-=======
-          {generatedRoutine.preview.days?.length > 0 ? (
-            <div className="space-y-4">
-              {generatedRoutine.preview.days.map((day, dayIdx) => (
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
                 <div key={dayIdx} className="bg-slate-700/30 rounded-xl p-4">
                   <h4 className="text-sm font-bold text-indigo-300 mb-2">{day.dayLabel}</h4>
                   <div className="space-y-1.5">
@@ -563,13 +498,8 @@ export default function Recommendations() {
             </div>
           ) : (
             <div className="space-y-2">
-<<<<<<< HEAD
               <h4 className="text-sm font-semibold text-gray-300">Ejercicios ({generatedRoutine.routine.exercises?.length || 0})</h4>
               {(generatedRoutine.routine.exercises || []).map((ex, i) => (
-=======
-              <h4 className="text-sm font-semibold text-gray-300">Ejercicios ({generatedRoutine.preview.exercises?.length || 0})</h4>
-              {(generatedRoutine.preview.exercises || []).map((ex, i) => (
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
                 <div key={i} className="flex items-center justify-between bg-slate-700/50 rounded-lg p-3">
                   <div className="flex items-center gap-3">
                     <span className="bg-primary/20 text-primary w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold">

@@ -1,8 +1,12 @@
 const {
   recommend,
   generateRoutineWithAI,
-  saveAIRoutine,
+  confirmGeneratedRoutine,
 } = require("../services/recommendationEngine");
+const {
+  generateNutritionPlanWithAI,
+  generateIngredientRecipesWithAI,
+} = require("../services/fitRecipeEngine");
 const AIRecommendation = require("../models/AIRecommendation");
 
 // GET /api/recommendations?tier=scoring
@@ -48,8 +52,10 @@ exports.feedback = async (req, res, next) => {
 // POST /api/recommendations/generate-routine
 exports.generateRoutine = async (req, res, next) => {
   try {
-    const result = await generateRoutineWithAI(req.user, req.body);
-    res.status(201).json(result);
+    const result = await generateRoutineWithAI(req.user, req.body, {
+      persist: false,
+    });
+    res.status(200).json(result);
   } catch (err) {
     next(err);
   }
@@ -58,44 +64,30 @@ exports.generateRoutine = async (req, res, next) => {
 // POST /api/recommendations/confirm-routine
 exports.confirmRoutine = async (req, res, next) => {
   try {
-    // TODO: Implement logic to confirm a generated routine (save to user, etc)
-    res.json({ message: 'Rutina confirmada (mock)' });
-  } catch (err) {
-    next(err);
-  }
-};
-
-// Add any additional admin/AI endpoints here
-    const result = await generateRoutineWithAI(req.user, req.body);
-    res.json(result);
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
-  } catch (err) {
-    if (err.message.includes("GEMINI_API_KEY") || err.message.includes("IA")) {
-      return res.status(400).json({ message: err.message });
-    }
-    next(err);
-  }
-};
-<<<<<<< HEAD
-=======
-
-// POST /api/recommendations/confirm-routine  (save previewed routine)
-exports.confirmRoutine = async (req, res, next) => {
-  try {
-    const { routineData, goalType, engine } = req.body;
-    if (!routineData || !routineData.days) {
-      return res
-        .status(400)
-        .json({ message: "No hay datos de rutina para confirmar" });
-    }
-    const result = await saveAIRoutine(req.user, {
-      routineData,
-      goalType,
-      engine,
-    });
+    const result = await confirmGeneratedRoutine(req.user, req.body);
     res.status(201).json(result);
   } catch (err) {
     next(err);
   }
 };
->>>>>>> 319b4ba (Initial project import: AI gym trainer app (backend, frontend, seed, AI logic, Docker, docs))
+
+// POST /api/recommendations/fit-recipes/plan
+exports.generateNutritionPlan = async (req, res, next) => {
+  try {
+    const plan = await generateNutritionPlanWithAI(req.user, req.body);
+    res.status(201).json(plan);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/recommendations/fit-recipes/ingredients
+exports.generateIngredientRecipes = async (req, res, next) => {
+  try {
+    const recipes = await generateIngredientRecipesWithAI(req.user, req.body);
+    res.status(201).json(recipes);
+  } catch (err) {
+    next(err);
+  }
+};
+

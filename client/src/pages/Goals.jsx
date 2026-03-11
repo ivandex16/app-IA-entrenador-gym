@@ -16,6 +16,8 @@ const GOAL_TYPES = [
 ];
 
 const getTypeConfig = (type) => GOAL_TYPES.find(g => g.v === type) || GOAL_TYPES[0];
+const getApiError = (err, fallback = 'Error') =>
+  err?.response?.data?.message || err?.message || fallback;
 
 export default function Goals() {
   const [goals, setGoals] = useState([]);
@@ -47,16 +49,24 @@ export default function Goals() {
   };
 
   const toggleActive = async (goal) => {
-    await api.put(`/goals/${goal._id}`, { isActive: !goal.isActive });
-    toast.success(goal.isActive ? 'Objetivo pausado' : '¡Objetivo activado!');
-    load();
+    try {
+      await api.put(`/goals/${goal._id}`, { isActive: !goal.isActive });
+      toast.success(goal.isActive ? 'Objetivo pausado' : 'Objetivo activado');
+      load();
+    } catch (err) {
+      toast.error(getApiError(err, 'No se pudo actualizar el objetivo'));
+    }
   };
 
   const handleDelete = async (id) => {
-    await api.delete(`/goals/${id}`);
-    toast.success('Objetivo eliminado');
-    setConfirmDelete(null);
-    load();
+    try {
+      await api.delete(`/goals/${id}`);
+      toast.success('Objetivo eliminado');
+      setConfirmDelete(null);
+      load();
+    } catch (err) {
+      toast.error(getApiError(err, 'No se pudo eliminar el objetivo'));
+    }
   };
 
   const askAI = async () => {
@@ -64,8 +74,8 @@ export default function Goals() {
     try {
       const { data } = await api.post('/goals/ai-suggest', { context: aiContext });
       setAiSuggestions(data.suggestions || []);
-    } catch {
-      toast.error('No se pudieron obtener sugerencias');
+    } catch (err) {
+      toast.error(getApiError(err, 'No se pudieron obtener sugerencias'));
     }
     setAiLoading(false);
   };
@@ -445,3 +455,4 @@ export default function Goals() {
     </div>
   );
 }
+

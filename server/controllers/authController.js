@@ -11,14 +11,15 @@ const signToken = (id) =>
 exports.register = async (req, res, next) => {
   try {
     const { name, email, password, height, weight } = req.body;
-    const userData = { name, email, password };
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const userData = { name, email: normalizedEmail, password };
     if (height) userData.height = height;
     if (weight) userData.weight = weight;
     const user = await User.create(userData);
     const token = signToken(user._id);
     res
       .status(201)
-      .json({ token, user: { id: user._id, name, email, role: user.role, tourCompleted: false } });
+      .json({ token, user: { id: user._id, name, email: user.email, role: user.role, tourCompleted: false } });
   } catch (err) {
     next(err);
   }
@@ -28,14 +29,19 @@ exports.register = async (req, res, next) => {
 exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email }).select("+password");
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    if (!normalizedEmail || !password) {
+      return res.status(400).json({ message: 'Debes ingresar correo y contrasena.' });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail }).select("+password");
     if (!user || !(await user.comparePassword(password)))
-      return res.status(401).json({ message: "Invalid email or password" });
+      return res.status(401).json({ message: 'Correo o contrasena incorrectos.' });
 
     const token = signToken(user._id);
     res.json({
       token,
-      user: { id: user._id, name: user.name, email, role: user.role, tourCompleted: user.tourCompleted },
+      user: { id: user._id, name: user.name, email: user.email, role: user.role, tourCompleted: user.tourCompleted },
     });
   } catch (err) {
     next(err);

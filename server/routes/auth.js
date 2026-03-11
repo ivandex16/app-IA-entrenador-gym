@@ -20,8 +20,19 @@ router.post(
 router.post(
   '/login',
   [
-    body('email').isEmail(),
-    body('password').notEmpty(),
+    body('email')
+      .trim()
+      .notEmpty()
+      .withMessage('El correo es obligatorio.')
+      .bail()
+      .isEmail()
+      .withMessage('Ingresa un correo valido.'),
+    body('password')
+      .notEmpty()
+      .withMessage('La contrasena es obligatoria.')
+      .bail()
+      .isLength({ min: 6 })
+      .withMessage('La contrasena debe tener al menos 6 caracteres.'),
   ],
   validate,
   ctrl.login

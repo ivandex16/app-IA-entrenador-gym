@@ -1,5 +1,5 @@
 {
-  "name": "appgym-client",
+  "name": "stephfit-client",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -28,3 +28,4 @@
     "vitest": "^2.1.8"
   }
 }
+

@@ -1,55 +1,55 @@
-# APP-GYM — Fitness Tracker & AI Recommendation Platform
+# StephFit â€” Fitness Tracker & AI Recommendation Platform
 
 Full-stack gym tracking application built with **React**, **Node.js/Express**, and **MongoDB**.
 
 ## Features
 
-- 🔐 User authentication (JWT) with role-based access (user / admin)
-- 🏋️ Create, edit and manage custom workout routines
-- 📝 Log workouts: sets, reps, weight, notes per exercise
-- 📈 Track progress with charts and weekly reports
-- 📚 Exercise catalog with filters, images and YouTube videos
-- 🎯 Personal fitness goals (muscle gain, fat loss, endurance, etc.)
-- 🤖 AI-powered exercise & routine recommendations (3-tier engine)
-- 📱 Fully responsive (mobile-first, Tailwind CSS)
+- ðŸ” User authentication (JWT) with role-based access (user / admin)
+- ðŸ‹ï¸ Create, edit and manage custom workout routines
+- ðŸ“ Log workouts: sets, reps, weight, notes per exercise
+- ðŸ“ˆ Track progress with charts and weekly reports
+- ðŸ“š Exercise catalog with filters, images and YouTube videos
+- ðŸŽ¯ Personal fitness goals (muscle gain, fat loss, endurance, etc.)
+- ðŸ¤– AI-powered exercise & routine recommendations (3-tier engine)
+- ðŸ“± Fully responsive (mobile-first, Tailwind CSS)
 
 ## Project Structure
 
 ```
-APP-GYM/
-├── server/          # Express API + MongoDB (Mongoose)
-│   ├── config/      # DB connection, env helpers
-│   ├── models/      # Mongoose schemas
-│   ├── routes/      # Express routers
-│   ├── controllers/ # Route handlers
-│   ├── middleware/   # Auth, validation, error handling
-│   ├── services/    # AI recommendation, weekly report
-│   └── seeds/       # Sample exercise data
-├── client/          # React (Vite) + Tailwind CSS
-│   └── src/
-│       ├── api/         # Axios instances & service calls
-│       ├── components/  # Reusable UI components
-│       ├── pages/       # Route-level page components
-│       ├── context/     # Auth & app-level React context
-│       ├── hooks/       # Custom React hooks
-│       └── utils/       # Helpers & constants
-├── docker-compose.yml
-├── .env.example
-└── README.md
+StephFit/
+â”œâ”€â”€ server/          # Express API + MongoDB (Mongoose)
+â”‚   â”œâ”€â”€ config/      # DB connection, env helpers
+â”‚   â”œâ”€â”€ models/      # Mongoose schemas
+â”‚   â”œâ”€â”€ routes/      # Express routers
+â”‚   â”œâ”€â”€ controllers/ # Route handlers
+â”‚   â”œâ”€â”€ middleware/   # Auth, validation, error handling
+â”‚   â”œâ”€â”€ services/    # AI recommendation, weekly report
+â”‚   â””â”€â”€ seeds/       # Sample exercise data
+â”œâ”€â”€ client/          # React (Vite) + Tailwind CSS
+â”‚   â””â”€â”€ src/
+â”‚       â”œâ”€â”€ api/         # Axios instances & service calls
+â”‚       â”œâ”€â”€ components/  # Reusable UI components
+â”‚       â”œâ”€â”€ pages/       # Route-level page components
+â”‚       â”œâ”€â”€ context/     # Auth & app-level React context
+â”‚       â”œâ”€â”€ hooks/       # Custom React hooks
+â”‚       â””â”€â”€ utils/       # Helpers & constants
+â”œâ”€â”€ docker-compose.yml
+â”œâ”€â”€ .env.example
+â””â”€â”€ README.md
 ```
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js ≥ 18
-- MongoDB 7+ (local or Atlas) — or use Docker Compose
-- npm ≥ 9
+- Node.js â‰¥ 18
+- MongoDB 7+ (local or Atlas) â€” or use Docker Compose
+- npm â‰¥ 9
 
 ### 1. Clone & install
 
 ```bash
-git clone <repo-url> APP-GYM && cd APP-GYM
+git clone <repo-url> StephFit && cd StephFit
 cp .env.example .env          # edit with your values
 
 # Backend
@@ -100,3 +100,4 @@ Development: `http://localhost:5000/api`
 ## License
 
 MIT
+

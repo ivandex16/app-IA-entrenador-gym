@@ -9,17 +9,17 @@ import {
 import api from '../api/axios';
 
 const STEPS = [
-  /* ── Welcome ── */
+  /* â”€â”€ Welcome â”€â”€ */
   {
     id: 'welcome',
     type: 'modal',
-    title: '¡Bienvenido a APP-GYM! 🏋️',
+    title: '¡Bienvenido a StephFit! 🏋️',
     description: 'Tu compañero de entrenamiento inteligente. Te guiaremos por cada vista de la app para que saques el máximo provecho.',
     icon: LuRocket,
     gradient: 'from-primary to-accent',
   },
 
-  /* ── Dashboard page ── */
+  /* â”€â”€ Dashboard page â”€â”€ */
   {
     id: 'dashboard-quick-actions',
     route: '/dashboard',
@@ -37,7 +37,7 @@ const STEPS = [
     icon: LuTrendingUp,
   },
 
-  /* ── Routines page ── */
+  /* â”€â”€ Routines page â”€â”€ */
   {
     id: 'routines-actions',
     route: '/routines',
@@ -47,7 +47,7 @@ const STEPS = [
     icon: LuListChecks,
   },
 
-  /* ── Workouts page ── */
+  /* â”€â”€ Workouts page â”€â”€ */
   {
     id: 'workouts-action',
     route: '/workouts',
@@ -57,7 +57,7 @@ const STEPS = [
     icon: LuSword,
   },
 
-  /* ── Exercises page ── */
+  /* â”€â”€ Exercises page â”€â”€ */
   {
     id: 'exercises-filters',
     route: '/exercises',
@@ -67,7 +67,7 @@ const STEPS = [
     icon: LuSearch,
   },
 
-  /* ── Goals page ── */
+  /* â”€â”€ Goals page â”€â”€ */
   {
     id: 'goals-actions',
     route: '/goals',
@@ -77,7 +77,7 @@ const STEPS = [
     icon: LuTarget,
   },
 
-  /* ── Progress page ── */
+  /* â”€â”€ Progress page â”€â”€ */
   {
     id: 'progress-kpis',
     route: '/progress',
@@ -87,7 +87,7 @@ const STEPS = [
     icon: LuChartColumnIncreasing,
   },
 
-  /* ── Recommendations page ── */
+  /* â”€â”€ Recommendations page â”€â”€ */
   {
     id: 'recommendations-form',
     route: '/recommendations',
@@ -96,8 +96,16 @@ const STEPS = [
     description: 'Completa tu nivel, objetivo y equipo disponible para que Gemini genere una rutina personalizada para ti.',
     icon: LuSparkles,
   },
+  {
+    id: 'fit-recipes-form',
+    route: '/fit-recipes',
+    selector: '[data-tour="fit-recipes-form"]',
+    title: 'Recetas fit con IA',
+    description: 'Genera ideas de comidas según tus objetivos, ingredientes y tiempo disponible. Recuerda: no reemplaza a un nutricionista.',
+    icon: LuDumbbell,
+  },
 
-  /* ── Profile page ── */
+  /* â”€â”€ Profile page â”€â”€ */
   {
     id: 'profile-avatar',
     route: '/profile',
@@ -107,7 +115,7 @@ const STEPS = [
     icon: LuCircleUser,
   },
 
-  /* ── Finish ── */
+  /* â”€â”€ Finish â”€â”€ */
   {
     id: 'finish',
     type: 'modal',
@@ -123,6 +131,7 @@ export default function GuidedTour({ active, onFinish }) {
   const [highlight, setHighlight] = useState(null);
   const [tooltipStyle, setTooltipStyle] = useState({});
   const [navigating, setNavigating] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const tooltipRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -188,6 +197,17 @@ export default function GuidedTour({ active, onFinish }) {
         const vw = window.innerWidth;
         const vh = window.innerHeight;
 
+        if (vw < 768) {
+          // Mobile: fixed bottom sheet style to avoid overflow and clipping.
+          setTooltipStyle({
+            left: '12px',
+            right: '12px',
+            bottom: 'max(12px, env(safe-area-inset-bottom))',
+            width: 'auto',
+          });
+          return;
+        }
+
         let top = rect.bottom + 14;
         let left = rect.left + rect.width / 2 - ttRect.width / 2;
 
@@ -211,10 +231,14 @@ export default function GuidedTour({ active, onFinish }) {
   useEffect(() => {
     if (!active) return;
     positionTooltip();
-    window.addEventListener('resize', positionTooltip);
+    const onResize = () => {
+      setIsMobile(window.innerWidth < 768);
+      positionTooltip();
+    };
+    window.addEventListener('resize', onResize);
     window.addEventListener('scroll', positionTooltip, true);
     return () => {
-      window.removeEventListener('resize', positionTooltip);
+      window.removeEventListener('resize', onResize);
       window.removeEventListener('scroll', positionTooltip, true);
     };
   }, [active, step, positionTooltip]);
@@ -246,7 +270,7 @@ export default function GuidedTour({ active, onFinish }) {
   const Icon = current.icon;
   const progress = ((step + 1) / totalSteps) * 100;
 
-  // ── Modal step (welcome / finish) ──
+  // â”€â”€ Modal step (welcome / finish) â”€â”€
   if (isModal) {
     return (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center">
@@ -307,36 +331,43 @@ export default function GuidedTour({ active, onFinish }) {
     );
   }
 
-  // ── Spotlight step ──
+  // â”€â”€ Spotlight step â”€â”€
   return (
     <div className="fixed inset-0 z-[9999] pointer-events-none">
-      {/* Dark overlay with hole */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-auto" onClick={handleNext}>
-        <defs>
-          <mask id="tour-mask">
-            <rect x="0" y="0" width="100%" height="100%" fill="white" />
-            {highlight && (
-              <rect
-                x={highlight.left}
-                y={highlight.top}
-                width={highlight.width}
-                height={highlight.height}
-                rx="12"
-                fill="black"
-              />
-            )}
-          </mask>
-        </defs>
-        <rect
-          x="0" y="0"
-          width="100%" height="100%"
-          fill="rgba(0,0,0,0.65)"
-          mask="url(#tour-mask)"
+      {/* Dark overlay (mobile: no cutout to keep context stable) */}
+      {isMobile ? (
+        <div
+          className="absolute inset-0 pointer-events-auto bg-black/50"
+          onClick={undefined}
         />
-      </svg>
+      ) : (
+        <svg className="absolute inset-0 w-full h-full pointer-events-auto" onClick={handleNext}>
+          <defs>
+            <mask id="tour-mask">
+              <rect x="0" y="0" width="100%" height="100%" fill="white" />
+              {highlight && (
+                <rect
+                  x={highlight.left}
+                  y={highlight.top}
+                  width={highlight.width}
+                  height={highlight.height}
+                  rx="12"
+                  fill="black"
+                />
+              )}
+            </mask>
+          </defs>
+          <rect
+            x="0" y="0"
+            width="100%" height="100%"
+            fill="rgba(0,0,0,0.65)"
+            mask="url(#tour-mask)"
+          />
+        </svg>
+      )}
 
       {/* Glowing ring around highlighted element */}
-      {highlight && (
+      {highlight && !isMobile && (
         <div
           className="absolute rounded-xl ring-2 ring-primary/60 shadow-[0_0_25px_rgba(99,102,241,0.3)] pointer-events-none transition-all duration-300"
           style={{
@@ -350,7 +381,7 @@ export default function GuidedTour({ active, onFinish }) {
 
       {/* Page indicator pill */}
       {current.route && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none">
+        <div className={`absolute left-1/2 -translate-x-1/2 pointer-events-none ${isMobile ? 'top-2' : 'top-4'}`}>
           <div className="bg-slate-800/90 backdrop-blur-xl border border-slate-700/60 rounded-full px-4 py-1.5 shadow-lg flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             <span className="text-xs font-semibold text-slate-300">
@@ -364,7 +395,7 @@ export default function GuidedTour({ active, onFinish }) {
       {!navigating && (
         <div
           ref={tooltipRef}
-          className="absolute pointer-events-auto animate-[fadeInUp_0.25s_ease-out] max-w-sm w-80"
+          className={`absolute pointer-events-auto animate-[fadeInUp_0.25s_ease-out] ${isMobile ? 'w-auto max-w-none' : 'max-w-sm w-80'}`}
           style={tooltipStyle}
         >
           <div className="bg-slate-800/98 backdrop-blur-xl rounded-2xl border border-slate-700/60 shadow-2xl shadow-black/40 overflow-visible">
@@ -425,3 +456,4 @@ export default function GuidedTour({ active, onFinish }) {
     </div>
   );
 }
+

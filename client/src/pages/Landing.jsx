@@ -13,7 +13,7 @@ const FEATURES = [
 export default function Landing() {
   return (
     <div className="min-h-screen">
-      {/* ─── Hero Section ─── */}
+      {/* â”€â”€â”€ Hero Section â”€â”€â”€ */}
       <section className="relative min-h-[90vh] flex flex-col items-center justify-center text-center px-4 overflow-hidden hero-pattern">
         {/* Decorative blobs */}
         <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-float" />
@@ -22,13 +22,13 @@ export default function Landing() {
         <div className="relative z-10 max-w-3xl animate-fadeInUp">
           <div className="mb-6 animate-float"><LuDumbbell className="w-20 h-20 md:w-24 md:h-24 mx-auto text-primary" /></div>
           <h1 className="text-5xl md:text-7xl font-extrabold mb-4 tracking-tight">
-            <span className="text-gradient">APP-GYM</span>
+            <span className="text-gradient">StephFit</span>
           </h1>
           <p className="text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto mb-4 leading-relaxed">
             Tu compañero inteligente de entrenamiento.
           </p>
           <p className="text-base md:text-lg text-gray-400 max-w-xl mx-auto mb-10">
-            Registra tus entrenamientos, sigue rutinas con IA y alcanza tus objetivos fitness – todo en un solo lugar.
+            Registra tus entrenamientos, sigue rutinas con IA y alcanza tus objetivos fitness â€“ todo en un solo lugar.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -50,7 +50,7 @@ export default function Landing() {
         <div className="absolute bottom-8 animate-bounce text-gray-500"><LuChevronDown className="w-6 h-6" /></div>
       </section>
 
-      {/* ─── Features Section ─── */}
+      {/* â”€â”€â”€ Features Section â”€â”€â”€ */}
       <section className="max-w-6xl mx-auto px-4 py-20">
         <h2 className="text-3xl md:text-4xl font-extrabold text-center mb-4">
           Todo lo que necesitas para <span className="text-gradient">entrenar mejor</span>
@@ -72,7 +72,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ─── Stats / Social proof ─── */}
+      {/* â”€â”€â”€ Stats / Social proof â”€â”€â”€ */}
       <section className="border-t border-slate-800 bg-slate-900/50 py-16">
         <div className="max-w-4xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {[
@@ -89,7 +89,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ─── CTA Section ─── */}
+      {/* â”€â”€â”€ CTA Section â”€â”€â”€ */}
       <section className="py-20 px-4">
         <div className="max-w-2xl mx-auto text-center bg-gradient-to-br from-indigo-900/40 to-slate-800/60 border border-primary/20 rounded-3xl p-10">
           <h2 className="text-3xl font-extrabold mb-4">
@@ -107,10 +107,11 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ─── Footer ─── */}
+      {/* â”€â”€â”€ Footer â”€â”€â”€ */}
       <footer className="border-t border-slate-800 py-8 text-center text-sm text-gray-500">
-        <p className="flex items-center justify-center gap-2"><LuDumbbell className="w-4 h-4" /> APP-GYM — Entrena inteligente, progresa constante.</p>
+        <p className="flex items-center justify-center gap-2"><LuDumbbell className="w-4 h-4" /> StephFit â€” Entrena inteligente, progresa constante.</p>
       </footer>
     </div>
   );
 }
+

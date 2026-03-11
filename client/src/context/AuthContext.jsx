@@ -22,7 +22,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password });
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const { data } = await api.post('/auth/login', { email: normalizedEmail, password });
     localStorage.setItem('token', data.token);
     setUser(data.user);
     return data;

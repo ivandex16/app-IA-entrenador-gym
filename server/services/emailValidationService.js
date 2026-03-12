@@ -10,6 +10,13 @@ const BLOCKED_DOMAINS = new Set([
   "sharklasers.com",
   "discard.email",
 ]);
+const DNS_HARD_FAILURES = new Set([
+  "ENOTFOUND",
+  "ENODATA",
+  "ENONAME",
+  "NOTFOUND",
+  "NXDOMAIN",
+]);
 
 function withTimeout(promise, timeoutMs) {
   return Promise.race([
@@ -38,20 +45,34 @@ async function validateEmailReal(email) {
   try {
     const records = await withTimeout(dns.resolveMx(domain), 4000);
     if (!Array.isArray(records) || records.length === 0) {
-      return {
-        valid: false,
-        reason: "El dominio del correo no acepta mensajes.",
-      };
+      try {
+        const fallback =
+          (await withTimeout(dns.resolve4(domain), 3000).catch(() => []))
+          || (await withTimeout(dns.resolve6(domain), 3000).catch(() => []));
+        if (!Array.isArray(fallback) || fallback.length === 0) {
+          return {
+            valid: false,
+            reason: "El dominio del correo no parece existir o no recibe mensajes.",
+          };
+        }
+      } catch {
+        return { valid: true, skippedReason: "dns_fallback_unavailable" };
+      }
     }
     return { valid: true };
-  } catch {
+  } catch (err) {
+    const code = String(err?.code || err?.message || "").toUpperCase();
+    if ([...DNS_HARD_FAILURES].some((hard) => code.includes(hard))) {
+      return {
+        valid: false,
+        reason: "El dominio del correo no parece existir.",
+      };
+    }
     return {
-      valid: false,
-      reason:
-        "No pudimos validar el correo. Verifica que el dominio exista y reciba emails.",
+      valid: true,
+      skippedReason: "dns_lookup_unavailable",
     };
   }
 }
 
 module.exports = { validateEmailReal };
-

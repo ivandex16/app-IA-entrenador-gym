@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const User = require("../models/User");
+const { validateEmailReal } = require("../services/emailValidationService");
 
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -12,6 +13,10 @@ exports.register = async (req, res, next) => {
   try {
     const { name, email, password, height, weight } = req.body;
     const normalizedEmail = String(email || '').trim().toLowerCase();
+    const emailCheck = await validateEmailReal(normalizedEmail);
+    if (!emailCheck.valid) {
+      return res.status(400).json({ message: emailCheck.reason });
+    }
     const userData = { name, email: normalizedEmail, password };
     if (height) userData.height = height;
     if (weight) userData.weight = weight;
@@ -56,9 +61,15 @@ exports.getMe = async (req, res) => {
 // POST /api/auth/forgot-password
 exports.forgotPassword = async (req, res, next) => {
   try {
-    const user = await User.findOne({ email: req.body.email });
-    if (!user)
-      return res.status(404).json({ message: "No user with that email" });
+    const normalizedEmail = String(req.body?.email || "").trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
+    // Do not leak user existence
+    if (!user) {
+      return res.json({
+        message:
+          "Si el correo existe, te enviaremos instrucciones para restablecer tu contrasena.",
+      });
+    }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
     user.resetPasswordToken = crypto
@@ -68,8 +79,17 @@ exports.forgotPassword = async (req, res, next) => {
     user.resetPasswordExpires = Date.now() + 30 * 60 * 1000; // 30 min
     await user.save({ validateBeforeSave: false });
 
-    // In production send email with resetToken; here we return it for dev convenience
-    res.json({ message: "Reset token generated", resetToken });
+    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+    const resetUrl = `${clientUrl}/reset-password/${resetToken}`;
+    const payload = {
+      message:
+        "Si el correo existe, te enviaremos instrucciones para restablecer tu contrasena.",
+    };
+    if (process.env.NODE_ENV !== "production") {
+      payload.resetToken = resetToken;
+      payload.resetUrl = resetUrl;
+    }
+    res.json(payload);
   } catch (err) {
     next(err);
   }
@@ -78,6 +98,13 @@ exports.forgotPassword = async (req, res, next) => {
 // PUT /api/auth/reset-password/:token
 exports.resetPassword = async (req, res, next) => {
   try {
+    const newPassword = String(req.body?.password || "");
+    if (newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({ message: "La contrasena debe tener al menos 6 caracteres." });
+    }
+
     const hashed = crypto
       .createHash("sha256")
       .update(req.params.token)
@@ -88,9 +115,9 @@ exports.resetPassword = async (req, res, next) => {
       resetPasswordExpires: { $gt: Date.now() },
     });
     if (!user)
-      return res.status(400).json({ message: "Invalid or expired token" });
+      return res.status(400).json({ message: "Token invalido o expirado." });
 
-    user.password = req.body.password;
+    user.password = newPassword;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();

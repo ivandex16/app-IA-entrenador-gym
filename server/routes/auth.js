@@ -39,7 +39,32 @@ router.post(
 );
 
 router.get('/me', protect, ctrl.getMe);
-router.post('/forgot-password', ctrl.forgotPassword);
-router.put('/reset-password/:token', ctrl.resetPassword);
+router.post(
+  '/forgot-password',
+  [
+    body('email')
+      .trim()
+      .notEmpty()
+      .withMessage('El correo es obligatorio.')
+      .bail()
+      .isEmail()
+      .withMessage('Ingresa un correo valido.'),
+  ],
+  validate,
+  ctrl.forgotPassword
+);
+router.put(
+  '/reset-password/:token',
+  [
+    body('password')
+      .notEmpty()
+      .withMessage('La contrasena es obligatoria.')
+      .bail()
+      .isLength({ min: 6 })
+      .withMessage('La contrasena debe tener al menos 6 caracteres.'),
+  ],
+  validate,
+  ctrl.resetPassword
+);
 
 module.exports = router;

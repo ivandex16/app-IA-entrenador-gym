@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import VerifyEmail from './pages/VerifyEmail';
 import Dashboard from './pages/Dashboard';
 import Routines from './pages/Routines';
 import RoutineDetail from './pages/RoutineDetail';
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Route path="/verify-email/:token" element={<VerifyEmail />} />
         <Route path="/exercises" element={<Exercises />} />
         <Route path="/exercises/:id" element={<ExerciseDetail />} />
 

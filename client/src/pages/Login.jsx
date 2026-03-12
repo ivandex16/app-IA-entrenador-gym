@@ -57,6 +57,8 @@ export default function Login() {
       let message = 'No pudimos iniciar sesion. Intenta de nuevo.';
       if (status === 401) {
         message = 'Correo o contrasena incorrectos. Verifica tus datos.';
+      } else if (status === 403) {
+        message = apiMessage || 'Debes verificar tu correo antes de iniciar sesion.';
       } else if (status === 422) {
         message = apiMessage || 'Revisa los datos ingresados.';
       } else if (status === 429) {

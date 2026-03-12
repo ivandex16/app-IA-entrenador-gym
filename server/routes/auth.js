@@ -39,6 +39,21 @@ router.post(
 );
 
 router.get('/me', protect, ctrl.getMe);
+router.get('/verify-email/:token', ctrl.verifyEmail);
+router.post(
+  '/resend-verification',
+  [
+    body('email')
+      .trim()
+      .notEmpty()
+      .withMessage('El correo es obligatorio.')
+      .bail()
+      .isEmail()
+      .withMessage('Ingresa un correo valido.'),
+  ],
+  validate,
+  ctrl.resendVerification
+);
 router.post(
   '/forgot-password',
   [

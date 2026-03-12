@@ -28,6 +28,9 @@ const userSchema = new mongoose.Schema(
       focusMuscleGroups: [String], // e.g. ['chest','back']
     },
     tourCompleted: { type: Boolean, default: false },
+    emailVerified: { type: Boolean, default: true },
+    emailVerificationToken: String,
+    emailVerificationExpires: Date,
     resetPasswordToken: String,
     resetPasswordExpires: Date,
   },

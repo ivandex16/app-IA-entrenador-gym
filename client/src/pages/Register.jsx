@@ -8,6 +8,7 @@ export default function Register() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: '', email: '', password: '', height: '', weight: '' });
   const [loading, setLoading] = useState(false);
+  const [devVerifyUrl, setDevVerifyUrl] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,9 +17,10 @@ export default function Register() {
       const extraData = {};
       if (form.height) extraData.height = Number(form.height);
       if (form.weight) extraData.weight = Number(form.weight);
-      await register(form.name, form.email, form.password, extraData);
-      toast.success('¡Cuenta creada!');
-      navigate('/dashboard');
+      const data = await register(form.name, form.email, form.password, extraData);
+      setDevVerifyUrl(data?.verifyUrl || '');
+      toast.success(data?.message || 'Cuenta creada. Revisa tu correo para verificar tu cuenta.');
+      navigate('/login');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Error al registrarse');
     } finally {
@@ -82,6 +84,12 @@ export default function Register() {
           </div>
         </div>
         <p className="text-xs text-gray-500 -mt-3">Altura y peso son opcionales, pero ayudan a la IA a personalizar tus rutinas.</p>
+        {devVerifyUrl && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+            <p className="text-xs text-amber-300 mb-2">Modo desarrollo: enlace de verificacion</p>
+            <a href={devVerifyUrl} className="text-xs text-primary break-all hover:underline">{devVerifyUrl}</a>
+          </div>
+        )}
         <button
           disabled={loading}
           className="w-full bg-primary hover:bg-indigo-600 py-3 rounded-lg font-semibold transition disabled:opacity-50"

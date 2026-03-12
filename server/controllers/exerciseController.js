@@ -46,6 +46,31 @@ const toSlug = (value) =>
     .replace(/\s+/g, " ");
 const escapeRegex = (value) =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const normalizeName = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+async function findDuplicateByName(rawName) {
+  const trimmed = String(rawName || "").trim();
+  if (!trimmed) return null;
+
+  // Fast path: exact (case-insensitive)
+  const exact = await Exercise.findOne({
+    name: { $regex: new RegExp(`^${escapeRegex(trimmed)}$`, "i") },
+  });
+  if (exact) return exact;
+
+  // Robust path: ignore accents/symbols/extra spaces
+  const normalizedTarget = normalizeName(trimmed);
+  if (!normalizedTarget) return null;
+  const all = await Exercise.find({}, "name").lean();
+  const dup = all.find((e) => normalizeName(e.name) === normalizedTarget);
+  return dup || null;
+}
 
 // POST /api/exercises/ai-recommend  (protected)
 exports.aiRecommend = async (req, res, next) => {
@@ -91,9 +116,7 @@ exports.createCustom = async (req, res, next) => {
       return res.status(400).json({ message: "El nombre del ejercicio es obligatorio" });
     }
 
-    const existing = await Exercise.findOne({
-      name: { $regex: new RegExp(`^${escapeRegex(rawName)}$`, "i") },
-    });
+    const existing = await findDuplicateByName(rawName);
     if (existing) {
       return res.status(200).json({
         message: "El ejercicio ya existe en el catalogo",
@@ -131,6 +154,7 @@ exports.createCustom = async (req, res, next) => {
       equipment,
       category,
       imageUrl: String(req.body?.imageUrl || "").trim(),
+      videoUrl: String(req.body?.videoUrl || "").trim(),
       instructions: Array.isArray(req.body?.instructions)
         ? req.body.instructions.filter(Boolean).slice(0, 10)
         : [],
@@ -181,6 +205,13 @@ exports.getById = async (req, res, next) => {
 // POST /api/exercises  (admin)
 exports.create = async (req, res, next) => {
   try {
+    const existing = await findDuplicateByName(req.body?.name);
+    if (existing) {
+      return res.status(409).json({
+        message: "Ya existe un ejercicio con ese nombre",
+        exercise: existing,
+      });
+    }
     const ex = await Exercise.create(req.body);
     res.status(201).json(ex);
   } catch (err) {
@@ -191,6 +222,15 @@ exports.create = async (req, res, next) => {
 // PUT /api/exercises/:id  (admin)
 exports.update = async (req, res, next) => {
   try {
+    if (req.body?.name) {
+      const existing = await findDuplicateByName(req.body.name);
+      if (existing && String(existing._id) !== String(req.params.id)) {
+        return res.status(409).json({
+          message: "Ya existe un ejercicio con ese nombre",
+          exercise: existing,
+        });
+      }
+    }
     const ex = await Exercise.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,

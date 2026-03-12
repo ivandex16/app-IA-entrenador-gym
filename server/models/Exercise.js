@@ -49,6 +49,7 @@ const exerciseSchema = new mongoose.Schema(
     },
     imageUrl: { type: String, default: '' },
     youtubeVideoId: { type: String, default: '' }, // e.g. 'dQw4w9WgXcQ'
+    videoUrl: { type: String, default: '' }, // e.g. reels/tiktok/shorts/direct video URL
     instructions: [String],
     tips: [String],
     isUserCreated: { type: Boolean, default: false },

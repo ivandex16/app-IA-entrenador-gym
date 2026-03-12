@@ -7,6 +7,12 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "seed": "node seeds/seedExercises.js",
+    "videos:migrate-shorts": "node scripts/migrateYoutubeToShorts.js",
+    "videos:auto-shorts": "node scripts/autoFillYoutubeShorts.js",
+    "exercises:backfill-content": "node scripts/backfillExerciseContent.js",
+    "exercises:normalize-names": "node scripts/normalizeExerciseNames.js",
+    "videos:export-template": "node scripts/exportExerciseVideoTemplate.js",
+    "videos:import-template": "node scripts/importExerciseVideoTemplate.js",
     "test": "jest --forceExit --detectOpenHandles"
   },
   "dependencies": {

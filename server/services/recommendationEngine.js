@@ -1,9 +1,9 @@
-﻿/**
- * AI Recommendation Service â€“ 3-tier engine
+/**
+ * AI Recommendation Service – 3-tier engine
  *
- * Tier 1 â€“ RULES:   Simple business-rule matching (goal â†’ exercise filters).
- * Tier 2 â€“ SCORING: Personalised scoring using profile, history & muscle gaps.
- * Tier 3 â€“ LLM:     Optional integration with OpenAI for natural-language plans.
+ * Tier 1 – RULES:   Simple business-rule matching (goal → exercise filters).
+ * Tier 2 – SCORING: Personalised scoring using profile, history & muscle gaps.
+ * Tier 3 – LLM:     Optional integration with OpenAI for natural-language plans.
  *
  * Each tier returns: { title, body, exercises[], engine }
  */
@@ -166,9 +166,9 @@ async function llmRecommend(user) {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-//  TIER 1 â€“ Rule-based
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────
+//  TIER 1 – Rule-based
+// ─────────────────────────────────────────────
 const goalToFilter = {
   muscle_gain: {
     category: "hypertrophy",
@@ -203,9 +203,9 @@ async function ruleBasedRecommend(user) {
     exercises,
   };
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  //  TIER 3 â€“ LLM-powered (Google Gemini)
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─────────────────────────────────────────────
+  //  TIER 3 – LLM-powered (Google Gemini)
+  // ─────────────────────────────────────────────
   const { GoogleGenerativeAI } = require("@google/generative-ai");
 
   function getGeminiModel() {
@@ -221,7 +221,7 @@ async function ruleBasedRecommend(user) {
       const fallback = await scoringRecommend(user);
       fallback.engine = "scoring";
       fallback.body +=
-        " (Gemini no disponible â€“ se usÃ³ el motor de puntuaciÃ³n.)";
+        " (Gemini no disponible – se usó el motor de puntuación.)";
       return fallback;
     }
 
@@ -234,12 +234,12 @@ async function ruleBasedRecommend(user) {
 Dado un usuario con estos atributos:
 - Nivel: ${user.level || "intermedio"}
 - Objetivo: ${activeGoal?.type || "fitness general"}
-- Frecuencia semanal: ${user.weeklyFrequency || 3} dÃ­as
-- Tiempo disponible por sesiÃ³n: ${user.availableMinutes || 60} min
+- Frecuencia semanal: ${user.weeklyFrequency || 3} días
+- Tiempo disponible por sesión: ${user.availableMinutes || 60} min
 - Equipamiento: ${user.preferences?.equipment?.join(", ") || "cualquiera"}
 - Grupos musculares prioritarios: ${user.preferences?.focusMuscleGroups?.join(", ") || "todos"}
 
-Genera una rutina de entrenamiento semanal concisa en formato JSON (un array de objetos con campos: day, exerciseName, sets, reps, restSeconds, notes). Responde SOLO con JSON vÃ¡lido, sin markdown ni texto adicional.`;
+Genera una rutina de entrenamiento semanal concisa en formato JSON (un array de objetos con campos: day, exerciseName, sets, reps, restSeconds, notes). Responde SOLO con JSON válido, sin markdown ni texto adicional.`;
 
     try {
       const result = await model.generateContent(prompt);
@@ -261,26 +261,26 @@ Genera una rutina de entrenamiento semanal concisa en formato JSON (un array de 
       };
     } catch (err) {
       const fallback = await scoringRecommend(user);
-      fallback.body += ` (Error de Gemini: ${err.message} â€“ se usÃ³ puntuaciÃ³n.)`;
+      fallback.body += ` (Error de Gemini: ${err.message} – se usó puntuación.)`;
       return fallback;
     }
   }
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─────────────────────────────────────────────
   //  Generate full routine with Gemini
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─────────────────────────────────────────────
   const Routine = require("../models/Routine");
 
-  // â”€â”€ Local fallback routine generator (multi-day) â”€â”€
+  // ── Local fallback routine generator (multi-day) ──
 
   // Day splits by weekly frequency
   const WEEKDAY_NAMES = [
     "Lunes",
     "Martes",
-    "MiÃ©rcoles",
+    "Miércoles",
     "Jueves",
     "Viernes",
-    "SÃ¡bado",
+    "Sábado",
     "Domingo",
   ];
   const DAY_SPLITS = {
@@ -308,7 +308,7 @@ Genera una rutina de entrenamiento semanal concisa en formato JSON (un array de 
     ],
     3: [
       { label: "Empuje (Push)", muscles: ["chest", "shoulders", "triceps"] },
-      { label: "TirÃ³n (Pull)", muscles: ["back", "biceps"] },
+      { label: "Tirón (Pull)", muscles: ["back", "biceps"] },
       { label: "Piernas", muscles: ["legs", "glutes", "abs"] },
     ],
     4: [
@@ -318,10 +318,10 @@ Genera una rutina de entrenamiento semanal concisa en formato JSON (un array de 
       { label: "Tren Inferior B + Core", muscles: ["legs", "glutes", "abs"] },
     ],
     5: [
-      { label: "Pecho y TrÃ­ceps", muscles: ["chest", "triceps"] },
-      { label: "Espalda y BÃ­ceps", muscles: ["back", "biceps"] },
+      { label: "Pecho y Tríceps", muscles: ["chest", "triceps"] },
+      { label: "Espalda y Bíceps", muscles: ["back", "biceps"] },
       { label: "Hombros y Abs", muscles: ["shoulders", "abs"] },
-      { label: "Piernas y GlÃºteos", muscles: ["legs", "glutes"] },
+      { label: "Piernas y Glúteos", muscles: ["legs", "glutes"] },
       {
         label: "Full Body",
         muscles: ["chest", "back", "shoulders", "legs", "abs"],
@@ -329,10 +329,10 @@ Genera una rutina de entrenamiento semanal concisa en formato JSON (un array de 
     ],
     6: [
       { label: "Empuje A", muscles: ["chest", "shoulders", "triceps"] },
-      { label: "TirÃ³n A", muscles: ["back", "biceps"] },
+      { label: "Tirón A", muscles: ["back", "biceps"] },
       { label: "Piernas A", muscles: ["legs", "glutes", "abs"] },
       { label: "Empuje B", muscles: ["chest", "shoulders", "triceps"] },
-      { label: "TirÃ³n B", muscles: ["back", "biceps"] },
+      { label: "Tirón B", muscles: ["back", "biceps"] },
       { label: "Piernas B", muscles: ["legs", "glutes", "abs"] },
     ],
     7: [
@@ -340,8 +340,8 @@ Genera una rutina de entrenamiento semanal concisa en formato JSON (un array de 
       { label: "Espalda", muscles: ["back"] },
       { label: "Hombros", muscles: ["shoulders"] },
       { label: "Piernas", muscles: ["legs", "glutes"] },
-      { label: "BÃ­ceps y TrÃ­ceps", muscles: ["biceps", "triceps"] },
-      { label: "Abdominales y GlÃºteos", muscles: ["abs", "glutes"] },
+      { label: "Bíceps y Tríceps", muscles: ["biceps", "triceps"] },
+      { label: "Abdominales y Glúteos", muscles: ["abs", "glutes"] },
       { label: "Full Body", muscles: ["chest", "back", "shoulders", "legs"] },
     ],
   };
@@ -355,7 +355,7 @@ Genera una rutina de entrenamiento semanal concisa en formato JSON (un array de 
       equipment,
       focusMuscleGroups,
     } = opts;
-    // Goal â†’ training config
+    // Goal → training config
     const goalConfig = {
       muscle_gain: {
         sets: 4,
@@ -443,9 +443,9 @@ Genera una rutina de entrenamiento semanal concisa en formato JSON (un array de 
 
   const goalLabels = {
     muscle_gain: "ganancia muscular",
-    fat_loss: "pÃ©rdida de grasa",
+    fat_loss: "pérdida de grasa",
     endurance: "resistencia",
-    toning: "tonificaciÃ³n",
+    toning: "tonificación",
     strength: "fuerza",
     general: "fitness general",
   };
@@ -543,7 +543,7 @@ Genera una rutina de entrenamiento semanal concisa en formato JSON (un array de 
     });
 
     return {
-      dayLabel: `${WEEKDAY_NAMES[dayIdx]} â€” ${dayDef.label}`,
+      dayLabel: `${WEEKDAY_NAMES[dayIdx]} — ${dayDef.label}`,
       exercises: selected.map((ex, i) => ({
         exercise: ex._id,
         order: i,
@@ -551,7 +551,7 @@ Genera una rutina de entrenamiento semanal concisa en formato JSON (un array de 
         repsMin: cfg.repsMin,
         repsMax: cfg.repsMax,
         restSeconds: cfg.rest,
-        notes: `${ex.muscleGroup} â€” ${ex.difficulty || level}`,
+        notes: `${ex.muscleGroup} — ${ex.difficulty || level}`,
       })),
     };
   });
@@ -574,8 +574,8 @@ Genera una rutina de entrenamiento semanal concisa en formato JSON (un array de 
   const totalExercises = days.reduce((s, d) => s + d.exercises.length, 0);
 
   return {
-    name: `Rutina de ${goalLabel} â€” ${levelLabel} (${frequency} dÃ­as)`,
-    description: `Plan de ${frequency} dÃ­as para ${goalLabel}. ${totalExercises} ejercicios distribuidos, ${cfg.sets} series, descanso de ${cfg.rest}s. Generada por el motor de recomendaciones.`,
+    name: `Rutina de ${goalLabel} — ${levelLabel} (${frequency} días)`,
+    description: `Plan de ${frequency} días para ${goalLabel}. ${totalExercises} ejercicios distribuidos, ${cfg.sets} series, descanso de ${cfg.rest}s. Generada por el motor de recomendaciones.`,
     targetMuscleGroups: allUsedMuscles,
     days,
     exercises: [],
@@ -610,20 +610,20 @@ async function generateRoutineWithAI(user, overrides = {}, options = {}) {
 
   const goalLabels = {
     muscle_gain: "ganancia muscular",
-    fat_loss: "pÃ©rdida de grasa",
+    fat_loss: "pérdida de grasa",
     endurance: "resistencia",
-    toning: "tonificaciÃ³n",
+    toning: "tonificación",
     strength: "fuerza",
     general: "fitness general",
   };
 
-  const prompt = `Eres un entrenador personal certificado experto en programaciÃ³n de entrenamiento.
+  const prompt = `Eres un entrenador personal certificado experto en programación de entrenamiento.
 
-INFORMACIÃ“N DEL USUARIO:
+INFORMACIÓN DEL USUARIO:
 - Nivel: ${level}
 - Objetivo: ${goalLabels[goalType] || goalType}${goalDescription ? ` (${goalDescription})` : ""}
-- Frecuencia semanal: ${frequency} dÃ­as
-- Tiempo disponible por sesiÃ³n: ${minutes} minutos
+- Frecuencia semanal: ${frequency} días
+- Tiempo disponible por sesión: ${minutes} minutos
 - Equipamiento disponible: ${equipment.length ? equipment.join(", ") : "todo el equipamiento"}
 - Grupos musculares prioritarios: ${focusMuscleGroups.length ? focusMuscleGroups.join(", ") : "todos"}${height ? `\n- Altura: ${height} cm` : ""}${weight ? `\n- Peso: ${weight} kg` : ""}${customNotes ? `\n- Instrucciones adicionales del usuario: ${customNotes}` : ""}
 
@@ -631,21 +631,21 @@ EJERCICIOS DISPONIBLES EN LA BASE DE DATOS (usa EXACTAMENTE estos nombres):
 ${exerciseNames.join(", ")}
 
 INSTRUCCIONES:
-1. Crea una rutina de entrenamiento de ${frequency} dÃ­as por semana.
-2. Distribuye los ejercicios de forma inteligente por dÃ­a (ej: Push/Pull/Legs, Upper/Lower, etc.).
+1. Crea una rutina de entrenamiento de ${frequency} días por semana.
+2. Distribuye los ejercicios de forma inteligente por día (ej: Push/Pull/Legs, Upper/Lower, etc.).
 3. Usa SOLO ejercicios de la lista proporcionada (nombres exactos).
 4. Adapta sets, reps y descanso al objetivo y nivel del usuario.
-5. El tiempo de cada sesiÃ³n debe ajustarse a ${minutes} minutos.
-6. Cada dÃ­a debe usar el nombre del dÃ­a de la semana (ej: "Lunes â€” Pecho y TrÃ­ceps", "Martes â€” Espalda y BÃ­ceps").
+5. El tiempo de cada sesión debe ajustarse a ${minutes} minutos.
+6. Cada día debe usar el nombre del día de la semana (ej: "Lunes — Pecho y Tríceps", "Martes — Espalda y Bíceps").
 
-Responde SOLO con un JSON vÃ¡lido con esta estructura exacta (sin markdown):
+Responde SOLO con un JSON válido con esta estructura exacta (sin markdown):
 {
   "name": "nombre descriptivo de la rutina",
-  "description": "breve descripciÃ³n de la rutina y su enfoque",
+  "description": "breve descripción de la rutina y su enfoque",
   "targetMuscleGroups": ["grupo1", "grupo2"],
   "days": [
     {
-      "dayLabel": "Lunes â€” Nombre descriptivo",
+      "dayLabel": "Lunes — Nombre descriptivo",
       "exercises": [
         {
           "exerciseName": "nombre exacto del ejercicio",
@@ -660,7 +660,7 @@ Responde SOLO con un JSON vÃ¡lido con esta estructura exacta (sin markdown):
   ]
 }`;
 
-  // â”€â”€ Try Gemini first, fallback to local generator â”€â”€
+  // ── Try Gemini first, fallback to local generator ──
   let routineData; // { name, description, targetMuscleGroups, days[] }
   let usedEngine = "llm";
   let unmatchedExercises = [];
@@ -672,7 +672,7 @@ Responde SOLO con un JSON vÃ¡lido con esta estructura exacta (sin markdown):
       const text = result.response.text();
 
       const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("Formato invÃ¡lido");
+      if (!jsonMatch) throw new Error("Formato inválido");
 
       const aiPlan = JSON.parse(jsonMatch[0]);
 
@@ -702,7 +702,7 @@ Responde SOLO con un JSON vÃ¡lido con esta estructura exacta (sin markdown):
           }
         });
         return {
-          dayLabel: aiDay.dayLabel || "DÃ­a",
+          dayLabel: aiDay.dayLabel || "Día",
           exercises: routineExercises,
         };
       });
@@ -728,7 +728,7 @@ Responde SOLO con un JSON vÃ¡lido con esta estructura exacta (sin markdown):
         });
         if (routineExercises.length > 0) {
           days.push({
-            dayLabel: "DÃ­a 1 â€” Full Body",
+            dayLabel: "Día 1 — Full Body",
             exercises: routineExercises,
           });
         }
@@ -759,7 +759,7 @@ Responde SOLO con un JSON vÃ¡lido con esta estructura exacta (sin markdown):
       });
     }
   } else {
-    // No API key â€” use local generator
+    // No API key — use local generator
     usedEngine = "scoring";
     routineData = buildLocalRoutineFallback(allExercises, {
       level,
@@ -824,7 +824,7 @@ Responde SOLO con un JSON vÃ¡lido con esta estructura exacta (sin markdown):
 
   await routine.populate(
     "days.exercises.exercise",
-    "name muscleGroup equipment youtubeVideoId",
+    "name muscleGroup equipment youtubeVideoId videoUrl",
   );
 
   // Collect all exercise IDs for the recommendation record
@@ -851,9 +851,9 @@ Responde SOLO con un JSON vÃ¡lido con esta estructura exacta (sin markdown):
   };
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────
 //  Public API
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────
 /**
  * @param {'rules'|'scoring'|'llm'} tier
  */
@@ -925,7 +925,7 @@ async function confirmGeneratedRoutine(user, payload = {}) {
 
   await routine.populate(
     "days.exercises.exercise",
-    "name muscleGroup equipment youtubeVideoId",
+    "name muscleGroup equipment youtubeVideoId videoUrl",
   );
 
   const allExerciseIds = (routine.days || []).flatMap((d) =>
@@ -952,9 +952,9 @@ async function confirmGeneratedRoutine(user, payload = {}) {
   };
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────
 //  AI Exercise Recommender (free-text query)
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────
 async function aiExerciseRecommend(user, userQuery) {
   const allExercises = await Exercise.find({});
   const exerciseCatalog = allExercises.map((e) => ({
@@ -968,19 +968,19 @@ async function aiExerciseRecommend(user, userQuery) {
   const model = getGeminiModel();
   if (!model) {
     throw new Error(
-      "GEMINI_API_KEY no configurada. No se puede usar la recomendaciÃ³n con IA.",
+      "GEMINI_API_KEY no configurada. No se puede usar la recomendación con IA.",
     );
   }
 
   // Build detailed catalog with muscle groups clearly labeled
   const catalogLines = exerciseCatalog.map(
     (e) =>
-      `â€¢ "${e.name}" | grupo: ${e.muscleGroup} | equipo: ${e.equipment} | dificultad: ${e.difficulty} | categorÃ­a: ${e.category}`,
+      `• "${e.name}" | grupo: ${e.muscleGroup} | equipo: ${e.equipment} | dificultad: ${e.difficulty} | categoría: ${e.category}`,
   );
 
-  const prompt = `Eres un entrenador personal certificado experto en ejercicios de gimnasio. Responde preguntas sobre ejercicios basÃ¡ndote ÃšNICAMENTE en el catÃ¡logo proporcionado.
+  const prompt = `Eres un entrenador personal certificado experto en ejercicios de gimnasio. Responde preguntas sobre ejercicios basándote ÚNICAMENTE en el catálogo proporcionado.
 
-CATÃLOGO DE EJERCICIOS DISPONIBLES:
+CATÁLOGO DE EJERCICIOS DISPONIBLES:
 ${catalogLines.join("\n")}
 
 PERFIL DEL USUARIO:
@@ -994,46 +994,46 @@ TIPOS DE CONSULTA QUE DEBES MANEJAR:
 
 A) EJERCICIOS POR GRUPO MUSCULAR (ej: "ejercicios para abdomen", "quiero trabajar pecho"):
    - Identifica el grupo muscular usando estas equivalencias:
-     abdomen/abdominales/core/abs â†’ "abs", pecho/pectoral â†’ "chest", espalda/dorsal â†’ "back",
-     hombros/deltoides â†’ "shoulders", bÃ­ceps â†’ "biceps", trÃ­ceps â†’ "triceps",
-     piernas/cuÃ¡driceps/muslos â†’ "legs", glÃºteos/pompas/cola â†’ "glutes",
-     antebrazos â†’ "forearms", pantorrillas/gemelos â†’ "calves", cardio/aerÃ³bico â†’ "cardio"
+     abdomen/abdominales/core/abs → "abs", pecho/pectoral → "chest", espalda/dorsal → "back",
+     hombros/deltoides → "shoulders", bíceps → "biceps", tríceps → "triceps",
+     piernas/cuádriceps/muslos → "legs", glúteos/pompas/cola → "glutes",
+     antebrazos → "forearms", pantorrillas/gemelos → "calves", cardio/aeróbico → "cardio"
    - Recomienda SOLO ejercicios cuyo campo "grupo" coincida con ese grupo muscular.
 
-B) REEMPLAZO / ALTERNATIVA (ej: "con quÃ© reemplazo el hip thrust", "alternativa a press de banca"):
-   - Identifica el ejercicio mencionado (puede NO estar en el catÃ¡logo, ej: "hip thrust").
-   - Determina quÃ© mÃºsculos trabaja ese ejercicio y su patrÃ³n de movimiento.
-   - Busca en el catÃ¡logo ejercicios que trabajen los MISMOS mÃºsculos con un patrÃ³n de movimiento similar.
-   - Explica por quÃ© cada ejercicio sirve como reemplazo.
+B) REEMPLAZO / ALTERNATIVA (ej: "con qué reemplazo el hip thrust", "alternativa a press de banca"):
+   - Identifica el ejercicio mencionado (puede NO estar en el catálogo, ej: "hip thrust").
+   - Determina qué músculos trabaja ese ejercicio y su patrón de movimiento.
+   - Busca en el catálogo ejercicios que trabajen los MISMOS músculos con un patrón de movimiento similar.
+   - Explica por qué cada ejercicio sirve como reemplazo.
 
-C) CONSEJO / PREGUNTA GENERAL (ej: "quÃ© ejercicio es mejor para ganar masa", "cÃ³mo mejorar fuerza de agarre"):
-   - Responde la pregunta seleccionando los ejercicios mÃ¡s relevantes del catÃ¡logo.
-   - Da una explicaciÃ³n clara de por quÃ© esos ejercicios responden a la pregunta.
+C) CONSEJO / PREGUNTA GENERAL (ej: "qué ejercicio es mejor para ganar masa", "cómo mejorar fuerza de agarre"):
+   - Responde la pregunta seleccionando los ejercicios más relevantes del catálogo.
+   - Da una explicación clara de por qué esos ejercicios responden a la pregunta.
 
 D) POR EQUIPAMIENTO (ej: "ejercicios con mancuernas", "sin equipamiento"):
-   - Filtra ejercicios del catÃ¡logo que usen ese equipamiento especÃ­fico.
+   - Filtra ejercicios del catálogo que usen ese equipamiento específico.
 
 REGLAS OBLIGATORIAS:
-1. Usa SOLO nombres EXACTOS del campo "name" del catÃ¡logo. NUNCA inventes ejercicios que no estÃ©n listados.
-2. Si el ejercicio que el usuario menciona NO estÃ¡ en el catÃ¡logo (ej: "hip thrust"), NO lo incluyas en la respuesta, pero Ãºsalo para entender quÃ© busca y recomendar ALTERNATIVAS que SÃ estÃ©n en el catÃ¡logo.
-3. MÃ¡ximo 8 ejercicios recomendados. OrdÃ©nalos del mÃ¡s relevante al menos.
+1. Usa SOLO nombres EXACTOS del campo "name" del catálogo. NUNCA inventes ejercicios que no estén listados.
+2. Si el ejercicio que el usuario menciona NO está en el catálogo (ej: "hip thrust"), NO lo incluyas en la respuesta, pero úsalo para entender qué busca y recomendar ALTERNATIVAS que SÍ estén en el catálogo.
+3. Máximo 8 ejercicios recomendados. Ordénalos del más relevante al menos.
 4. Adapta sets y reps al nivel del usuario y al objetivo.
-5. Los tips deben ser consejos prÃ¡cticos y relevantes a la solicitud.
+5. Los tips deben ser consejos prácticos y relevantes a la solicitud.
 
-Responde SOLO con JSON vÃ¡lido (sin markdown ni texto adicional):
+Responde SOLO con JSON válido (sin markdown ni texto adicional):
 {
-  "title": "tÃ­tulo descriptivo que resuma la recomendaciÃ³n",
-  "explanation": "respuesta directa a lo que el usuario preguntÃ³, explicando tu razonamiento",
+  "title": "título descriptivo que resuma la recomendación",
+  "explanation": "respuesta directa a lo que el usuario preguntó, explicando tu razonamiento",
   "exercises": [
     {
-      "name": "nombre EXACTO del catÃ¡logo",
-      "reason": "por quÃ© este ejercicio responde a lo que el usuario pidiÃ³",
+      "name": "nombre EXACTO del catálogo",
+      "reason": "por qué este ejercicio responde a lo que el usuario pidió",
       "sets": 3,
       "reps": "8-12",
       "priority": 1
     }
   ],
-  "tips": ["consejo prÃ¡ctico 1", "consejo prÃ¡ctico 2"]
+  "tips": ["consejo práctico 1", "consejo práctico 2"]
 }`;
 
   // Map exercise names to DB documents (used in both AI and fallback paths)
@@ -1045,17 +1045,17 @@ Responde SOLO con JSON vÃ¡lido (sin markdown ni texto adicional):
   try {
     const result = await model.generateContent(prompt);
     const text = result.response.text();
-    console.log("ðŸ¤– Gemini raw response length:", text.length);
+    console.log("🤖 Gemini raw response length:", text.length);
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("Formato de respuesta invÃ¡lido");
+    if (!jsonMatch) throw new Error("Formato de respuesta inválido");
 
     const aiResult = JSON.parse(jsonMatch[0]);
 
     const matched = (aiResult.exercises || [])
       .map((aiEx) => {
         const dbEx = exerciseMap[aiEx.name?.toLowerCase()];
-        if (!dbEx) console.log("âš ï¸ Ejercicio no encontrado en DB:", aiEx.name);
+        if (!dbEx) console.log("⚠️ Ejercicio no encontrado en DB:", aiEx.name);
         return dbEx
           ? {
               exercise: dbEx,
@@ -1069,10 +1069,10 @@ Responde SOLO con JSON vÃ¡lido (sin markdown ni texto adicional):
       .filter(Boolean);
 
     if (matched.length === 0)
-      throw new Error("NingÃºn ejercicio coincidiÃ³ con el catÃ¡logo");
+      throw new Error("Ningún ejercicio coincidió con el catálogo");
 
     return {
-      title: aiResult.title || "RecomendaciÃ³n de ejercicios",
+      title: aiResult.title || "Recomendación de ejercicios",
       explanation: aiResult.explanation || "",
       exercises: matched,
       tips: aiResult.tips || [],
@@ -1080,10 +1080,10 @@ Responde SOLO con JSON vÃ¡lido (sin markdown ni texto adicional):
   } catch (err) {
     logGeminiFailure("aiExerciseRecommend", err);
 
-    // â”€â”€ Smart fallback â”€â”€
+    // ── Smart fallback ──
     const query = userQuery.toLowerCase();
 
-    // 1. Keyword â†’ muscle group mapping
+    // 1. Keyword → muscle group mapping
     const muscleKeywords = {
       pecho: "chest",
       pectoral: "chest",
@@ -1110,7 +1110,7 @@ Responde SOLO con JSON vÃ¡lido (sin markdown ni texto adicional):
       cuerpo: "full_body",
     };
 
-    // 2. Common exercises (including ones NOT in catalog) â†’ muscle group
+    // 2. Common exercises (including ones NOT in catalog) → muscle group
     const exerciseMuscleMap = {
       "hip thrust": "glutes",
       hipthrust: "glutes",
@@ -1199,10 +1199,10 @@ Responde SOLO con JSON vÃ¡lido (sin markdown ni texto adicional):
       chest: "Pecho",
       back: "Espalda",
       shoulders: "Hombros",
-      biceps: "BÃ­ceps",
-      triceps: "TrÃ­ceps",
+      biceps: "Bíceps",
+      triceps: "Tríceps",
       legs: "Piernas",
-      glutes: "GlÃºteos",
+      glutes: "Glúteos",
       abs: "Abdominales",
       forearms: "Antebrazos",
       calves: "Pantorrillas",
@@ -1215,11 +1215,11 @@ Responde SOLO con JSON vÃ¡lido (sin markdown ni texto adicional):
         ? `Ejercicios de ${muscleLabels[targetMuscle] || targetMuscle}`
         : "Ejercicios recomendados",
       explanation: targetMuscle
-        ? `Mostrando ejercicios de ${muscleLabels[targetMuscle] || targetMuscle} relacionados con tu bÃºsqueda. (La IA no pudo responder, se usÃ³ bÃºsqueda inteligente.)`
+        ? `Mostrando ejercicios de ${muscleLabels[targetMuscle] || targetMuscle} relacionados con tu búsqueda. (La IA no pudo responder, se usó búsqueda inteligente.)`
         : `No se pudo procesar la consulta con IA. Mostrando ejercicios generales.`,
       exercises: filtered.map((e, i) => ({
         exercise: e,
-        reason: `Ejercicio de ${muscleLabels[e.muscleGroup] || e.muscleGroup} â€” ${e.difficulty}`,
+        reason: `Ejercicio de ${muscleLabels[e.muscleGroup] || e.muscleGroup} — ${e.difficulty}`,
         sets: 3,
         reps: "8-12",
         priority: i + 1,

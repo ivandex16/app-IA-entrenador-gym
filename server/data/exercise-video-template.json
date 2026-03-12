@@ -1,0 +1,653 @@
+[
+  {
+    "name": "- 1 of 6 --",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "other"
+  },
+  {
+    "name": "- 2 of 6 --",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "back",
+    "equipment": "other"
+  },
+  {
+    "name": "- 3 of 6 --",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "other"
+  },
+  {
+    "name": "- 4 of 6 --",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "chest",
+    "equipment": "other"
+  },
+  {
+    "name": "- 5 of 6 --",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "other"
+  },
+  {
+    "name": "- 6 of 6 --",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "back",
+    "equipment": "other"
+  },
+  {
+    "name": "1 Curl femoral –",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "other"
+  },
+  {
+    "name": "1 Extensión cuádriceps –",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "other"
+  },
+  {
+    "name": "1 Face Pull –",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "back",
+    "equipment": "other"
+  },
+  {
+    "name": "1 Hip Thrust máquina –",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "other"
+  },
+  {
+    "name": "1 Jalón al pecho agarre ancho –",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "chest",
+    "equipment": "other"
+  },
+  {
+    "name": "1 Pájaros (deltoide posterior) –",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "chest",
+    "equipment": "other"
+  },
+  {
+    "name": "1 Sentadilla goblet –",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "other"
+  },
+  {
+    "name": "2 Abductores –",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "other"
+  },
+  {
+    "name": "2 Elevaciones laterales –",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "back",
+    "equipment": "other"
+  },
+  {
+    "name": "2 Prensa pies altos –",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "other"
+  },
+  {
+    "name": "2 Press inclinado mancuernas –",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "chest",
+    "equipment": "other"
+  },
+  {
+    "name": "2 Remo máquina agarre amplio –",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "back",
+    "equipment": "other"
+  },
+  {
+    "name": "2 Step-ups –",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "other"
+  },
+  {
+    "name": "3 Gemelos –",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "other"
+  },
+  {
+    "name": "3 Zancadas caminando –",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "other"
+  },
+  {
+    "name": "4 Tríceps polea –",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "triceps",
+    "equipment": "other"
+  },
+  {
+    "name": "Ab Wheel Rollout",
+    "youtubeVideoId": "A3uK5TPzHq8",
+    "videoUrl": "",
+    "muscleGroup": "abs",
+    "equipment": "other"
+  },
+  {
+    "name": "Aperturas con Mancuernas",
+    "youtubeVideoId": "QENKPHhQVi4",
+    "videoUrl": "",
+    "muscleGroup": "chest",
+    "equipment": "dumbbell"
+  },
+  {
+    "name": "Battle Ropes",
+    "youtubeVideoId": "r4MzxtBKyNE",
+    "videoUrl": "",
+    "muscleGroup": "cardio",
+    "equipment": "other"
+  },
+  {
+    "name": "Buenos Dias con Barra",
+    "youtubeVideoId": "vKPGe8zb2S4",
+    "videoUrl": "",
+    "muscleGroup": "back",
+    "equipment": "barbell"
+  },
+  {
+    "name": "Burpees",
+    "youtubeVideoId": "IYusabTdFEo",
+    "videoUrl": "",
+    "muscleGroup": "full_body",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Caminata del Oso (Bear Crawl)",
+    "youtubeVideoId": "2M0s-9xyVJk",
+    "videoUrl": "",
+    "muscleGroup": "full_body",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Clean and Press (Cargada y Press)",
+    "youtubeVideoId": "mPsxlNjv7Aw",
+    "videoUrl": "",
+    "muscleGroup": "full_body",
+    "equipment": "barbell"
+  },
+  {
+    "name": "Cruces en Polea",
+    "youtubeVideoId": "taI4XduLpTk",
+    "videoUrl": "",
+    "muscleGroup": "chest",
+    "equipment": "cable"
+  },
+  {
+    "name": "Crunch Abdominal",
+    "youtubeVideoId": "5ER5Of4MOPI",
+    "videoUrl": "",
+    "muscleGroup": "abs",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Curl con Barra",
+    "youtubeVideoId": "VS8SDGynKqM",
+    "videoUrl": "",
+    "muscleGroup": "biceps",
+    "equipment": "barbell"
+  },
+  {
+    "name": "Curl Concentrado",
+    "youtubeVideoId": "0AUGkch3tzc",
+    "videoUrl": "",
+    "muscleGroup": "biceps",
+    "equipment": "dumbbell"
+  },
+  {
+    "name": "Curl de Muñeca con Barra",
+    "youtubeVideoId": "s5lhlt5FeP4",
+    "videoUrl": "",
+    "muscleGroup": "forearms",
+    "equipment": "barbell"
+  },
+  {
+    "name": "Curl en Polea Baja",
+    "youtubeVideoId": "ZzjMo9mzrHg",
+    "videoUrl": "",
+    "muscleGroup": "biceps",
+    "equipment": "cable"
+  },
+  {
+    "name": "Curl Femoral",
+    "youtubeVideoId": "Orxowest56U",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "machine"
+  },
+  {
+    "name": "Curl Martillo",
+    "youtubeVideoId": "TwD-YGVP4Bk",
+    "videoUrl": "",
+    "muscleGroup": "biceps",
+    "equipment": "dumbbell"
+  },
+  {
+    "name": "Dominadas",
+    "youtubeVideoId": "8mhDd9Ahl1M",
+    "videoUrl": "",
+    "muscleGroup": "back",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Dominadas Supinas (Chin-Up)",
+    "youtubeVideoId": "brhRXlOhsAM",
+    "videoUrl": "",
+    "muscleGroup": "back",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Ejercicios Compuestos (Primero):",
+    "youtubeVideoId": "",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "other"
+  },
+  {
+    "name": "Elevación de Piernas Colgado",
+    "youtubeVideoId": "avBTqxnboRo",
+    "videoUrl": "",
+    "muscleGroup": "abs",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Elevaciones de Pantorrilla de Pie",
+    "youtubeVideoId": "gwLzBJYoWlI",
+    "videoUrl": "",
+    "muscleGroup": "calves",
+    "equipment": "machine"
+  },
+  {
+    "name": "Elevaciones de Pantorrilla Sentado",
+    "youtubeVideoId": "JbyjNymZOt0",
+    "videoUrl": "",
+    "muscleGroup": "calves",
+    "equipment": "machine"
+  },
+  {
+    "name": "Elevaciones Frontales",
+    "youtubeVideoId": "kLbvYQ-l4BA",
+    "videoUrl": "",
+    "muscleGroup": "shoulders",
+    "equipment": "dumbbell"
+  },
+  {
+    "name": "Elevaciones Laterales",
+    "youtubeVideoId": "hgLpdwMtEEs",
+    "videoUrl": "",
+    "muscleGroup": "shoulders",
+    "equipment": "dumbbell"
+  },
+  {
+    "name": "Extensión de Tríceps en Polea",
+    "youtubeVideoId": "HAS8uy73HqM",
+    "videoUrl": "",
+    "muscleGroup": "triceps",
+    "equipment": "cable"
+  },
+  {
+    "name": "Extensiones de Cuádriceps",
+    "youtubeVideoId": "m0FOpMEgero",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "machine"
+  },
+  {
+    "name": "Face Pull",
+    "youtubeVideoId": "0Po47vvj9g4",
+    "videoUrl": "",
+    "muscleGroup": "back",
+    "equipment": "cable"
+  },
+  {
+    "name": "Face Pull con Banda",
+    "youtubeVideoId": "rep-qVOkqgk",
+    "videoUrl": "",
+    "muscleGroup": "shoulders",
+    "equipment": "band"
+  },
+  {
+    "name": "Farmer's Walk (Paseo del Granjero)",
+    "youtubeVideoId": "Fkzk_RqlYig",
+    "videoUrl": "",
+    "muscleGroup": "forearms",
+    "equipment": "dumbbell"
+  },
+  {
+    "name": "Flexiones",
+    "youtubeVideoId": "H71IbSu4PDg",
+    "videoUrl": "",
+    "muscleGroup": "chest",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Fondos en Banco",
+    "youtubeVideoId": "0326dy_-CzM",
+    "videoUrl": "",
+    "muscleGroup": "triceps",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Fondos en Paralelas",
+    "youtubeVideoId": "CjGPpeM_Kog",
+    "videoUrl": "",
+    "muscleGroup": "triceps",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Hip Thrust",
+    "youtubeVideoId": "3aTb9Megbuo",
+    "videoUrl": "",
+    "muscleGroup": "glutes",
+    "equipment": "barbell"
+  },
+  {
+    "name": "Jalón al Pecho en Polea",
+    "youtubeVideoId": "oLQj4fySWQQ",
+    "videoUrl": "",
+    "muscleGroup": "back",
+    "equipment": "cable"
+  },
+  {
+    "name": "Mountain Climbers",
+    "youtubeVideoId": "FPLXxBxYcmE",
+    "videoUrl": "",
+    "muscleGroup": "abs",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Pájaros (Elevaciones Posteriores)",
+    "youtubeVideoId": "ttvfGg9d76c",
+    "videoUrl": "",
+    "muscleGroup": "shoulders",
+    "equipment": "dumbbell"
+  },
+  {
+    "name": "Pallof Press",
+    "youtubeVideoId": "5_8dKxNhx8Y",
+    "videoUrl": "",
+    "muscleGroup": "abs",
+    "equipment": "cable"
+  },
+  {
+    "name": "Patada de Glúteo en Polea",
+    "youtubeVideoId": "c0Fb2DBwjis",
+    "videoUrl": "",
+    "muscleGroup": "glutes",
+    "equipment": "cable"
+  },
+  {
+    "name": "Patada de Tríceps (Kickback)",
+    "youtubeVideoId": "ZO81bExngMI",
+    "videoUrl": "",
+    "muscleGroup": "triceps",
+    "equipment": "dumbbell"
+  },
+  {
+    "name": "Peso Muerto",
+    "youtubeVideoId": "Ysfd_ExNKbM",
+    "videoUrl": "",
+    "muscleGroup": "back",
+    "equipment": "barbell"
+  },
+  {
+    "name": "Peso Muerto Rumano",
+    "youtubeVideoId": "UgqrPwoTick",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "barbell"
+  },
+  {
+    "name": "Peso Muerto Sumo",
+    "youtubeVideoId": "fJNVzyGV_Yo",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "barbell"
+  },
+  {
+    "name": "Plancha",
+    "youtubeVideoId": "5JMakqxdT5c",
+    "videoUrl": "",
+    "muscleGroup": "abs",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Plancha Lateral",
+    "youtubeVideoId": "K2VljzCC16g",
+    "videoUrl": "",
+    "muscleGroup": "abs",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Prensa de Piernas",
+    "youtubeVideoId": "ch85L6ladCo",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "machine"
+  },
+  {
+    "name": "Press Arnold",
+    "youtubeVideoId": "6Z15_WdXmVw",
+    "videoUrl": "",
+    "muscleGroup": "shoulders",
+    "equipment": "dumbbell"
+  },
+  {
+    "name": "Press de Banca",
+    "youtubeVideoId": "jlFl7WJ1TzI",
+    "videoUrl": "",
+    "muscleGroup": "chest",
+    "equipment": "barbell"
+  },
+  {
+    "name": "Press de Banca con Mancuernas",
+    "youtubeVideoId": "VmB1G1K7v94",
+    "videoUrl": "",
+    "muscleGroup": "chest",
+    "equipment": "dumbbell"
+  },
+  {
+    "name": "Press de Hombro con Mancuernas Sentado",
+    "youtubeVideoId": "B-aVuyhvLHU",
+    "videoUrl": "",
+    "muscleGroup": "shoulders",
+    "equipment": "dumbbell"
+  },
+  {
+    "name": "Press Declinado con Barra",
+    "youtubeVideoId": "OR6WM5Z2Hqs",
+    "videoUrl": "",
+    "muscleGroup": "chest",
+    "equipment": "barbell"
+  },
+  {
+    "name": "Press Francés (Rompecráneos)",
+    "youtubeVideoId": "d_KZxkY_0cM",
+    "videoUrl": "",
+    "muscleGroup": "triceps",
+    "equipment": "barbell"
+  },
+  {
+    "name": "Press Inclinado con Mancuernas",
+    "youtubeVideoId": "sL6xN9EVDfE",
+    "videoUrl": "",
+    "muscleGroup": "chest",
+    "equipment": "dumbbell"
+  },
+  {
+    "name": "Press Militar",
+    "youtubeVideoId": "f3E1jQFRONs",
+    "videoUrl": "",
+    "muscleGroup": "shoulders",
+    "equipment": "barbell"
+  },
+  {
+    "name": "Puente de Glúteos",
+    "youtubeVideoId": "OUgsJ8-Vi0E",
+    "videoUrl": "",
+    "muscleGroup": "glutes",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Pull-Over con Mancuerna",
+    "youtubeVideoId": "YbX7Wd8jQ-Q",
+    "videoUrl": "",
+    "muscleGroup": "back",
+    "equipment": "dumbbell"
+  },
+  {
+    "name": "Remo con Barra",
+    "youtubeVideoId": "HgeOVKf9ZO4",
+    "videoUrl": "",
+    "muscleGroup": "back",
+    "equipment": "barbell"
+  },
+  {
+    "name": "Remo con Mancuerna a Una Mano",
+    "youtubeVideoId": "Vvnw0EYAlgc",
+    "videoUrl": "",
+    "muscleGroup": "back",
+    "equipment": "dumbbell"
+  },
+  {
+    "name": "Remo en Polea Baja",
+    "youtubeVideoId": "UCXxvVItLoM",
+    "videoUrl": "",
+    "muscleGroup": "back",
+    "equipment": "cable"
+  },
+  {
+    "name": "Remo en T",
+    "youtubeVideoId": "j3Igk5nyZE4",
+    "videoUrl": "",
+    "muscleGroup": "back",
+    "equipment": "machine"
+  },
+  {
+    "name": "Remo Invertido",
+    "youtubeVideoId": "J8Z3nA8I91s",
+    "videoUrl": "",
+    "muscleGroup": "back",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Russian Twist",
+    "youtubeVideoId": "Ly0k-DuFxm4",
+    "videoUrl": "",
+    "muscleGroup": "abs",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Salto a Cajón (Box Jump)",
+    "youtubeVideoId": "hxldG9FX4j4",
+    "videoUrl": "",
+    "muscleGroup": "cardio",
+    "equipment": "other"
+  },
+  {
+    "name": "Saltos de Tijera (Jumping Jacks)",
+    "youtubeVideoId": "iSSAk4XCsRA",
+    "videoUrl": "",
+    "muscleGroup": "cardio",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Sentadilla Búlgara",
+    "youtubeVideoId": "IdilLr9nyuQ",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "dumbbell"
+  },
+  {
+    "name": "Sentadilla con Barra",
+    "youtubeVideoId": "12i31bzJuL4",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "barbell"
+  },
+  {
+    "name": "Sentadilla con Salto",
+    "youtubeVideoId": "Ow5Mx-V8FsU",
+    "videoUrl": "",
+    "muscleGroup": "cardio",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Sissy Squat",
+    "youtubeVideoId": "E8J5N3z5k2w",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "bodyweight"
+  },
+  {
+    "name": "Sprint en Cinta",
+    "youtubeVideoId": "gYx2wQ84BKM",
+    "videoUrl": "",
+    "muscleGroup": "cardio",
+    "equipment": "machine"
+  },
+  {
+    "name": "Step-Up con Mancuernas",
+    "youtubeVideoId": "dQqApCGd5Ss",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "dumbbell"
+  },
+  {
+    "name": "Swing con Kettlebell",
+    "youtubeVideoId": "YSxHifyI8Ik",
+    "videoUrl": "",
+    "muscleGroup": "full_body",
+    "equipment": "kettlebell"
+  },
+  {
+    "name": "Thrusters",
+    "youtubeVideoId": "L219ltL15zk",
+    "videoUrl": "",
+    "muscleGroup": "full_body",
+    "equipment": "barbell"
+  },
+  {
+    "name": "Zancadas (Lunges)",
+    "youtubeVideoId": "QOVaHwm-Q6U",
+    "videoUrl": "",
+    "muscleGroup": "legs",
+    "equipment": "dumbbell"
+  }
+]

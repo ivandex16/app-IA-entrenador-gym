@@ -10,6 +10,7 @@ import {
   LuEye, LuClipboardList, LuLightbulb, LuClock, LuPlus, LuArrowRight,
   LuActivity, LuTarget, LuChevronRight,
 } from 'react-icons/lu';
+import { resolveExerciseVideo } from '../utils/videoEmbed';
 
 /* ───── helpers ───── */
 function fmtTime(totalSec) {
@@ -849,18 +850,32 @@ export default function Workouts() {
             </div>
 
             <div className="p-4 space-y-4">
-              {/* YouTube Video */}
-              {previewExercise.youtubeVideoId && (
-                <div className="aspect-video rounded-xl overflow-hidden bg-black">
-                  <iframe
-                    className="w-full h-full"
-                    src={`https://www.youtube.com/embed/${previewExercise.youtubeVideoId}`}
-                    title={previewExercise.name}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
-              )}
+              {/* Exercise video */}
+              {(() => {
+                const previewVideo = resolveExerciseVideo(previewExercise);
+                if (!previewVideo) return null;
+                if (previewVideo.mode === 'embed') {
+                  return (
+                    <div className="aspect-video rounded-xl overflow-hidden bg-black">
+                      <iframe
+                        className="w-full h-full"
+                        src={previewVideo.src}
+                        title={`${previewExercise.name} - ${previewVideo.label}`}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  );
+                }
+                if (previewVideo.mode === 'file') {
+                  return (
+                    <div className="aspect-video rounded-xl overflow-hidden bg-black">
+                      <video className="w-full h-full" src={previewVideo.src} controls preload="metadata" />
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               {/* Tags */}
               <div className="flex flex-wrap gap-2">

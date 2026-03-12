@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import {
-  LuArrowLeft, LuDumbbell, LuTarget, LuStar, LuZap, LuPlay,
+  LuArrowLeft, LuDumbbell, LuTarget, LuStar, LuZap,
   LuListOrdered, LuLightbulb, LuActivity, LuChevronRight, LuFlame,
 } from 'react-icons/lu';
+import { resolveExerciseVideoSources } from '../utils/videoEmbed';
 
 const MUSCLE_LABELS = {
   chest: 'Pecho', back: 'Espalda', shoulders: 'Hombros', biceps: 'Bíceps',
@@ -57,16 +58,32 @@ export default function ExerciseDetail() {
   const navigate = useNavigate();
   const [ex, setEx] = useState(null);
   const [error, setError] = useState(null);
+  const [selectedVideoKey, setSelectedVideoKey] = useState('');
 
   const goBack = () => navigate(-1);
 
   useEffect(() => {
     setError(null);
     setEx(null);
+    setSelectedVideoKey('');
     api.get(`/exercises/${id}`)
       .then((r) => setEx(r.data))
       .catch(() => setError('No se pudo cargar el ejercicio.'));
   }, [id]);
+
+  const videoOptions = ex ? resolveExerciseVideoSources(ex) : [];
+  const video =
+    videoOptions.find((item) => item.key === selectedVideoKey)
+    || videoOptions.find((item) => item.key === 'short')
+    || videoOptions[0]
+    || null;
+
+  useEffect(() => {
+    if (!ex || !videoOptions.length) return;
+    if (videoOptions.some((item) => item.key === selectedVideoKey)) return;
+    const preferred = videoOptions.find((item) => item.key === 'short') || videoOptions[0];
+    setSelectedVideoKey(preferred.key);
+  }, [ex, videoOptions, selectedVideoKey]);
 
   /* ─── Error state ─── */
   if (error)
@@ -100,6 +117,7 @@ export default function ExerciseDetail() {
   const diff = DIFFICULTY_CONFIG[ex.difficulty] || DIFFICULTY_CONFIG.intermediate;
   const gradient = MUSCLE_GRADIENT[ex.muscleGroup] || 'from-slate-600 to-slate-700';
   const heroImg = ex.imageUrl || MUSCLE_IMAGE[ex.muscleGroup] || MUSCLE_IMAGE.full_body;
+  const shortLike = video?.key === 'short';
 
   return (
     <div className="min-h-screen pb-12">
@@ -152,16 +170,41 @@ export default function ExerciseDetail() {
 
       <div className="max-w-4xl mx-auto px-4 -mt-10 space-y-6 relative z-10">
         {/* ══════════ VIDEO ══════════ */}
-        {ex.youtubeVideoId && (
+        {video && (
           <div className="animate-fadeInUp stagger-2 bg-slate-800/80 backdrop-blur-sm rounded-2xl p-2 border border-slate-700/50 shadow-2xl shadow-black/30">
-            <div className="aspect-video rounded-xl overflow-hidden relative group">
-              <iframe
-                className="w-full h-full"
-                src={`https://www.youtube.com/embed/${ex.youtubeVideoId}`}
-                title={ex.name}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+            {videoOptions.length > 1 && (
+              <div className="flex items-center gap-2 px-2 py-2">
+                {videoOptions.map((item) => {
+                  const active = item.key === video.key;
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => setSelectedVideoKey(item.key)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition border ${
+                        active
+                          ? 'bg-primary text-white border-primary'
+                          : 'bg-slate-700/60 text-gray-300 border-slate-600 hover:bg-slate-700'
+                      }`}
+                    >
+                      {item.title}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className={`${shortLike ? 'aspect-[9/16] max-w-sm mx-auto' : 'aspect-video'} rounded-xl overflow-hidden relative group`}>
+              {video.mode === 'embed' ? (
+                <iframe
+                  className="w-full h-full"
+                  src={video.src}
+                  title={`${ex.name} - ${video.label}`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <video className="w-full h-full" src={video.src} controls preload="metadata" />
+              )}
             </div>
           </div>
         )}

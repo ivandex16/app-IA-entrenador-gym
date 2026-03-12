@@ -18,6 +18,7 @@ async function sendEmail({ to, subject, html, text }) {
     host: cfg.host,
     port: cfg.port,
     secure: cfg.port === 465,
+    family: 4,
     auth: { user: cfg.user, pass: cfg.pass },
   });
 
@@ -32,4 +33,3 @@ async function sendEmail({ to, subject, html, text }) {
 }
 
 module.exports = { sendEmail, getMailerConfig };
-

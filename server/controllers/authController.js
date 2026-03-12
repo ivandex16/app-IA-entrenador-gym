@@ -14,6 +14,23 @@ const hashToken = (token) =>
   crypto.createHash("sha256").update(token).digest("hex");
 const getClientUrl = () => process.env.CLIENT_URL || "http://localhost:5173";
 
+async function issueVerification(user, subject = "Verifica tu cuenta en StephFit") {
+  const verifyToken = buildVerificationToken();
+  user.emailVerificationToken = hashToken(verifyToken);
+  user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+  await user.save({ validateBeforeSave: false });
+
+  const verifyUrl = `${getClientUrl()}/verify-email/${verifyToken}`;
+  const mailResult = await sendEmail({
+    to: user.email,
+    subject,
+    text: `Verifica tu cuenta aqui: ${verifyUrl}`,
+    html: `<p>Bienvenido a StephFit.</p><p>Verifica tu cuenta aqui:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p>`,
+  });
+
+  return { verifyToken, verifyUrl, mailResult };
+}
+
 // POST /api/auth/register
 exports.register = async (req, res, next) => {
   try {
@@ -25,7 +42,32 @@ exports.register = async (req, res, next) => {
     }
     const existing = await User.findOne({ email: normalizedEmail });
     if (existing) {
-      return res.status(409).json({ message: "Ese correo ya esta registrado." });
+      if (existing.emailVerified) {
+        return res.status(409).json({ message: "Ese correo ya esta registrado." });
+      }
+
+      const { verifyToken, verifyUrl, mailResult } = await issueVerification(
+        existing,
+        "Verifica tu cuenta en StephFit",
+      );
+      if (!mailResult.sent) {
+        return res.status(502).json({
+          message:
+            "No se pudo enviar el correo de verificacion. Intenta de nuevo en unos minutos.",
+        });
+      }
+
+      const payload = {
+        message:
+          "Ese correo ya tiene una cuenta pendiente de verificacion. Te reenviamos el enlace.",
+        email: existing.email,
+        emailSent: true,
+      };
+      if (process.env.NODE_ENV !== "production") {
+        payload.verifyUrl = verifyUrl;
+        payload.verifyToken = verifyToken;
+      }
+      return res.status(200).json(payload);
     }
 
     const userData = {
@@ -38,24 +80,20 @@ exports.register = async (req, res, next) => {
     if (weight) userData.weight = weight;
     const user = await User.create(userData);
 
-    const verifyToken = buildVerificationToken();
-    user.emailVerificationToken = hashToken(verifyToken);
-    user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
-    await user.save({ validateBeforeSave: false });
-
-    const verifyUrl = `${getClientUrl()}/verify-email/${verifyToken}`;
-    const mailResult = await sendEmail({
-      to: user.email,
-      subject: "Verifica tu cuenta en StephFit",
-      text: `Verifica tu cuenta aqui: ${verifyUrl}`,
-      html: `<p>Bienvenido a StephFit.</p><p>Verifica tu cuenta aqui:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p>`,
-    });
+    const { verifyToken, verifyUrl, mailResult } = await issueVerification(user);
+    if (!mailResult.sent) {
+      await User.deleteOne({ _id: user._id });
+      return res.status(502).json({
+        message:
+          "No se pudo enviar el correo de verificacion. La cuenta no fue creada. Intenta de nuevo.",
+      });
+    }
 
     const payload = {
       message:
         "Cuenta creada. Revisa tu correo para verificar tu cuenta antes de iniciar sesion.",
       email: user.email,
-      emailSent: mailResult.sent,
+      emailSent: true,
     };
     if (process.env.NODE_ENV !== "production") {
       payload.verifyUrl = verifyUrl;
@@ -142,22 +180,20 @@ exports.resendVerification = async (req, res, next) => {
       return res.json({ message: "Este correo ya esta verificado." });
     }
 
-    const verifyToken = buildVerificationToken();
-    user.emailVerificationToken = hashToken(verifyToken);
-    user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
-    await user.save({ validateBeforeSave: false });
-
-    const verifyUrl = `${getClientUrl()}/verify-email/${verifyToken}`;
-    const mailResult = await sendEmail({
-      to: user.email,
-      subject: "Reenvio de verificacion - StephFit",
-      text: `Verifica tu cuenta aqui: ${verifyUrl}`,
-      html: `<p>Reenvio de verificacion de cuenta.</p><p><a href="${verifyUrl}">${verifyUrl}</a></p>`,
-    });
+    const { verifyToken, verifyUrl, mailResult } = await issueVerification(
+      user,
+      "Reenvio de verificacion - StephFit",
+    );
+    if (!mailResult.sent) {
+      return res.status(502).json({
+        message:
+          "No se pudo enviar el correo de verificacion. Intenta de nuevo en unos minutos.",
+      });
+    }
 
     const payload = {
       message: "Si el correo existe, se enviaran instrucciones.",
-      emailSent: mailResult.sent,
+      emailSent: true,
     };
     if (process.env.NODE_ENV !== "production") {
       payload.verifyUrl = verifyUrl;

@@ -14,6 +14,15 @@ const hashToken = (token) =>
   crypto.createHash("sha256").update(token).digest("hex");
 const getClientUrl = () => process.env.CLIENT_URL || "http://localhost:5173";
 
+function logMailFailure(context, mailResult) {
+  console.error(`[mail:${context}]`, {
+    reason: mailResult?.reason || "unknown",
+    provider: mailResult?.provider || "none",
+    status: mailResult?.status || null,
+    details: mailResult?.details || null,
+  });
+}
+
 async function issueVerification(user, subject = "Verifica tu cuenta en StephFit") {
   const verifyToken = buildVerificationToken();
   user.emailVerificationToken = hashToken(verifyToken);
@@ -51,6 +60,7 @@ exports.register = async (req, res, next) => {
         "Verifica tu cuenta en StephFit",
       );
       if (!mailResult.sent) {
+        logMailFailure("register-existing", mailResult);
         return res.status(502).json({
           message:
             "No se pudo enviar el correo de verificacion. Intenta de nuevo en unos minutos.",
@@ -82,6 +92,7 @@ exports.register = async (req, res, next) => {
 
     const { verifyToken, verifyUrl, mailResult } = await issueVerification(user);
     if (!mailResult.sent) {
+      logMailFailure("register-new", mailResult);
       await User.deleteOne({ _id: user._id });
       return res.status(502).json({
         message:
@@ -185,6 +196,7 @@ exports.resendVerification = async (req, res, next) => {
       "Reenvio de verificacion - StephFit",
     );
     if (!mailResult.sent) {
+      logMailFailure("resend-verification", mailResult);
       return res.status(502).json({
         message:
           "No se pudo enviar el correo de verificacion. Intenta de nuevo en unos minutos.",

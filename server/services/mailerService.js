@@ -1,3 +1,4 @@
+const dns = require("node:dns").promises;
 const nodemailer = require("nodemailer");
 
 function getMailerConfig() {
@@ -14,11 +15,25 @@ async function sendEmail({ to, subject, html, text }) {
   const cfg = getMailerConfig();
   if (!cfg) return { sent: false, reason: "smtp_not_configured" };
 
+  let host = cfg.host;
+  try {
+    const ipv4 = await dns.resolve4(cfg.host);
+    if (Array.isArray(ipv4) && ipv4.length > 0) {
+      host = ipv4[0];
+    }
+  } catch {
+    host = cfg.host;
+  }
+
   const transporter = nodemailer.createTransport({
-    host: cfg.host,
+    host,
     port: cfg.port,
     secure: cfg.port === 465,
     family: 4,
+    name: cfg.host,
+    tls: {
+      servername: cfg.host,
+    },
     auth: { user: cfg.user, pass: cfg.pass },
   });
 

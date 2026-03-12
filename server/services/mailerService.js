@@ -11,9 +11,58 @@ function getMailerConfig() {
   return { host, port, user, pass, from };
 }
 
+function getResendConfig() {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.MAIL_FROM;
+  if (!apiKey || !from) return null;
+  return { apiKey, from };
+}
+
+async function sendViaResend({ to, subject, html, text }) {
+  const cfg = getResendConfig();
+  if (!cfg) return { sent: false, reason: "resend_not_configured" };
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${cfg.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: cfg.from,
+      to: [to],
+      subject,
+      html,
+      text,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    return {
+      sent: false,
+      reason: "resend_error",
+      status: response.status,
+      details: body,
+    };
+  }
+
+  return { sent: true, provider: "resend" };
+}
+
 async function sendEmail({ to, subject, html, text }) {
+  // Prefer HTTPS email API in production-like environments where SMTP egress may be blocked.
+  const resendResult = await sendViaResend({ to, subject, html, text });
+  if (resendResult.sent) return resendResult;
+
   const cfg = getMailerConfig();
-  if (!cfg) return { sent: false, reason: "smtp_not_configured" };
+  if (!cfg) {
+    return {
+      sent: false,
+      reason: resendResult.reason === "resend_not_configured" ? "smtp_not_configured" : resendResult.reason,
+      details: resendResult.details,
+    };
+  }
 
   let host = cfg.host;
   try {
@@ -44,7 +93,7 @@ async function sendEmail({ to, subject, html, text }) {
     text,
     html,
   });
-  return { sent: true };
+  return { sent: true, provider: "smtp" };
 }
 
-module.exports = { sendEmail, getMailerConfig };
+module.exports = { sendEmail, getMailerConfig, getResendConfig };

@@ -52,8 +52,10 @@ async function sendViaResend({ to, subject, html, text }) {
 
 async function sendEmail({ to, subject, html, text }) {
   // Prefer HTTPS email API in production-like environments where SMTP egress may be blocked.
-  const resendResult = await sendViaResend({ to, subject, html, text });
-  if (resendResult.sent) return resendResult;
+  const resendConfig = getResendConfig();
+  if (resendConfig) {
+    return sendViaResend({ to, subject, html, text });
+  }
 
   const cfg = getMailerConfig();
   if (!cfg) {
@@ -86,14 +88,22 @@ async function sendEmail({ to, subject, html, text }) {
     auth: { user: cfg.user, pass: cfg.pass },
   });
 
-  await transporter.sendMail({
-    from: cfg.from,
-    to,
-    subject,
-    text,
-    html,
-  });
-  return { sent: true, provider: "smtp" };
+  try {
+    await transporter.sendMail({
+      from: cfg.from,
+      to,
+      subject,
+      text,
+      html,
+    });
+    return { sent: true, provider: "smtp" };
+  } catch (error) {
+    return {
+      sent: false,
+      reason: "smtp_error",
+      details: error?.message || "smtp_send_failed",
+    };
+  }
 }
 
 module.exports = { sendEmail, getMailerConfig, getResendConfig };

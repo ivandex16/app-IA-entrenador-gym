@@ -40,6 +40,20 @@ const CATEGORIES = new Set([
   "power",
   "flexibility",
 ]);
+const MUSCLE_GROUP_SEARCH_ALIASES = {
+  chest: ["chest", "pecho", "pectorales", "pectoral"],
+  back: ["back", "espalda", "dorsal", "dorsales"],
+  shoulders: ["shoulders", "shoulder", "hombro", "hombros", "deltoide", "deltoides"],
+  biceps: ["biceps", "bicep", "biceps braquial", "brazo", "brazos"],
+  triceps: ["triceps", "tricep", "triceps braquial"],
+  legs: ["legs", "pierna", "piernas", "cuadriceps", "femoral", "muslo", "muslos"],
+  glutes: ["glutes", "glute", "gluteo", "gluteos", "gluteos", "pompa", "pompas"],
+  abs: ["abs", "ab", "abdomen", "abdominal", "abdominales", "core"],
+  forearms: ["forearms", "forearm", "antebrazo", "antebrazos"],
+  calves: ["calves", "calf", "pantorrilla", "pantorrillas", "gemelo", "gemelos"],
+  full_body: ["full body", "full_body", "cuerpo completo", "cuerpo", "completo"],
+  cardio: ["cardio", "aerobico", "aerobicos", "resistencia", "hiit"],
+};
 
 const pickValid = (value, allowed, fallback) =>
   allowed.has(value) ? value : fallback;
@@ -83,7 +97,12 @@ exports.list = async (req, res, next) => {
       const normalizedSearch = normalizeExerciseName(search);
       exercises = exercises.filter((exercise) => {
         const normalizedName = normalizeExerciseName(exercise.name);
-        return normalizedName.includes(normalizedSearch);
+        const aliases = MUSCLE_GROUP_SEARCH_ALIASES[exercise.muscleGroup] || [];
+        const normalizedAliases = aliases.map((alias) => normalizeExerciseName(alias));
+        return (
+          normalizedName.includes(normalizedSearch)
+          || normalizedAliases.some((alias) => alias.includes(normalizedSearch) || normalizedSearch.includes(alias))
+        );
       });
     }
 

@@ -1,8 +1,22 @@
+const crypto = require("crypto");
 const User = require("../models/User");
 const WorkoutLog = require("../models/WorkoutLog");
 const Routine = require("../models/Routine");
 const Goal = require("../models/Goal");
 const Exercise = require("../models/Exercise");
+
+function generateTemporaryPassword(length = 12) {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  let password = "";
+  while (password.length < length) {
+    const bytes = crypto.randomBytes(length);
+    for (const byte of bytes) {
+      if (password.length >= length) break;
+      password += alphabet[byte % alphabet.length];
+    }
+  }
+  return password;
+}
 
 // GET /api/admin/stats
 exports.getStats = async (_req, res, next) => {
@@ -119,6 +133,38 @@ exports.deleteUser = async (req, res, next) => {
     await User.findByIdAndDelete(user._id);
 
     res.json({ message: "Usuario y sus datos eliminados" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/admin/users/:id/temp-password
+exports.setTemporaryPassword = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id).select("+password");
+    if (!user)
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    if (user.role === "admin") {
+      return res
+        .status(400)
+        .json({ message: "No se puede asignar una clave temporal a otro administrador" });
+    }
+
+    const temporaryPassword = generateTemporaryPassword(10);
+    user.password = temporaryPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.json({
+      message: "Contrasena temporal generada correctamente.",
+      temporaryPassword,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+    });
   } catch (err) {
     next(err);
   }

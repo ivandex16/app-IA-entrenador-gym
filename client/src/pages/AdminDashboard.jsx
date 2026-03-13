@@ -18,6 +18,7 @@ export default function AdminDashboard() {
     const [users, setUsers] = useState([]);
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
+    const [tempPasswordData, setTempPasswordData] = useState(null);
 
     useEffect(() => {
         Promise.all([
@@ -53,6 +54,31 @@ export default function AdminDashboard() {
             toast.success('Usuario eliminado');
         } catch (err) {
             toast.error(err.response?.data?.message || 'Error al eliminar usuario');
+        }
+    };
+
+    const handleTemporaryPassword = async (userId, userName) => {
+        if (!window.confirm(`Se generara una contrasena temporal para "${userName}". Deseas continuar?`)) return;
+        try {
+            const { data } = await api.post(`/admin/users/${userId}/temp-password`);
+            setTempPasswordData({
+                name: data.user?.name || userName,
+                email: data.user?.email || '',
+                password: data.temporaryPassword || '',
+            });
+            toast.success('Contrasena temporal generada');
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Error al generar contrasena temporal');
+        }
+    };
+
+    const handleCopyTemporaryPassword = async () => {
+        if (!tempPasswordData?.password) return;
+        try {
+            await navigator.clipboard.writeText(tempPasswordData.password);
+            toast.success('Contrasena copiada');
+        } catch (err) {
+            toast.error('No se pudo copiar la contrasena');
         }
     };
 
@@ -188,6 +214,15 @@ export default function AdminDashboard() {
                                             </td>
                                             <td className="px-5 py-3 text-center">
                                                 <div className="flex items-center justify-center gap-2">
+                                                    {u.role !== 'admin' && (
+                                                        <button
+                                                            onClick={() => handleTemporaryPassword(u._id, u.name)}
+                                                            className="px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 text-gray-500 hover:text-cyan-400 transition-colors text-xs font-semibold"
+                                                            title="Generar contrasena temporal"
+                                                        >
+                                                            Clave temp
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={() => handleRoleToggle(u._id, u.role)}
                                                         className="p-1.5 rounded-lg hover:bg-indigo-500/10 text-gray-500 hover:text-indigo-400 transition-colors"
@@ -251,6 +286,14 @@ export default function AdminDashboard() {
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2 pt-1">
+                                        {u.role !== 'admin' && (
+                                            <button
+                                                onClick={() => handleTemporaryPassword(u._id, u.name)}
+                                                className="text-xs px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 transition-colors"
+                                            >
+                                                Clave temporal
+                                            </button>
+                                        )}
                                         <button
                                             onClick={() => handleRoleToggle(u._id, u.role)}
                                             className="text-xs px-3 py-1.5 rounded-lg bg-slate-700/60 text-gray-400 hover:text-indigo-400 transition-colors"
@@ -279,6 +322,38 @@ export default function AdminDashboard() {
                     )}
                 </div>
             </div>
+
+            {tempPasswordData && (
+                <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-4 shadow-2xl">
+                        <div>
+                            <h3 className="text-xl font-bold text-white">Contrasena temporal generada</h3>
+                            <p className="text-sm text-gray-400 mt-1">
+                                Entrega esta contrasena a {tempPasswordData.name} para que inicie sesion y luego la cambie desde su perfil.
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">{tempPasswordData.email}</p>
+                        </div>
+                        <div className="rounded-xl bg-slate-800 border border-slate-700 px-4 py-3">
+                            <p className="text-xs text-gray-500 mb-2">Contrasena temporal</p>
+                            <p className="font-mono text-lg tracking-wide text-cyan-300 break-all">{tempPasswordData.password}</p>
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={handleCopyTemporaryPassword}
+                                className="flex-1 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 py-3 rounded-xl font-semibold transition-colors"
+                            >
+                                Copiar
+                            </button>
+                            <button
+                                onClick={() => setTempPasswordData(null)}
+                                className="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl font-semibold transition-colors"
+                            >
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

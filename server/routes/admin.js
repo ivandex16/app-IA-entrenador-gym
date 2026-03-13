@@ -7,6 +7,7 @@ router.use(protect, authorize("admin"));
 router.get("/stats", ctrl.getStats);
 router.get("/users", ctrl.listUsers);
 router.patch("/users/:id/role", ctrl.updateUserRole);
+router.post("/users/:id/temp-password", ctrl.setTemporaryPassword);
 router.delete("/users/:id", ctrl.deleteUser);
 
 module.exports = router;

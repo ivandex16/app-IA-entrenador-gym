@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import {
@@ -10,6 +10,10 @@ import {
   LuDroplets,
   LuX,
   LuCalendarDays,
+  LuBookmark,
+  LuTrash2,
+  LuEye,
+  LuHistory,
 } from 'react-icons/lu';
 
 const OBJECTIVE_OPTIONS = [
@@ -39,6 +43,9 @@ export default function FitRecipes() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [showResultOverlay, setShowResultOverlay] = useState(false);
+  const [savedRecipes, setSavedRecipes] = useState([]);
+  const [loadingSaved, setLoadingSaved] = useState(true);
+  const [savingResult, setSavingResult] = useState(false);
 
   const [planForm, setPlanForm] = useState({
     objective: 'fitness_general',
@@ -60,6 +67,22 @@ export default function FitRecipes() {
     notes: '',
   });
 
+  const loadSavedRecipes = async () => {
+    setLoadingSaved(true);
+    try {
+      const { data } = await api.get('/recommendations/fit-recipes/saved');
+      setSavedRecipes(data);
+    } catch {
+      toast.error('No se pudieron cargar las recetas guardadas');
+    } finally {
+      setLoadingSaved(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSavedRecipes();
+  }, []);
+
   const buildErrorMessage = (err) => {
     const status = err.response?.status;
     const apiMessage = err.response?.data?.message;
@@ -79,7 +102,7 @@ export default function FitRecipes() {
         allergies: planForm.allergies.split(',').map((s) => s.trim()).filter(Boolean),
         avoidFoods: planForm.avoidFoods.split(',').map((s) => s.trim()).filter(Boolean),
       });
-      setResult({ ...data, mode: 'plan' });
+      setResult({ ...data, mode: 'plan', requestSnapshot: { ...planForm } });
       setShowResultOverlay(true);
       toast.success('Plan generado correctamente');
     } catch (err) {
@@ -104,7 +127,7 @@ export default function FitRecipes() {
           .map((s) => s.trim())
           .filter(Boolean),
       });
-      setResult({ ...data, mode: 'ingredients' });
+      setResult({ ...data, mode: 'ingredients', requestSnapshot: { ...ingredientsForm } });
       setShowResultOverlay(true);
       toast.success('Recetas por ingredientes generadas');
     } catch (err) {
@@ -118,6 +141,56 @@ export default function FitRecipes() {
     .split(',')
     .map((s) => normalize(s))
     .filter(Boolean);
+
+  const buildRecipeTitle = (data) => {
+    const modeLabel = data.mode === 'ingredients' ? 'Recetas por ingredientes' : 'Plan nutricional';
+    const objectiveLabel = OBJECTIVE_OPTIONS.find((opt) => opt.value === data.objective)?.label || data.objective || 'personalizado';
+    return `${modeLabel} - ${objectiveLabel}`;
+  };
+
+  const handleSaveResult = async () => {
+    if (!result) return;
+    setSavingResult(true);
+    try {
+      const payload = {
+        title: buildRecipeTitle(result),
+        mode: result.mode,
+        objective: result.objective,
+        mealType: result.mealType,
+        isWeekly: result.isWeekly,
+        engine: result.engine,
+        disclaimer: result.disclaimer,
+        requestSnapshot: result.requestSnapshot || {},
+        meals: result.meals || [],
+        weeklyPlan: result.weeklyPlan || [],
+        generalTips: result.generalTips || [],
+        hydrationTips: result.hydrationTips || [],
+      };
+      const { data } = await api.post('/recommendations/fit-recipes/save', payload);
+      setSavedRecipes((prev) => [data, ...prev]);
+      setResult((prev) => ({ ...prev, savedId: data._id }));
+      toast.success('Receta guardada correctamente');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'No se pudo guardar la receta');
+    } finally {
+      setSavingResult(false);
+    }
+  };
+
+  const handleDeleteSaved = async (id) => {
+    try {
+      await api.delete(`/recommendations/fit-recipes/saved/${id}`);
+      setSavedRecipes((prev) => prev.filter((item) => item._id !== id));
+      toast.success('Receta guardada eliminada');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'No se pudo eliminar la receta');
+    }
+  };
+
+  const openSavedRecipe = (recipe) => {
+    setResult(recipe);
+    setShowResultOverlay(true);
+  };
 
   const renderMealCard = (meal, idx, showIngredientMatch = false) => {
     const mealIngredients = (meal.ingredients || []).map((it) => ({
@@ -320,6 +393,67 @@ export default function FitRecipes() {
         )}
       </section>
 
+      <section className="bg-slate-800 border border-slate-700 rounded-2xl p-5 md:p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-primary/15 flex items-center justify-center">
+            <LuHistory className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold">Recetas guardadas</h2>
+            <p className="text-sm text-gray-400">Aqui puedes volver a ver los resultados que decidiste conservar.</p>
+          </div>
+        </div>
+
+        {loadingSaved ? (
+          <div className="text-sm text-gray-400">Cargando recetas guardadas...</div>
+        ) : savedRecipes.length === 0 ? (
+          <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-4 text-sm text-gray-400">
+            Aun no has guardado recetas. Genera una y usa el boton guardar.
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-4">
+            {savedRecipes.map((recipe) => (
+              <article key={recipe._id} className="bg-slate-900/70 border border-slate-700 rounded-xl p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-primary">{recipe.mode === 'ingredients' ? 'Ingredientes' : 'Plan'}</p>
+                    <h3 className="text-lg font-bold">{recipe.title}</h3>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {new Date(recipe.createdAt).toLocaleString('es-ES')}
+                    </p>
+                  </div>
+                  <span className="text-[11px] bg-slate-700 text-gray-300 px-2 py-1 rounded-lg">
+                    {recipe.engine}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-400">
+                  {recipe.isWeekly
+                    ? `${recipe.weeklyPlan?.length || 0} dias guardados`
+                    : `${recipe.meals?.length || 0} comidas guardadas`}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openSavedRecipe(recipe)}
+                    className="flex-1 inline-flex items-center justify-center gap-2 bg-primary hover:bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-semibold transition"
+                  >
+                    <LuEye className="w-4 h-4" />
+                    Ver
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteSaved(recipe._id)}
+                    className="inline-flex items-center justify-center gap-2 bg-slate-700 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition"
+                  >
+                    <LuTrash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
       {result && !showResultOverlay && (
         <div className="fixed bottom-4 right-4 z-40">
           <button
@@ -349,13 +483,24 @@ export default function FitRecipes() {
                 </p>
                 <p className="text-xs text-amber-300 mt-0.5">{result.disclaimer}</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowResultOverlay(false)}
-                className="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 flex items-center justify-center"
-              >
-                <LuX className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveResult}
+                  disabled={savingResult || Boolean(result.savedId || result._id)}
+                  className="inline-flex items-center gap-2 bg-primary hover:bg-indigo-600 disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg text-sm font-semibold transition"
+                >
+                  <LuBookmark className="w-4 h-4" />
+                  {result.savedId || result._id ? 'Guardada' : savingResult ? 'Guardando...' : 'Guardar'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowResultOverlay(false)}
+                  className="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 flex items-center justify-center"
+                >
+                  <LuX className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             <div className="p-4 overflow-y-auto space-y-4">

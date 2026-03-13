@@ -14,7 +14,7 @@ const recommendationSchema = new mongoose.Schema(
     },
     engine: {
       type: String,
-      enum: ['rules', 'scoring', 'llm'],
+      enum: ['rules', 'scoring', 'llm', 'openai', 'gemini'],
       required: true,
     },
     title: { type: String, required: true },

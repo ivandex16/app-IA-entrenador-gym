@@ -156,7 +156,7 @@ export default function Goals() {
               </div>
               <div>
                 <h2 className="font-bold text-lg">Asistente de Objetivos con IA</h2>
-                <p className="text-xs text-gray-400">Gemini te ayuda a encontrar el objetivo perfecto para ti</p>
+                <p className="text-xs text-gray-400">La IA te ayuda a encontrar el objetivo perfecto para ti</p>
               </div>
             </div>
 

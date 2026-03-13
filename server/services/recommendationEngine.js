@@ -1014,12 +1014,7 @@ async function aiExerciseRecommend(user, userQuery) {
     category: e.category,
   }));
 
-  const model = getGeminiModel();
-  if (!model) {
-    throw new Error(
-      "GEMINI_API_KEY no configurada. No se puede usar la recomendación con IA.",
-    );
-  }
+  // Build detailed catalog with muscle groups clearly labeled
 
   // Build detailed catalog with muscle groups clearly labeled
   const catalogLines = exerciseCatalog.map(
@@ -1090,16 +1085,27 @@ Responde SOLO con JSON válido (sin markdown ni texto adicional):
   allExercises.forEach((e) => {
     exerciseMap[e.name.toLowerCase()] = e;
   });
-
   try {
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    console.log("🤖 Gemini raw response length:", text.length);
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("Formato de respuesta inválido");
-
-    const aiResult = JSON.parse(jsonMatch[0]);
+    let aiResult;
+    if (getOpenAIConfig()) {
+      aiResult = await generateJsonWithOpenAI({
+        systemPrompt:
+          "Eres un entrenador personal experto. Debes responder siempre JSON valido usando solo ejercicios presentes en el catalogo.",
+        userPrompt: prompt,
+        temperature: 0.4,
+      });
+    } else {
+      const model = getGeminiModel();
+      if (!model) {
+        throw new Error("No hay proveedor de IA configurado.");
+      }
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      console.log("AI raw response length:", text.length);
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("Formato de respuesta invalido");
+      aiResult = JSON.parse(jsonMatch[0]);
+    }
 
     const matched = (aiResult.exercises || [])
       .map((aiEx) => {
@@ -1376,6 +1382,98 @@ async function aiExerciseSuggestOpen(user, userQuery) {
     if (!catalogMap.has(key)) catalogMap.set(key, e);
   });
 
+  if (getOpenAIConfig()) {
+    try {
+      const catalogLines = allExercises.slice(0, 180).map(
+        (e) =>
+          `- ${e.name} | muscleGroup=${e.muscleGroup} | equipment=${e.equipment} | difficulty=${e.difficulty}`,
+      );
+
+      const prompt = `Eres un entrenador personal experto en gimnasio.
+Tu trabajo es recomendar ejercicios segun la solicitud del usuario.
+Puedes recomendar ejercicios del catalogo y tambien ejercicios que NO esten en el catalogo si son utiles.
+
+USUARIO:
+- nivel: ${user?.level || "intermediate"}
+- equipamiento preferido: ${user?.preferences?.equipment?.join(", ") || "cualquiera"}
+- solicitud: "${query}"
+
+CATALOGO DISPONIBLE:
+${catalogLines.join("\n")}
+
+Devuelve SOLO JSON valido con esta estructura:
+{
+  "title": "titulo corto",
+  "explanation": "explicacion breve de la estrategia",
+  "recommendations": [
+    {
+      "name": "nombre del ejercicio",
+      "reason": "por que lo recomiendas",
+      "sets": "3-4",
+      "reps": "8-12",
+      "muscleGroup": "chest|back|shoulders|biceps|triceps|legs|glutes|abs|forearms|calves|full_body|cardio",
+      "equipment": "barbell|dumbbell|machine|cable|bodyweight|kettlebell|band|other",
+      "difficulty": "beginner|intermediate|advanced",
+      "priority": 1
+    }
+  ],
+  "tips": ["tip 1", "tip 2"]
+}
+Reglas:
+- maximo 10 recomendaciones
+- mezcla catalogo + fuera de catalogo cuando tenga sentido
+- no uses markdown`;
+
+      const parsed = await generateJsonWithOpenAI({
+        systemPrompt:
+          "Eres un entrenador personal experto. Debes responder siempre JSON valido y util.",
+        userPrompt: prompt,
+        temperature: 0.6,
+      });
+
+      const recs = Array.isArray(parsed.recommendations)
+        ? parsed.recommendations
+        : [];
+      const mapped = recs
+        .map((rec, idx) => {
+          const rawName = String(rec?.name || "").trim();
+          if (!rawName) return null;
+          const matched = catalogMap.get(normalizeText(rawName));
+          return {
+            name: matched?.name || rawName,
+            reason: String(rec?.reason || "Recomendado para tu objetivo"),
+            sets: String(rec?.sets || "3-4"),
+            reps: String(rec?.reps || "8-12"),
+            muscleGroup: rec?.muscleGroup || matched?.muscleGroup || null,
+            equipment: rec?.equipment || matched?.equipment || null,
+            difficulty: rec?.difficulty || matched?.difficulty || null,
+            inCatalog: Boolean(matched),
+            exerciseId: matched?._id || null,
+            priority: Number(rec?.priority) || idx + 1,
+          };
+        })
+        .filter(Boolean)
+        .slice(0, 10);
+
+      if (mapped.length > 0) {
+        return {
+          title: parsed.title || "Sugerencias de ejercicios con IA",
+          explanation:
+            parsed.explanation ||
+            "Recomendaciones generadas segun tu objetivo y contexto.",
+          recommendations: mapped,
+          tips: Array.isArray(parsed.tips) ? parsed.tips.slice(0, 4) : [],
+          source: "openai_open",
+        };
+      }
+    } catch (err) {
+      console.error("[OpenAI][aiExerciseSuggestOpen]", {
+        status: err?.status || null,
+        message: err?.message || "Unknown OpenAI error",
+        details: err?.details || null,
+      });
+    }
+  }
   const model = getGeminiModel();
   if (model) {
     try {
@@ -1525,4 +1623,5 @@ module.exports = {
   aiExerciseRecommend,
   aiExerciseSuggestOpen,
 };
+
 

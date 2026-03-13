@@ -93,7 +93,7 @@ const STEPS = [
     route: '/recommendations',
     selector: '[data-tour="recommendations-form"]',
     title: 'Recomendaciones con IA',
-    description: 'Completa tu nivel, objetivo y equipo disponible para que Gemini genere una rutina personalizada para ti.',
+    description: 'Completa tu nivel, objetivo y equipo disponible para que la IA genere una rutina personalizada para ti.',
     icon: LuSparkles,
   },
   {

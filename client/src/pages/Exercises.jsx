@@ -364,7 +364,7 @@ export default function Exercises() {
               <LuBot className="w-4.5 h-4.5 text-white" />
             </div>
             <div>
-              <p className="font-bold text-sm text-white">Sugerencias con IA (Gemini)</p>
+              <p className="font-bold text-sm text-white">Sugerencias con IA</p>
               <p className="text-xs text-gray-400">Puede recomendar ejercicios del catalogo y tambien externos</p>
             </div>
           </div>

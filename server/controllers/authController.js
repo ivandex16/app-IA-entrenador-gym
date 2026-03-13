@@ -7,6 +7,21 @@ const signToken = (id) =>
     expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   });
 
+const serializeUser = (user) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  level: user.level,
+  height: user.height,
+  weight: user.weight,
+  weeklyFrequency: user.weeklyFrequency,
+  availableMinutes: user.availableMinutes,
+  preferences: user.preferences || { equipment: [], focusMuscleGroups: [] },
+  tourCompleted: user.tourCompleted,
+  emailVerified: user.emailVerified,
+});
+
 // POST /api/auth/register
 exports.register = async (req, res, next) => {
   try {
@@ -30,6 +45,7 @@ exports.register = async (req, res, next) => {
     res.status(201).json({
       message: "Cuenta creada correctamente.",
       email: user.email,
+      user: serializeUser(user),
     });
   } catch (err) {
     next(err);
@@ -51,14 +67,7 @@ exports.login = async (req, res, next) => {
     const token = signToken(user._id);
     res.json({
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        tourCompleted: user.tourCompleted,
-        emailVerified: user.emailVerified,
-      },
+      user: serializeUser(user),
     });
   } catch (err) {
     next(err);

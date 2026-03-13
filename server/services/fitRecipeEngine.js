@@ -1,4 +1,5 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { generateJsonWithOpenAI, getOpenAIConfig } = require("./openaiService");
 
 const NUTRITION_DISCLAIMER =
   "Este contenido es orientativo y no reemplaza la evaluacion de un profesional en nutricion.";
@@ -327,9 +328,6 @@ function buildFallbackFromIngredients(payload = {}) {
 }
 
 async function generateNutritionPlanWithAI(user, payload = {}) {
-  const model = getGeminiModel();
-  if (!model) return buildFallbackNutritionPlan(payload);
-
   const objective = payload.objective || "fitness_general";
   const mealType = payload.mealType || "all";
   const isWeekly = Boolean(payload.isWeekly);
@@ -370,14 +368,26 @@ Formato JSON:
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("JSON invalido");
-    const parsed = JSON.parse(jsonMatch[0]);
+    let parsed = null;
+    if (getOpenAIConfig()) {
+      parsed = await generateJsonWithOpenAI({
+        systemPrompt:
+          "Eres un asistente de alimentacion fitness. Debes responder siempre JSON valido y util.",
+        userPrompt: prompt,
+        temperature: 0.6,
+      });
+    } else {
+      const model = getGeminiModel();
+      if (!model) return buildFallbackNutritionPlan(payload);
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("JSON invalido");
+      parsed = JSON.parse(jsonMatch[0]);
+    }
 
     return {
-      engine: "gemini_plan",
+      engine: getOpenAIConfig() ? "openai_plan" : "gemini_plan",
       objective: parsed.objective || objective,
       mealType: parsed.mealType || mealType,
       isWeekly: typeof parsed.isWeekly === "boolean" ? parsed.isWeekly : isWeekly,
@@ -390,7 +400,30 @@ Formato JSON:
         : [],
     };
   } catch (_err) {
-    return buildFallbackNutritionPlan(payload);
+    const model = getGeminiModel();
+    if (!getOpenAIConfig() || !model) return buildFallbackNutritionPlan(payload);
+    try {
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("JSON invalido");
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        engine: "gemini_plan",
+        objective: parsed.objective || objective,
+        mealType: parsed.mealType || mealType,
+        isWeekly: typeof parsed.isWeekly === "boolean" ? parsed.isWeekly : isWeekly,
+        disclaimer: parsed.disclaimer || NUTRITION_DISCLAIMER,
+        meals: Array.isArray(parsed.meals) ? parsed.meals : [],
+        weeklyPlan: Array.isArray(parsed.weeklyPlan) ? parsed.weeklyPlan : [],
+        generalTips: Array.isArray(parsed.generalTips) ? parsed.generalTips : [],
+        hydrationTips: Array.isArray(parsed.hydrationTips)
+          ? parsed.hydrationTips
+          : [],
+      };
+    } catch (_geminiErr) {
+      return buildFallbackNutritionPlan(payload);
+    }
   }
 }
 
@@ -406,9 +439,6 @@ async function generateIngredientRecipesWithAI(user, payload = {}) {
       generalTips: [],
     };
   }
-
-  const model = getGeminiModel();
-  if (!model) return buildFallbackFromIngredients(payload);
 
   const objective = payload.objective || "fitness_general";
   const mealType = payload.mealType || "all";
@@ -445,14 +475,26 @@ Formato JSON:
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("JSON invalido");
-    const parsed = JSON.parse(jsonMatch[0]);
+    let parsed = null;
+    if (getOpenAIConfig()) {
+      parsed = await generateJsonWithOpenAI({
+        systemPrompt:
+          "Eres un asistente de recetas fitness. Debes responder siempre JSON valido y priorizar los ingredientes dados.",
+        userPrompt: prompt,
+        temperature: 0.7,
+      });
+    } else {
+      const model = getGeminiModel();
+      if (!model) return buildFallbackFromIngredients(payload);
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("JSON invalido");
+      parsed = JSON.parse(jsonMatch[0]);
+    }
 
     return {
-      engine: "gemini_ingredients",
+      engine: getOpenAIConfig() ? "openai_ingredients" : "gemini_ingredients",
       objective: parsed.objective || objective,
       mealType: parsed.mealType || mealType,
       isWeekly: typeof parsed.isWeekly === "boolean" ? parsed.isWeekly : isWeekly,
@@ -462,7 +504,27 @@ Formato JSON:
       generalTips: Array.isArray(parsed.generalTips) ? parsed.generalTips : [],
     };
   } catch (_err) {
-    return buildFallbackFromIngredients(payload);
+    const model = getGeminiModel();
+    if (!getOpenAIConfig() || !model) return buildFallbackFromIngredients(payload);
+    try {
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("JSON invalido");
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        engine: "gemini_ingredients",
+        objective: parsed.objective || objective,
+        mealType: parsed.mealType || mealType,
+        isWeekly: typeof parsed.isWeekly === "boolean" ? parsed.isWeekly : isWeekly,
+        disclaimer: parsed.disclaimer || NUTRITION_DISCLAIMER,
+        meals: Array.isArray(parsed.meals) ? parsed.meals : [],
+        weeklyPlan: Array.isArray(parsed.weeklyPlan) ? parsed.weeklyPlan : [],
+        generalTips: Array.isArray(parsed.generalTips) ? parsed.generalTips : [],
+      };
+    } catch (_geminiErr) {
+      return buildFallbackFromIngredients(payload);
+    }
   }
 }
 

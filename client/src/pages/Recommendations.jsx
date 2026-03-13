@@ -198,7 +198,7 @@ export default function Recommendations() {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-white">Generar Rutina con IA</h2>
-            <p className="text-indigo-300 text-sm">Completa tus datos y Gemini creará tu rutina personalizada</p>
+            <p className="text-indigo-300 text-sm">Completa tus datos y la IA creará tu rutina personalizada</p>
           </div>
         </div>
 
@@ -392,7 +392,7 @@ export default function Recommendations() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                Gemini está creando tu rutina...
+                La IA está creando tu rutina...
               </>
             ) : (
               <>
@@ -419,7 +419,7 @@ export default function Recommendations() {
                 </p>
               )}
               {generatedRoutine.engine === 'scoring' && (
-                <p className="text-xs text-amber-400 mt-1 flex items-center gap-1"><LuZap className="w-3.5 h-3.5" /> Generada por el motor local (Gemini no disponible). Cuando la cuota se renueve, se usará IA.</p>
+                <p className="text-xs text-amber-400 mt-1 flex items-center gap-1"><LuZap className="w-3.5 h-3.5" /> Generada por el motor local. Si la IA no responde, se usa este respaldo automaticamente.</p>
               )}
             </div>
             <div className="flex gap-2">

@@ -14,6 +14,7 @@ const Goal = require("../models/Goal");
 const AIRecommendation = require("../models/AIRecommendation");
 const Routine = require("../models/Routine");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { generateJsonWithOpenAI, getOpenAIConfig } = require("./openaiService");
 const GEMINI_MODEL = "gemini-2.0-flash";
 
 function geminiKeyHint() {
@@ -136,18 +137,18 @@ async function scoringRecommend(user) {
 }
 
 async function llmRecommend(user) {
-  const model = getGeminiModel();
-  if (!model) return scoringRecommend(user);
-
   const allExercises = await Exercise.find({}).limit(40);
   const names = allExercises.map((e) => e.name).join(", ");
   const prompt = `Recomienda 8 ejercicios para un usuario nivel ${user.level || "intermediate"}.\nUsa solo esta lista: ${names}\nResponde JSON {"exercises":["name1","name2"]}`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+    const parsed =
+      (await generateJsonWithOpenAI({
+        systemPrompt:
+          "Eres un entrenador personal. Debes responder siempre JSON valido y usar solo ejercicios presentes en la lista dada.",
+        userPrompt: prompt,
+        temperature: 0.3,
+      })) || {};
     const picked = (parsed.exercises || [])
       .map((name) => allExercises.find((e) => e.name.toLowerCase() === String(name).toLowerCase()))
       .filter(Boolean)
@@ -156,13 +157,35 @@ async function llmRecommend(user) {
     if (!picked.length) return scoringRecommend(user);
 
     return {
-      engine: "llm",
+      engine: "openai",
       title: "Recomendacion IA",
       body: "Plan sugerido por IA usando tu perfil.",
       exercises: picked,
     };
   } catch (_err) {
-    return scoringRecommend(user);
+    const model = getGeminiModel();
+    if (!model) return scoringRecommend(user);
+    try {
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+      const picked = (parsed.exercises || [])
+        .map((name) => allExercises.find((e) => e.name.toLowerCase() === String(name).toLowerCase()))
+        .filter(Boolean)
+        .slice(0, 8);
+
+      if (!picked.length) return scoringRecommend(user);
+
+      return {
+        engine: "gemini",
+        title: "Recomendacion IA",
+        body: "Plan sugerido por IA usando tu perfil.",
+        exercises: picked,
+      };
+    } catch (_geminiErr) {
+      return scoringRecommend(user);
+    }
   }
 }
 
@@ -582,6 +605,70 @@ Genera una rutina de entrenamiento semanal concisa en formato JSON (un array de 
   };
 }
 
+function buildRoutineFromAIPlan(aiPlan, exerciseMap, unmatchedExercises) {
+  const days = (aiPlan.days || []).map((aiDay) => {
+    const routineExercises = [];
+    (aiDay.exercises || []).forEach((aiEx, index) => {
+      const dbExercise = exerciseMap[aiEx.exerciseName?.toLowerCase()];
+      if (dbExercise) {
+        routineExercises.push({
+          exercise: dbExercise._id,
+          order: index,
+          sets: aiEx.sets || 3,
+          repsMin: aiEx.repsMin || 8,
+          repsMax: aiEx.repsMax || 12,
+          restSeconds: aiEx.restSeconds || 90,
+          notes: aiEx.notes || "",
+        });
+      } else {
+        unmatchedExercises.push(aiEx.exerciseName);
+      }
+    });
+    return {
+      dayLabel: aiDay.dayLabel || "Dia",
+      exercises: routineExercises,
+    };
+  });
+
+  if (days.length === 0 && aiPlan.exercises?.length > 0) {
+    const routineExercises = [];
+    aiPlan.exercises.forEach((aiEx, index) => {
+      const dbExercise = exerciseMap[aiEx.exerciseName?.toLowerCase()];
+      if (dbExercise) {
+        routineExercises.push({
+          exercise: dbExercise._id,
+          order: index,
+          sets: aiEx.sets || 3,
+          repsMin: aiEx.repsMin || 8,
+          repsMax: aiEx.repsMax || 12,
+          restSeconds: aiEx.restSeconds || 90,
+          notes: aiEx.notes || "",
+        });
+      } else {
+        unmatchedExercises.push(aiEx.exerciseName);
+      }
+    });
+    if (routineExercises.length > 0) {
+      days.push({
+        dayLabel: "Dia 1 - Full Body",
+        exercises: routineExercises,
+      });
+    }
+  }
+
+  const totalMapped = days.reduce((sum, day) => sum + day.exercises.length, 0);
+  if (totalMapped === 0) throw new Error("No exercises mapped");
+
+  return {
+    name: aiPlan.name || "Rutina IA",
+    description:
+      aiPlan.description || "Rutina generada por inteligencia artificial",
+    targetMuscleGroups: aiPlan.targetMuscleGroups || [],
+    days,
+    exercises: [],
+  };
+}
+
 async function generateRoutineWithAI(user, overrides = {}, options = {}) {
   const { persist = true } = options;
   const activeGoal = await Goal.findOne({
@@ -610,20 +697,20 @@ async function generateRoutineWithAI(user, overrides = {}, options = {}) {
 
   const goalLabels = {
     muscle_gain: "ganancia muscular",
-    fat_loss: "pérdida de grasa",
+    fat_loss: "pÃ©rdida de grasa",
     endurance: "resistencia",
-    toning: "tonificación",
+    toning: "tonificaciÃ³n",
     strength: "fuerza",
     general: "fitness general",
   };
 
-  const prompt = `Eres un entrenador personal certificado experto en programación de entrenamiento.
+  const prompt = `Eres un entrenador personal certificado experto en programaciÃ³n de entrenamiento.
 
-INFORMACIÓN DEL USUARIO:
+INFORMACIÃ“N DEL USUARIO:
 - Nivel: ${level}
 - Objetivo: ${goalLabels[goalType] || goalType}${goalDescription ? ` (${goalDescription})` : ""}
-- Frecuencia semanal: ${frequency} días
-- Tiempo disponible por sesión: ${minutes} minutos
+- Frecuencia semanal: ${frequency} dÃ­as
+- Tiempo disponible por sesiÃ³n: ${minutes} minutos
 - Equipamiento disponible: ${equipment.length ? equipment.join(", ") : "todo el equipamiento"}
 - Grupos musculares prioritarios: ${focusMuscleGroups.length ? focusMuscleGroups.join(", ") : "todos"}${height ? `\n- Altura: ${height} cm` : ""}${weight ? `\n- Peso: ${weight} kg` : ""}${customNotes ? `\n- Instrucciones adicionales del usuario: ${customNotes}` : ""}
 
@@ -631,21 +718,21 @@ EJERCICIOS DISPONIBLES EN LA BASE DE DATOS (usa EXACTAMENTE estos nombres):
 ${exerciseNames.join(", ")}
 
 INSTRUCCIONES:
-1. Crea una rutina de entrenamiento de ${frequency} días por semana.
-2. Distribuye los ejercicios de forma inteligente por día (ej: Push/Pull/Legs, Upper/Lower, etc.).
+1. Crea una rutina de entrenamiento de ${frequency} dÃ­as por semana.
+2. Distribuye los ejercicios de forma inteligente por dÃ­a (ej: Push/Pull/Legs, Upper/Lower, etc.).
 3. Usa SOLO ejercicios de la lista proporcionada (nombres exactos).
 4. Adapta sets, reps y descanso al objetivo y nivel del usuario.
-5. El tiempo de cada sesión debe ajustarse a ${minutes} minutos.
-6. Cada día debe usar el nombre del día de la semana (ej: "Lunes — Pecho y Tríceps", "Martes — Espalda y Bíceps").
+5. El tiempo de cada sesiÃ³n debe ajustarse a ${minutes} minutos.
+6. Cada dÃ­a debe usar el nombre del dÃ­a de la semana.
 
-Responde SOLO con un JSON válido con esta estructura exacta (sin markdown):
+Responde SOLO con un JSON vÃ¡lido con esta estructura exacta (sin markdown):
 {
   "name": "nombre descriptivo de la rutina",
-  "description": "breve descripción de la rutina y su enfoque",
+  "description": "breve descripciÃ³n de la rutina y su enfoque",
   "targetMuscleGroups": ["grupo1", "grupo2"],
   "days": [
     {
-      "dayLabel": "Lunes — Nombre descriptivo",
+      "dayLabel": "Lunes - Nombre descriptivo",
       "exercises": [
         {
           "exerciseName": "nombre exacto del ejercicio",
@@ -660,91 +747,54 @@ Responde SOLO con un JSON válido con esta estructura exacta (sin markdown):
   ]
 }`;
 
-  // ── Try Gemini first, fallback to local generator ──
+  // OpenAI -> Gemini -> local fallback
   let routineData; // { name, description, targetMuscleGroups, days[] }
   let usedEngine = "llm";
   let unmatchedExercises = [];
+  const exerciseMap = {};
+  allExercises.forEach((e) => {
+    exerciseMap[e.name.toLowerCase()] = e;
+  });
 
-  const model = getGeminiModel();
+  if (getOpenAIConfig()) {
+    try {
+      const aiPlan = await generateJsonWithOpenAI({
+        systemPrompt:
+          "Eres un entrenador personal certificado. Debes responder siempre JSON valido usando exactamente los nombres de ejercicios dados por el usuario.",
+        userPrompt: prompt,
+        temperature: 0.5,
+      });
+      routineData = buildRoutineFromAIPlan(
+        aiPlan,
+        exerciseMap,
+        unmatchedExercises,
+      );
+      usedEngine = "openai";
+    } catch (openaiErr) {
+      console.error("[OpenAI][generateRoutineWithAI]", {
+        status: openaiErr?.status || null,
+        message: openaiErr?.message || "Unknown OpenAI error",
+        details: openaiErr?.details || null,
+      });
+    }
+  }
+
+  const model = !routineData ? getGeminiModel() : null;
   if (model) {
     try {
       const result = await model.generateContent(prompt);
       const text = result.response.text();
 
       const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("Formato inválido");
+      if (!jsonMatch) throw new Error("Formato invalido");
 
       const aiPlan = JSON.parse(jsonMatch[0]);
-
-      // Map exercise names to database ObjectIds
-      const exerciseMap = {};
-      allExercises.forEach((e) => {
-        exerciseMap[e.name.toLowerCase()] = e;
-      });
-
-      // Parse multi-day structure from Gemini
-      const days = (aiPlan.days || []).map((aiDay) => {
-        const routineExercises = [];
-        (aiDay.exercises || []).forEach((aiEx, index) => {
-          const dbExercise = exerciseMap[aiEx.exerciseName?.toLowerCase()];
-          if (dbExercise) {
-            routineExercises.push({
-              exercise: dbExercise._id,
-              order: index,
-              sets: aiEx.sets || 3,
-              repsMin: aiEx.repsMin || 8,
-              repsMax: aiEx.repsMax || 12,
-              restSeconds: aiEx.restSeconds || 90,
-              notes: aiEx.notes || "",
-            });
-          } else {
-            unmatchedExercises.push(aiEx.exerciseName);
-          }
-        });
-        return {
-          dayLabel: aiDay.dayLabel || "Día",
-          exercises: routineExercises,
-        };
-      });
-
-      // Fallback: if Gemini returned flat exercises (old format), wrap in single day
-      if (days.length === 0 && aiPlan.exercises?.length > 0) {
-        const routineExercises = [];
-        aiPlan.exercises.forEach((aiEx, index) => {
-          const dbExercise = exerciseMap[aiEx.exerciseName?.toLowerCase()];
-          if (dbExercise) {
-            routineExercises.push({
-              exercise: dbExercise._id,
-              order: index,
-              sets: aiEx.sets || 3,
-              repsMin: aiEx.repsMin || 8,
-              repsMax: aiEx.repsMax || 12,
-              restSeconds: aiEx.restSeconds || 90,
-              notes: aiEx.notes || "",
-            });
-          } else {
-            unmatchedExercises.push(aiEx.exerciseName);
-          }
-        });
-        if (routineExercises.length > 0) {
-          days.push({
-            dayLabel: "Día 1 — Full Body",
-            exercises: routineExercises,
-          });
-        }
-      }
-
-      const totalMapped = days.reduce((s, d) => s + d.exercises.length, 0);
-      if (totalMapped === 0) throw new Error("No exercises mapped");
-
-      routineData = {
-        name: aiPlan.name || "Rutina IA",
-        description:
-          aiPlan.description || "Rutina generada por inteligencia artificial",
-        targetMuscleGroups: aiPlan.targetMuscleGroups || [],
-        days,
-        exercises: [],
-      };
+      routineData = buildRoutineFromAIPlan(
+        aiPlan,
+        exerciseMap,
+        unmatchedExercises,
+      );
+      usedEngine = "gemini";
     } catch (geminiErr) {
       logGeminiFailure("generateRoutineWithAI", geminiErr);
       console.log("Gemini fallo, usando generador local.");
@@ -758,8 +808,7 @@ Responde SOLO con un JSON válido con esta estructura exacta (sin markdown):
         focusMuscleGroups,
       });
     }
-  } else {
-    // No API key — use local generator
+  } else if (!routineData) {
     usedEngine = "scoring";
     routineData = buildLocalRoutineFallback(allExercises, {
       level,

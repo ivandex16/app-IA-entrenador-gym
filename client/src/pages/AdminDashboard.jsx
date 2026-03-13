@@ -28,21 +28,39 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [seedingExercises, setSeedingExercises] = useState(false);
   const [tempPasswordData, setTempPasswordData] = useState(null);
   const [confirmState, setConfirmState] = useState(EMPTY_CONFIRM);
 
-  useEffect(() => {
-    Promise.all([
+  const loadDashboardData = async () => {
+    const [statsRes, usersRes] = await Promise.all([
       api.get('/admin/stats'),
       api.get('/admin/users'),
+    ]);
+    setStats(statsRes.data);
+    setUsers(usersRes.data);
+  };
+
+  useEffect(() => {
+    Promise.all([
+      loadDashboardData(),
     ])
-      .then(([statsRes, usersRes]) => {
-        setStats(statsRes.data);
-        setUsers(usersRes.data);
-      })
       .catch(() => toast.error('Error al cargar datos de administracion'))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleSeedExercises = async () => {
+    setSeedingExercises(true);
+    try {
+      const { data } = await api.post('/admin/seed-exercises');
+      await loadDashboardData();
+      toast.success(`${data.upserted || 0} ejercicios sincronizados. Total: ${data.totalExercises || 0}`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'No se pudo sincronizar el catalogo');
+    } finally {
+      setSeedingExercises(false);
+    }
+  };
 
   const handleRoleToggle = async (userId, currentRole) => {
     const newRole = currentRole === 'admin' ? 'user' : 'admin';
@@ -157,6 +175,31 @@ export default function AdminDashboard() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 -mt-2 space-y-6">
+        <div className="animate-fadeInUp bg-slate-800/70 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="text-base font-bold text-white">Catalogo de ejercicios</h2>
+            <p className="text-sm text-gray-400">Sincroniza el seed del servidor con la base de datos sin depender de tu red local.</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleSeedExercises}
+            disabled={seedingExercises}
+            className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 disabled:opacity-60 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-lg shadow-indigo-500/20"
+          >
+            {seedingExercises ? (
+              <>
+                <LuLoader className="w-4 h-4 animate-spin" />
+                Sincronizando...
+              </>
+            ) : (
+              <>
+                <LuDumbbell className="w-4 h-4" />
+                Sincronizar catalogo
+              </>
+            )}
+          </button>
+        </div>
+
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fadeInUp">
             {[

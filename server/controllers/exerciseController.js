@@ -3,7 +3,10 @@ const {
   aiExerciseRecommend,
   aiExerciseSuggestOpen,
 } = require("../services/recommendationEngine");
-const { findDuplicateExerciseByName } = require("../utils/exerciseName");
+const {
+  findDuplicateExerciseByName,
+  normalizeExerciseName,
+} = require("../utils/exerciseName");
 
 const MUSCLE_GROUPS = new Set([
   "chest",
@@ -73,9 +76,17 @@ exports.list = async (req, res, next) => {
     if (req.query.difficulty) filter.difficulty = req.query.difficulty;
     if (req.query.equipment) filter.equipment = req.query.equipment;
     if (req.query.category) filter.category = req.query.category;
-    if (req.query.search)
-      filter.name = { $regex: req.query.search, $options: "i" };
-    const exercises = await Exercise.find(filter).sort({ name: 1 });
+    const search = String(req.query.search || "").trim();
+    let exercises = await Exercise.find(filter).sort({ name: 1 });
+
+    if (search) {
+      const normalizedSearch = normalizeExerciseName(search);
+      exercises = exercises.filter((exercise) => {
+        const normalizedName = normalizeExerciseName(exercise.name);
+        return normalizedName.includes(normalizedSearch);
+      });
+    }
+
     res.json(exercises);
   } catch (err) {
     next(err);

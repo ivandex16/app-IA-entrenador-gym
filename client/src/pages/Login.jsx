@@ -122,12 +122,6 @@ export default function Login() {
           {loading ? 'Iniciando sesion...' : 'Entrar'}
         </button>
 
-        <p className="text-sm text-center">
-          <Link to="/forgot-password" className="text-primary hover:underline">
-            Olvide mi contrasena
-          </Link>
-        </p>
-
         <p className="text-sm text-center text-gray-400">
           No tienes cuenta?{' '}
           <Link to="/register" className="text-primary hover:underline">

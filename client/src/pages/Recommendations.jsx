@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
@@ -13,28 +13,28 @@ import {
 } from 'react-icons/lu';
 
 const TIERS = ['rules', 'scoring', 'llm'];
-const TIER_LABELS = { rules: 'Reglas', scoring: 'Puntuación', llm: 'IA / LLM' };
+const TIER_LABELS = { rules: 'Reglas', scoring: 'Puntuaci�n', llm: 'IA / LLM' };
 
 const GOAL_OPTIONS = [
   { v: 'muscle_gain', l: 'Ganancia Muscular', Icon: LuDumbbell },
-  { v: 'fat_loss', l: 'Pérdida de Grasa', Icon: LuFlame },
+  { v: 'fat_loss', l: 'P�rdida de Grasa', Icon: LuFlame },
   { v: 'endurance', l: 'Resistencia', Icon: LuHeart },
-  { v: 'toning', l: 'Tonificación', Icon: LuSparkles },
+  { v: 'toning', l: 'Tonificaci�n', Icon: LuSparkles },
   { v: 'strength', l: 'Fuerza', Icon: LuZap },
   { v: 'general', l: 'Fitness General', Icon: LuActivity },
 ];
 
 const LEVEL_OPTIONS = [
   { v: 'beginner', l: 'Principiante', desc: 'Menos de 6 meses entrenando' },
-  { v: 'intermediate', l: 'Intermedio', desc: '6 meses a 2 años' },
-  { v: 'advanced', l: 'Avanzado', desc: 'Más de 2 años' },
+  { v: 'intermediate', l: 'Intermedio', desc: '6 meses a 2 a�os' },
+  { v: 'advanced', l: 'Avanzado', desc: 'M�s de 2 a�os' },
 ];
 
 const EQUIPMENT_OPTIONS = [
   { v: 'barbell', l: 'Barra', Icon: LuDumbbell },
   { v: 'dumbbell', l: 'Mancuernas', Icon: LuWeight },
   { v: 'cable', l: 'Poleas', Icon: LuLink2 },
-  { v: 'machine', l: 'Máquinas', Icon: LuCog },
+  { v: 'machine', l: 'M�quinas', Icon: LuCog },
   { v: 'bodyweight', l: 'Peso Corporal', Icon: LuPersonStanding },
   { v: 'kettlebell', l: 'Kettlebell', Icon: LuWeight },
   { v: 'band', l: 'Bandas', Icon: LuGripHorizontal },
@@ -45,10 +45,10 @@ const MUSCLE_GROUP_OPTIONS = [
   { v: 'back', l: 'Espalda', Icon: LuArrowBigUp },
   { v: 'shoulders', l: 'Hombros', Icon: LuMoveHorizontal },
   { v: 'legs', l: 'Piernas', Icon: LuFootprints },
-  { v: 'biceps', l: 'Bíceps', Icon: LuDumbbell },
-  { v: 'triceps', l: 'Tríceps', Icon: LuTrendingUp },
+  { v: 'biceps', l: 'B�ceps', Icon: LuDumbbell },
+  { v: 'triceps', l: 'Tr�ceps', Icon: LuTrendingUp },
   { v: 'abs', l: 'Abdominales', Icon: LuGrid3X3 },
-  { v: 'glutes', l: 'Glúteos', Icon: LuCircleDot },
+  { v: 'glutes', l: 'Gl�teos', Icon: LuCircleDot },
 ];
 
 export default function Recommendations() {
@@ -64,6 +64,7 @@ export default function Recommendations() {
   const [generating, setGenerating] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [generatedRoutine, setGeneratedRoutine] = useState(null);
+  const confirmRoutineLock = useRef(false);
 
   // --- Form state ---
   const [form, setForm] = useState({
@@ -121,7 +122,7 @@ export default function Recommendations() {
       const { data } = await api.get('/recommendations', { params: { tier } });
       setRec(data);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Error al obtener recomendación');
+      toast.error(err.response?.data?.message || 'Error al obtener recomendaci�n');
     } finally {
       setLoading(false);
     }
@@ -130,7 +131,7 @@ export default function Recommendations() {
   const sendFeedback = async (accepted) => {
     if (!rec?.recommendationId) return;
     await api.put(`/recommendations/${rec.recommendationId}/feedback`, { accepted });
-    toast.success(accepted ? '¡Marcado como útil!' : 'Gracias por tu opinión');
+    toast.success(accepted ? '�Marcado como �til!' : 'Gracias por tu opini�n');
   };
 
   const handleGenerateRoutine = async (e) => {
@@ -140,7 +141,7 @@ export default function Recommendations() {
     try {
       const { data } = await api.post('/recommendations/generate-routine', form);
       setGeneratedRoutine(data);
-      toast.success('Rutina generada. Revísala y confirma si deseas guardarla.');
+      toast.success('Rutina generada. Rev�sala y confirma si deseas guardarla.');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Error al generar rutina');
     } finally {
@@ -149,7 +150,8 @@ export default function Recommendations() {
   };
 
   const handleConfirmRoutine = async () => {
-    if (!generatedRoutine?.routine) return;
+    if (!generatedRoutine?.routine || generatedRoutine?.routine?._id || confirming || confirmRoutineLock.current) return;
+    confirmRoutineLock.current = true;
     setConfirming(true);
     try {
       const { data } = await api.post('/recommendations/confirm-routine', {
@@ -158,11 +160,12 @@ export default function Recommendations() {
         unmatchedExercises: generatedRoutine.unmatchedExercises || [],
       });
       setGeneratedRoutine(data);
-      toast.success('¡Rutina confirmada y guardada en tus rutinas!');
+      toast.success(data?.deduplicated ? 'La rutina ya existia y se abrio la version guardada.' : '�Rutina confirmada y guardada en tus rutinas!');
     } catch (err) {
       toast.error(err.response?.data?.message || 'No se pudo confirmar la rutina');
     } finally {
       setConfirming(false);
+      confirmRoutineLock.current = false;
     }
   };
 
@@ -187,7 +190,7 @@ export default function Recommendations() {
         </button>
       </section>
 
-      {/* ══════════ AI ROUTINE GENERATOR FORM ══════════ */}
+      {/* ---------- AI ROUTINE GENERATOR FORM ---------- */}
       <section data-tour="recommendations-form" className="bg-gradient-to-br from-indigo-900/60 to-purple-900/40 rounded-2xl border border-indigo-500/30 overflow-hidden">
         {/* Header */}
         <div className="p-6 pb-4 flex items-center gap-3">
@@ -198,13 +201,13 @@ export default function Recommendations() {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-white">Generar Rutina con IA</h2>
-            <p className="text-indigo-300 text-sm">Completa tus datos y la IA creará tu rutina personalizada</p>
+            <p className="text-indigo-300 text-sm">Completa tus datos y la IA crear� tu rutina personalizada</p>
           </div>
         </div>
 
         {/* Form */}
         <form onSubmit={handleGenerateRoutine} className="p-6 pt-2 space-y-5">
-          {/* ── Level ── */}
+          {/* -- Level -- */}
           <div>
             <label className="text-sm font-semibold text-gray-300 mb-2 block">Nivel de experiencia</label>
             <div className="grid grid-cols-3 gap-2">
@@ -225,7 +228,7 @@ export default function Recommendations() {
             </div>
           </div>
 
-          {/* ── Goal ── */}
+          {/* -- Goal -- */}
           <div>
             <label className="text-sm font-semibold text-gray-300 mb-2 block">Objetivo principal</label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -246,24 +249,24 @@ export default function Recommendations() {
             </div>
           </div>
 
-          {/* ── Goal description ── */}
+          {/* -- Goal description -- */}
           <div>
             <label className="text-sm font-semibold text-gray-300 mb-1 block">
               Describe tu objetivo <span className="text-gray-500 font-normal">(opcional)</span>
             </label>
             <textarea
               rows={2}
-              placeholder="Ej: Quiero ganar masa muscular en la parte superior del cuerpo, tengo una lesión en la rodilla..."
+              placeholder="Ej: Quiero ganar masa muscular en la parte superior del cuerpo, tengo una lesi�n en la rodilla..."
               className="w-full bg-slate-800/60 border border-slate-600/50 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 resize-none outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
               value={form.goalDescription}
               onChange={(e) => setForm({ ...form, goalDescription: e.target.value })}
             />
           </div>
 
-          {/* ── Frequency + Duration ── */}
+          {/* -- Frequency + Duration -- */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-semibold text-gray-300 mb-1 block">Días por semana</label>
+              <label className="text-sm font-semibold text-gray-300 mb-1 block">D�as por semana</label>
               <div className="flex items-center gap-3 bg-slate-800/60 border border-slate-600/50 rounded-xl px-4 py-2.5">
                 <input
                   type="range"
@@ -277,7 +280,7 @@ export default function Recommendations() {
               </div>
             </div>
             <div>
-              <label className="text-sm font-semibold text-gray-300 mb-1 block">Minutos por sesión</label>
+              <label className="text-sm font-semibold text-gray-300 mb-1 block">Minutos por sesi�n</label>
               <div className="flex items-center gap-3 bg-slate-800/60 border border-slate-600/50 rounded-xl px-4 py-2.5">
                 <input
                   type="range"
@@ -293,7 +296,7 @@ export default function Recommendations() {
             </div>
           </div>
 
-          {/* ── Height & Weight ── */}
+          {/* -- Height & Weight -- */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-semibold text-gray-300 mb-1 block">Altura (cm)</label>
@@ -322,10 +325,10 @@ export default function Recommendations() {
             </div>
           </div>
 
-          {/* ── Equipment ── */}
+          {/* -- Equipment -- */}
           <div>
             <label className="text-sm font-semibold text-gray-300 mb-2 block">
-              Equipamiento disponible <span className="text-gray-500 font-normal">(deja vacío = todo)</span>
+              Equipamiento disponible <span className="text-gray-500 font-normal">(deja vac�o = todo)</span>
             </label>
             <div className="flex flex-wrap gap-2">
               {EQUIPMENT_OPTIONS.map((eq) => (
@@ -344,10 +347,10 @@ export default function Recommendations() {
             </div>
           </div>
 
-          {/* ── Muscle groups ── */}
+          {/* -- Muscle groups -- */}
           <div>
             <label className="text-sm font-semibold text-gray-300 mb-2 block">
-              Grupos musculares a priorizar <span className="text-gray-500 font-normal">(deja vacío = todos)</span>
+              Grupos musculares a priorizar <span className="text-gray-500 font-normal">(deja vac�o = todos)</span>
             </label>
             <div className="flex flex-wrap gap-2">
               {MUSCLE_GROUP_OPTIONS.map((mg) => (
@@ -366,21 +369,21 @@ export default function Recommendations() {
             </div>
           </div>
 
-          {/* ── Custom notes ── */}
+          {/* -- Custom notes -- */}
           <div>
             <label className="text-sm font-semibold text-gray-300 mb-1 block">
               Instrucciones adicionales <span className="text-gray-500 font-normal">(opcional)</span>
             </label>
             <textarea
               rows={2}
-              placeholder="Ej: Prefiero ejercicios compuestos, no incluir peso muerto, quiero trabajar core cada sesión..."
+              placeholder="Ej: Prefiero ejercicios compuestos, no incluir peso muerto, quiero trabajar core cada sesi�n..."
               className="w-full bg-slate-800/60 border border-slate-600/50 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 resize-none outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50"
               value={form.customNotes}
               onChange={(e) => setForm({ ...form, customNotes: e.target.value })}
             />
           </div>
 
-          {/* ── Submit ── */}
+          {/* -- Submit -- */}
           <button
             type="submit"
             disabled={generating}
@@ -392,7 +395,7 @@ export default function Recommendations() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                La IA está creando tu rutina...
+                La IA est� creando tu rutina...
               </>
             ) : (
               <>
@@ -406,7 +409,7 @@ export default function Recommendations() {
         </form>
       </section>
 
-      {/* ══════════ Generated Routine Result ══════════ */}
+      {/* ---------- Generated Routine Result ---------- */}
       {generatedRoutine && (
         <section className="bg-slate-800 rounded-2xl p-6 border border-green-500/30 animate-fade-in">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
@@ -487,7 +490,7 @@ export default function Recommendations() {
                           </div>
                         </div>
                         <div className="text-right text-xs text-gray-300">
-                          <p>{ex.sets} × {ex.repsMin}-{ex.repsMax} reps</p>
+                          <p>{ex.sets} � {ex.repsMin}-{ex.repsMax} reps</p>
                           <p className="text-gray-500">{ex.restSeconds}s descanso</p>
                         </div>
                       </div>
@@ -511,7 +514,7 @@ export default function Recommendations() {
                     </div>
                   </div>
                   <div className="text-right text-xs text-gray-300">
-                    <p>{ex.sets} × {ex.repsMin}-{ex.repsMax} reps</p>
+                    <p>{ex.sets} � {ex.repsMin}-{ex.repsMax} reps</p>
                     <p className="text-gray-500">{ex.restSeconds}s descanso</p>
                   </div>
                 </div>
@@ -527,7 +530,7 @@ export default function Recommendations() {
         </section>
       )}
 
-      {/* ══════════ CLASSIC RECOMMENDATIONS ══════════ */}
+      {/* ---------- CLASSIC RECOMMENDATIONS ---------- */}
       <section className="space-y-4">
         <h2 className="text-xl font-bold text-gray-200">Recomendaciones por Motor</h2>
 
@@ -547,7 +550,7 @@ export default function Recommendations() {
             disabled={loading}
             className="ml-auto bg-primary hover:bg-indigo-600 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 transition"
           >
-            {loading ? 'Pensando…' : 'Obtener Recomendación'}
+            {loading ? 'Pensando�' : 'Obtener Recomendaci�n'}
           </button>
         </div>
 
@@ -574,13 +577,13 @@ export default function Recommendations() {
                 onClick={() => sendFeedback(true)}
                 className="bg-green-700 hover:bg-green-600 px-3 py-1 rounded text-xs transition flex items-center gap-1"
               >
-                <LuThumbsUp className="w-3.5 h-3.5" /> Útil
+                <LuThumbsUp className="w-3.5 h-3.5" /> �til
               </button>
               <button
                 onClick={() => sendFeedback(false)}
                 className="bg-slate-600 hover:bg-slate-500 px-3 py-1 rounded text-xs transition flex items-center gap-1"
               >
-                <LuThumbsDown className="w-3.5 h-3.5" /> No útil
+                <LuThumbsDown className="w-3.5 h-3.5" /> No �til
               </button>
             </div>
           </div>
@@ -589,3 +592,5 @@ export default function Recommendations() {
     </div>
   );
 }
+
+

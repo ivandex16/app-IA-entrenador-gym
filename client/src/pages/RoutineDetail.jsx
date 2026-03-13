@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { LuActivity, LuDumbbell, LuFlame, LuHeart, LuSparkles, LuZap, LuPencil, LuTrash2, LuCalendar, LuClipboardList, LuTimer, LuTriangleAlert, LuPlay, LuChartBar, LuSave } from 'react-icons/lu';
 
 const GOALS = [
@@ -22,6 +23,15 @@ const WEEKDAYS = [
     { v: 'sabado', l: 'Sáb', full: 'Sábado' },
     { v: 'domingo', l: 'Dom', full: 'Domingo' },
 ];
+
+const EMPTY_CONFIRM = {
+    open: false,
+    title: '',
+    message: '',
+    tone: 'warning',
+    confirmLabel: 'Confirmar',
+    action: null,
+};
 
 function estimateDuration(exercises) {
     if (!exercises || exercises.length === 0) return 0;
@@ -72,6 +82,7 @@ export default function RoutineDetail() {
     const [editingDayLabel, setEditingDayLabel] = useState(null);
     const [dayLabelValue, setDayLabelValue] = useState('');
     const [showAddDay, setShowAddDay] = useState(false);
+    const [confirmState, setConfirmState] = useState(EMPTY_CONFIRM);
 
     // — Custom drag & drop state —
     const [dragState, setDragState] = useState(null); // { idx, startY, currentY, itemHeight }
@@ -81,6 +92,19 @@ export default function RoutineDetail() {
     const itemRefs = useRef([]);
 
     const pickerRef = useRef(null);
+
+    const openConfirm = (title, message, tone, confirmLabel, action) => {
+        setConfirmState({
+            open: true,
+            title,
+            message,
+            tone,
+            confirmLabel,
+            action,
+        });
+    };
+
+    const closeConfirm = () => setConfirmState(EMPTY_CONFIRM);
 
     const load = async () => {
         const { data } = await api.get(`/routines/${id}`);

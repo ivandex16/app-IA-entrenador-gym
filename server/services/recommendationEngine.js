@@ -958,6 +958,73 @@ async function confirmGeneratedRoutine(user, payload = {}) {
       .filter(Boolean),
   }));
 
+  const routineSignature = JSON.stringify({
+    name: String(routineDraft.name || "Rutina IA").trim().toLowerCase(),
+    goal: String(routineDraft.goal || "general").trim().toLowerCase(),
+    days: normalizedDays.map((day) => ({
+      dayLabel: String(day.dayLabel || "Dia").trim().toLowerCase(),
+      exercises: (day.exercises || []).map((ex) => ({
+        exercise: String(ex.exercise),
+        order: ex.order,
+        sets: ex.sets,
+        repsMin: ex.repsMin,
+        repsMax: ex.repsMax,
+        restSeconds: ex.restSeconds,
+        notes: String(ex.notes || "").trim(),
+      })),
+    })),
+  });
+
+  const recentAIRoutines = await Routine.find({
+    user: user._id,
+    isAIGenerated: true,
+    createdAt: { $gte: new Date(Date.now() - 5 * 60 * 1000) },
+  })
+    .sort("-createdAt")
+    .populate(
+      "days.exercises.exercise",
+      "name muscleGroup equipment youtubeVideoId videoUrl",
+    );
+
+  const existingRoutine = recentAIRoutines.find((candidate) => {
+    const candidateSignature = JSON.stringify({
+      name: String(candidate.name || "").trim().toLowerCase(),
+      goal: String(candidate.goal || "general").trim().toLowerCase(),
+      days: (candidate.days || []).map((day) => ({
+        dayLabel: String(day.dayLabel || "Dia").trim().toLowerCase(),
+        exercises: (day.exercises || []).map((ex) => ({
+          exercise: String(ex?.exercise?._id || ex?.exercise || ""),
+          order: Number.isFinite(Number(ex.order)) ? Number(ex.order) : 0,
+          sets: Math.max(1, Number(ex.sets) || 3),
+          repsMin: Math.max(1, Number(ex.repsMin) || 8),
+          repsMax: Math.max(1, Number(ex.repsMax) || 12),
+          restSeconds: Math.max(15, Number(ex.restSeconds) || 90),
+          notes: String(ex.notes || "").trim(),
+        })),
+      })),
+    });
+
+    return candidateSignature === routineSignature;
+  });
+
+  if (existingRoutine) {
+    const existingRec = await AIRecommendation.findOne({
+      user: user._id,
+      type: "routine",
+      routine: existingRoutine._id,
+    }).sort("-createdAt");
+
+    return {
+      routine: existingRoutine,
+      recommendationId: existingRec?._id || null,
+      unmatchedExercises: Array.isArray(payload.unmatchedExercises)
+        ? payload.unmatchedExercises
+        : [],
+      engine: payload.engine || existingRec?.engine || "scoring",
+      deduplicated: true,
+    };
+  }
+
   const routine = await Routine.create({
     user: user._id,
     name: routineDraft.name || "Rutina IA",

@@ -59,6 +59,7 @@ export default function Routines() {
   const [showPdf, setShowPdf] = useState(false);
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfUploading, setPdfUploading] = useState(false);
+  const [pdfValidation, setPdfValidation] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   const load = () => api.get('/routines').then((r) => setRoutines(r.data));
@@ -97,6 +98,7 @@ export default function Routines() {
     e.preventDefault();
     if (!pdfFile) return;
     setPdfUploading(true);
+    setPdfValidation(null);
     try {
       const formData = new FormData();
       formData.append('pdf', pdfFile);
@@ -112,6 +114,9 @@ export default function Routines() {
       load();
       if (data.routine?._id) navigate(`/routines/${data.routine._id}`);
     } catch (err) {
+      if (err.response?.status === 422) {
+        setPdfValidation(err.response.data);
+      }
       toast.error(err.response?.data?.message || 'Error al procesar el PDF');
     } finally {
       setPdfUploading(false);
@@ -234,14 +239,54 @@ Jueves - Piernas
   Prensa de Piernas: 3x12 @90s`}
               </div>
               <ul className="text-xs text-gray-400 space-y-1 list-disc list-inside">
-                <li><strong>Día:</strong> Usa el nombre del día (Lunes, Martes, etc.) seguido de un guión y la descripción</li>
-                <li><strong>Ejercicio:</strong> Nombre del ejercicio: series x repeticiones @descanso en segundos</li>
-                <li><strong>Nombre:</strong> (Opcional) Primera línea con "Nombre: ..." para el nombre de la rutina</li>
-                <li><strong>Descripción:</strong> (Opcional) "Descripción: ..." para la descripción</li>
-                <li>Los nombres de ejercicios deben coincidir con los de la base de datos</li>
-                <li>Formatos aceptados: "4x10", "3x12-15" (rango de reps), "@90s" (descanso opcional)</li>
+                <li><strong>Día:</strong> Usa el nombre del día seguido de un guión y la descripción.</li>
+                <li><strong>Ejercicio:</strong> Debe ir exactamente como <code>Press de Banca: 4x10 @90s</code>.</li>
+                <li><strong>Nombre:</strong> (Opcional) primera línea con "Nombre: ...".</li>
+                <li><strong>Descripción:</strong> (Opcional) segunda línea con "Descripción: ...".</li>
+                <li>Si una línea no cumple el formato, se rechaza todo el PDF.</li>
+                <li>Si un ejercicio no existe en el catálogo, también se rechaza y se muestran sugerencias.</li>
               </ul>
             </div>
+
+            {pdfValidation && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-red-300">El PDF no se pudo importar</h3>
+                  <p className="text-xs text-gray-300 mt-1">{pdfValidation.hint || pdfValidation.message}</p>
+                </div>
+
+                {Array.isArray(pdfValidation.issues) && pdfValidation.issues.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-red-200">Errores de formato</p>
+                    <ul className="space-y-2 text-xs text-gray-300">
+                      {pdfValidation.issues.slice(0, 8).map((issue, idx) => (
+                        <li key={`${issue.line || issue.dayLabel || idx}-${idx}`} className="bg-slate-900/70 border border-slate-700 rounded-lg p-2">
+                          <p>{issue.message}</p>
+                          {issue.line && <p className="text-gray-500 mt-1">Linea {issue.line}: {issue.content}</p>}
+                          {issue.dayLabel && <p className="text-gray-500 mt-1">{issue.dayLabel}</p>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {Array.isArray(pdfValidation.missingExercises) && pdfValidation.missingExercises.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-red-200">Ejercicios no encontrados</p>
+                    <ul className="space-y-2 text-xs text-gray-300">
+                      {pdfValidation.missingExercises.slice(0, 8).map((item, idx) => (
+                        <li key={`${item.exercise}-${idx}`} className="bg-slate-900/70 border border-slate-700 rounded-lg p-2">
+                          <p><strong>{item.exercise}</strong> en {item.day}</p>
+                          {item.suggestions?.length > 0 && (
+                            <p className="text-gray-500 mt-1">Sugerencias: {item.suggestions.join(', ')}</p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
 
             <form onSubmit={handlePdfUpload} className="flex items-end gap-3">
               <div className="flex-1">
@@ -249,7 +294,7 @@ Jueves - Piernas
                 <input
                   type="file"
                   accept="application/pdf"
-                  onChange={(e) => setPdfFile(e.target.files[0])}
+                  onChange={(e) => { setPdfFile(e.target.files[0]); setPdfValidation(null); }}
                   className="w-full bg-slate-700/60 rounded-xl px-4 py-2.5 text-sm file:mr-3 file:py-1.5 file:px-4 file:rounded-xl file:border-0 file:bg-primary file:text-white file:text-sm file:cursor-pointer file:font-semibold hover:bg-slate-700 transition"
                 />
               </div>
@@ -505,6 +550,8 @@ Jueves - Piernas
     </div>
   );
 }
+
+
 
 
 

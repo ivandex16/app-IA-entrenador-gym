@@ -76,6 +76,30 @@ const MUSCLE_FILTER_GRADIENT = {
   full_body: 'from-amber-500 to-yellow-600', cardio: 'from-rose-500 to-red-600',
 };
 
+const normalizeSearchText = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const MUSCLE_SEARCH_ALIASES = {
+  chest: ['chest', 'pecho', 'pectoral', 'pectorales'],
+  back: ['back', 'espalda', 'dorsal', 'dorsales'],
+  shoulders: ['shoulders', 'shoulder', 'hombro', 'hombros', 'deltoide', 'deltoides'],
+  biceps: ['biceps', 'bicep', 'brazo', 'brazos'],
+  triceps: ['triceps', 'tricep'],
+  legs: ['legs', 'pierna', 'piernas', 'cuadriceps', 'femoral', 'muslo', 'muslos'],
+  glutes: ['glutes', 'gluteo', 'gluteos', 'pompa', 'pompas'],
+  abs: ['abs', 'abdomen', 'abdominal', 'abdominales', 'core'],
+  forearms: ['forearms', 'antebrazo', 'antebrazos'],
+  calves: ['calves', 'pantorrilla', 'pantorrillas', 'gemelo', 'gemelos'],
+  full_body: ['full body', 'cuerpo completo', 'cuerpo'],
+  cardio: ['cardio', 'aerobico', 'aerobicos', 'hiit'],
+};
+
 export default function Exercises() {
   const { user } = useAuth();
   const [exercises, setExercises] = useState([]);
@@ -108,7 +132,19 @@ export default function Exercises() {
 
   useEffect(() => {
     const params = {};
-    if (selectedGroups.length > 0) params.muscleGroup = selectedGroups.join(',');
+    const normalizedSearch = normalizeSearchText(search);
+    const searchMatchedGroups = Object.entries(MUSCLE_SEARCH_ALIASES)
+      .filter(([, aliases]) =>
+        normalizedSearch
+        && aliases.some((alias) => {
+          const normalizedAlias = normalizeSearchText(alias);
+          return normalizedAlias.includes(normalizedSearch) || normalizedSearch.includes(normalizedAlias);
+        }))
+      .map(([group]) => group);
+
+    const combinedGroups = [...new Set([...selectedGroups, ...searchMatchedGroups])];
+
+    if (combinedGroups.length > 0) params.muscleGroup = combinedGroups.join(',');
     if (search) params.search = search;
     api
       .get('/exercises', { params })

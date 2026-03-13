@@ -134,7 +134,6 @@ export default function RoutineDetail() {
             toast.error('Debe haber al menos un día');
             return;
         }
-        if (!confirm(`¿Eliminar "${getDays()[dayIdx]?.dayLabel}"?`)) return;
         setSaving(true);
         try {
             const newDays = getDays().filter((_, i) => i !== dayIdx);
@@ -308,7 +307,6 @@ export default function RoutineDetail() {
 
     // — Delete routine —
     const handleDeleteRoutine = async () => {
-        if (!confirm('¿Eliminar esta rutina por completo?')) return;
         await api.delete(`/routines/${id}`);
         toast.success('Rutina eliminada');
         navigate('/routines');
@@ -414,7 +412,7 @@ export default function RoutineDetail() {
                                 <LuPencil className="w-4 h-4" />
                             </button>
                             <button
-                                onClick={handleDeleteRoutine}
+                                onClick={() => openConfirm('Eliminar rutina', 'La rutina completa se eliminara de forma permanente.', 'danger', 'Eliminar', handleDeleteRoutine)}
                                 className="bg-slate-700 hover:bg-red-600 px-3 py-2 rounded-lg text-sm transition"
                                 title="Eliminar rutina"
                             >
@@ -537,7 +535,7 @@ export default function RoutineDetail() {
                             )}
                             {days.length > 1 && (
                                 <button
-                                    onClick={() => removeDay(activeDay)}
+                                    onClick={() => openConfirm('Eliminar dia', `Se eliminara ${getCurrentDayLabel()} y todos sus ejercicios.`, 'danger', 'Eliminar', () => removeDay(activeDay))}
                                     className="text-gray-500 hover:text-red-400 text-xs ml-1 transition"
                                     title="Eliminar este día"
                                 >
@@ -899,6 +897,20 @@ export default function RoutineDetail() {
                     <span className="flex items-center gap-1.5"><LuSave className="w-4 h-4 animate-pulse" /> Guardando…</span>
                 </div>
             )}
+            <ConfirmDialog
+                open={confirmState.open}
+                title={confirmState.title}
+                message={confirmState.message}
+                tone={confirmState.tone}
+                confirmLabel={confirmState.confirmLabel}
+                onCancel={closeConfirm}
+                onConfirm={async () => {
+                    const action = confirmState.action;
+                    closeConfirm();
+                    if (action) await action();
+                }}
+            />
         </div>
     );
 }
+

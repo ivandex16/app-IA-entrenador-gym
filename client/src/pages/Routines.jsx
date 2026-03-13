@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { LuActivity, LuDumbbell, LuFlame, LuHeart, LuSparkles, LuZap, LuFileUp, LuLightbulb, LuCalendar, LuTimer, LuTrash2, LuTriangleAlert, LuClipboardList, LuPlus, LuArrowRight, LuTarget } from 'react-icons/lu';
 
 const GOALS = [
@@ -58,6 +59,7 @@ export default function Routines() {
   const [showPdf, setShowPdf] = useState(false);
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfUploading, setPdfUploading] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   const load = () => api.get('/routines').then((r) => setRoutines(r.data));
 
@@ -86,7 +88,6 @@ export default function Routines() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Eliminar esta rutina?')) return;
     await api.delete(`/routines/${id}`);
     toast.success('Eliminada');
     load();
@@ -408,7 +409,7 @@ Jueves - Piernas
 
                     {/* Delete button */}
                     <button
-                      onClick={(e) => { e.preventDefault(); handleDelete(r._id); }}
+                      onClick={(e) => { e.preventDefault(); setConfirmDeleteId(r._id); }}
                       className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 bg-red-500/80 backdrop-blur-sm hover:bg-red-500 text-white p-1.5 rounded-full transition-all shadow-lg"
                       title="Eliminar"
                       style={{ right: r.isAIGenerated ? '5rem' : '0.75rem' }}
@@ -488,6 +489,22 @@ Jueves - Piernas
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={Boolean(confirmDeleteId)}
+        title="Eliminar rutina"
+        message="La rutina seleccionada se eliminara de forma permanente."
+        tone="danger"
+        confirmLabel="Eliminar"
+        onCancel={() => setConfirmDeleteId(null)}
+        onConfirm={async () => {
+          const routineId = confirmDeleteId;
+          setConfirmDeleteId(null);
+          if (routineId) await handleDelete(routineId);
+        }}
+      />
     </div>
   );
 }
+
+
+

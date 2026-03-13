@@ -33,6 +33,12 @@ export default function Profile() {
     preferences: { equipment: [], focusMuscleGroups: [] },
   });
   const [saving, setSaving] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [savingPassword, setSavingPassword] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef(null);
@@ -105,6 +111,39 @@ export default function Profile() {
       toast.success('Foto de perfil eliminada');
     } catch (err) {
       toast.error('Error al eliminar la foto');
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+      toast.error('Completa la contrasena actual y la nueva.');
+      return;
+    }
+    if (passwordForm.newPassword.length < 6) {
+      toast.error('La nueva contrasena debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error('Las nuevas contrasenas no coinciden.');
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      await api.put('/auth/change-password', {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+      toast.success('Contrasena actualizada correctamente');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'No se pudo actualizar la contrasena');
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -402,6 +441,47 @@ export default function Profile() {
         </div>
 
         {/* ═══════ ACCOUNT INFO ═══════ */}
+        <div className="bg-slate-800/60 backdrop-blur border border-slate-700/50 rounded-2xl p-6" style={{ animation: 'fadeInUp 1.05s ease-out' }}>
+          <h2 className="font-bold text-lg mb-2 flex items-center gap-2">
+            <LuShield className="w-5 h-5 text-cyan-400" />
+            Seguridad
+          </h2>
+          <p className="text-xs text-gray-500 mb-4">Cambia tu contrasena desde aqui sin depender del correo.</p>
+          <div className="space-y-3">
+            <input
+              type="password"
+              placeholder="Contrasena actual"
+              className="w-full bg-slate-900/60 border border-slate-600/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+              value={passwordForm.currentPassword}
+              onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+            />
+            <input
+              type="password"
+              placeholder="Nueva contrasena"
+              minLength={6}
+              className="w-full bg-slate-900/60 border border-slate-600/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+              value={passwordForm.newPassword}
+              onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+            />
+            <input
+              type="password"
+              placeholder="Confirmar nueva contrasena"
+              minLength={6}
+              className="w-full bg-slate-900/60 border border-slate-600/50 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+              value={passwordForm.confirmPassword}
+              onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+            />
+            <button
+              type="button"
+              onClick={handlePasswordChange}
+              disabled={savingPassword}
+              className="w-full bg-slate-900/80 hover:bg-slate-900 border border-slate-600/50 py-3 rounded-xl font-semibold transition disabled:opacity-50"
+            >
+              {savingPassword ? 'Actualizando...' : 'Cambiar contrasena'}
+            </button>
+          </div>
+        </div>
+
         <div className="flex items-center justify-center gap-4 text-xs text-gray-600 pb-4">
           <span className="inline-flex items-center gap-1.5">
             <LuMail className="w-3.5 h-3.5" />

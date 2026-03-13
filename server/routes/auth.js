@@ -81,5 +81,22 @@ router.put(
   validate,
   ctrl.resetPassword
 );
+router.put(
+  '/change-password',
+  protect,
+  [
+    body('currentPassword')
+      .notEmpty()
+      .withMessage('La contrasena actual es obligatoria.'),
+    body('newPassword')
+      .notEmpty()
+      .withMessage('La nueva contrasena es obligatoria.')
+      .bail()
+      .isLength({ min: 6 })
+      .withMessage('La nueva contrasena debe tener al menos 6 caracteres.'),
+  ],
+  validate,
+  ctrl.changePassword
+);
 
 module.exports = router;

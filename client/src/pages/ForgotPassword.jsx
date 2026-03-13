@@ -8,7 +8,6 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [devResetUrl, setDevResetUrl] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,8 +22,7 @@ export default function ForgotPassword() {
       const { data } = await api.post('/auth/forgot-password', {
         email: normalized,
       });
-      setDevResetUrl(data?.resetUrl || '');
-      toast.success(data?.message || 'Revisa tu correo para continuar.');
+      toast.success(data?.message || 'Solicitud procesada.');
     } catch (err) {
       toast.error(err.response?.data?.message || 'No se pudo procesar la solicitud.');
     } finally {
@@ -38,7 +36,7 @@ export default function ForgotPassword() {
         <Link to="/login" className="text-sm text-gray-400 hover:text-primary transition">Volver a login</Link>
         <h2 className="text-2xl font-bold text-center">Recuperar contrasena</h2>
         <p className="text-sm text-gray-400 text-center">
-          Ingresa tu correo y te enviaremos un enlace para restablecer tu contrasena.
+          La recuperacion por correo esta deshabilitada temporalmente. Si aun tienes acceso a tu cuenta, cambia tu contrasena desde tu perfil.
         </p>
 
         <input
@@ -54,17 +52,9 @@ export default function ForgotPassword() {
           disabled={loading}
           className="w-full bg-primary hover:bg-indigo-600 py-3 rounded-lg font-semibold transition disabled:opacity-50"
         >
-          {loading ? 'Enviando...' : 'Enviar instrucciones'}
+          {loading ? 'Consultando...' : 'Consultar disponibilidad'}
         </button>
-
-        {devResetUrl && (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
-            <p className="text-xs text-amber-300 mb-2">Modo desarrollo: enlace de recuperacion</p>
-            <a href={devResetUrl} className="text-xs text-primary break-all hover:underline">{devResetUrl}</a>
-          </div>
-        )}
       </form>
     </div>
   );
 }
-

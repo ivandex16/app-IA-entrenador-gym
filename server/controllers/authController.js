@@ -91,35 +91,10 @@ exports.resendVerification = async (req, res, next) => {
 // POST /api/auth/forgot-password
 exports.forgotPassword = async (req, res, next) => {
   try {
-    const normalizedEmail = String(req.body?.email || "").trim().toLowerCase();
-    const user = await User.findOne({ email: normalizedEmail });
-    // Do not leak user existence
-    if (!user) {
-      return res.json({
-        message:
-          "Si el correo existe, te enviaremos instrucciones para restablecer tu contrasena.",
-      });
-    }
-
-    const resetToken = crypto.randomBytes(32).toString("hex");
-    user.resetPasswordToken = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
-    user.resetPasswordExpires = Date.now() + 30 * 60 * 1000; // 30 min
-    await user.save({ validateBeforeSave: false });
-
-    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
-    const resetUrl = `${clientUrl}/reset-password/${resetToken}`;
-    const payload = {
+    return res.status(503).json({
       message:
-        "Si el correo existe, te enviaremos instrucciones para restablecer tu contrasena.",
-    };
-    if (process.env.NODE_ENV !== "production") {
-      payload.resetToken = resetToken;
-      payload.resetUrl = resetUrl;
-    }
-    res.json(payload);
+        "La recuperacion por correo no esta disponible. Inicia sesion y cambia tu contrasena desde tu perfil.",
+    });
   } catch (err) {
     next(err);
   }
@@ -154,6 +129,42 @@ exports.resetPassword = async (req, res, next) => {
 
     const token = signToken(user._id);
     res.json({ token });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// PUT /api/auth/change-password
+exports.changePassword = async (req, res, next) => {
+  try {
+    const currentPassword = String(req.body?.currentPassword || "");
+    const newPassword = String(req.body?.newPassword || "");
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        message: "Debes ingresar tu contrasena actual y la nueva contrasena.",
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        message: "La contrasena debe tener al menos 6 caracteres.",
+      });
+    }
+
+    const user = await User.findById(req.user._id).select("+password");
+    if (!user || !(await user.comparePassword(currentPassword))) {
+      return res.status(401).json({
+        message: "La contrasena actual no es correcta.",
+      });
+    }
+
+    user.password = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.json({ message: "Contrasena actualizada correctamente." });
   } catch (err) {
     next(err);
   }

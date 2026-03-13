@@ -5,6 +5,7 @@ const Routine = require("../models/Routine");
 const Goal = require("../models/Goal");
 const Exercise = require("../models/Exercise");
 const { exercises: seedExercises } = require("../seeds/seedExercises");
+const { autoFillYoutubeShorts } = require("../scripts/autoFillYoutubeShorts");
 
 function generateTemporaryPassword(length = 12) {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
@@ -190,6 +191,19 @@ exports.seedExercisesCatalog = async (_req, res, next) => {
       message: "Catalogo de ejercicios sincronizado correctamente.",
       upserted,
       totalExercises,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/admin/fill-exercise-videos
+exports.fillExerciseVideos = async (_req, res, next) => {
+  try {
+    const result = await autoFillYoutubeShorts({ onlyMissing: true });
+    res.json({
+      message: "Videos de ejercicios sincronizados correctamente.",
+      ...result,
     });
   } catch (err) {
     next(err);

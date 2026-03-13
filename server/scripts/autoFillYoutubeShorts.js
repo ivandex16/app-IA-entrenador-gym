@@ -19,7 +19,6 @@ async function searchYoutubeShortId(query) {
   const items = Array.isArray(json.items) ? json.items : [];
   if (!items.length) return null;
 
-  // Prefer explicit shorts in title/description
   const scored = items
     .map((it) => {
       const id = it?.id?.videoId;
@@ -40,16 +39,28 @@ async function searchYoutubeShortId(query) {
   return scored[0]?.id || items[0]?.id?.videoId || null;
 }
 
-async function run() {
+async function autoFillYoutubeShorts(options = {}) {
   if (!API_KEY) {
     throw new Error("Falta YOUTUBE_API_KEY en .env");
   }
 
-  await mongoose.connect(process.env.MONGODB_URI);
+  const onlyMissing = options.onlyMissing !== false;
+  const query = onlyMissing
+    ? {
+      $or: [
+        { youtubeVideoId: { $in: ["", null] } },
+        { videoUrl: { $in: ["", null] } },
+      ],
+    }
+    : {};
 
-  const exercises = await Exercise.find({}).select("name youtubeVideoId videoUrl").lean();
+  const exercises = await Exercise.find(query)
+    .select("name youtubeVideoId videoUrl")
+    .lean();
+
   let updated = 0;
   let skipped = 0;
+  const errors = [];
 
   for (const ex of exercises) {
     const q = `${ex.name} gym exercise #shorts`;
@@ -57,7 +68,7 @@ async function run() {
     try {
       shortId = await searchYoutubeShortId(q);
     } catch (err) {
-      console.log(`search_error: ${ex.name} -> ${err.message}`);
+      errors.push({ name: ex.name, error: err.message });
       skipped++;
       continue;
     }
@@ -84,12 +95,31 @@ async function run() {
   const total = await Exercise.countDocuments();
   const withVideoUrl = await Exercise.countDocuments({ videoUrl: { $nin: ["", null] } });
 
-  console.log(JSON.stringify({ total, updated, skipped, withVideoUrl }, null, 2));
+  return {
+    total,
+    processed: exercises.length,
+    updated,
+    skipped,
+    withVideoUrl,
+    errors: errors.slice(0, 10),
+  };
+}
+
+async function run() {
+  await mongoose.connect(process.env.MONGODB_URI);
+  const result = await autoFillYoutubeShorts({ onlyMissing: false });
+  console.log(JSON.stringify(result, null, 2));
   await mongoose.disconnect();
 }
 
-run().catch((err) => {
-  console.error("autoFillYoutubeShorts error:", err);
-  process.exit(1);
-});
+module.exports = {
+  searchYoutubeShortId,
+  autoFillYoutubeShorts,
+};
 
+if (require.main === module) {
+  run().catch((err) => {
+    console.error("autoFillYoutubeShorts error:", err);
+    process.exit(1);
+  });
+}

@@ -1677,6 +1677,7 @@ const extraExercises = [
 ];
 
 const allExercises = [...exercises, ...extraExercises];
+
 async function seed() {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
@@ -1701,5 +1702,12 @@ async function seed() {
   }
 }
 
-seed();
+module.exports = {
+  exercises: allExercises,
+  seed,
+};
+
+if (require.main === module) {
+  seed();
+}
 

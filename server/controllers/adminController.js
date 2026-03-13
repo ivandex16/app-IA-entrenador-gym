@@ -4,6 +4,7 @@ const WorkoutLog = require("../models/WorkoutLog");
 const Routine = require("../models/Routine");
 const Goal = require("../models/Goal");
 const Exercise = require("../models/Exercise");
+const { exercises: seedExercises } = require("../seeds/seedExercises");
 
 function generateTemporaryPassword(length = 12) {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
@@ -164,6 +165,31 @@ exports.setTemporaryPassword = async (req, res, next) => {
         name: user.name,
         email: user.email,
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/admin/seed-exercises
+exports.seedExercisesCatalog = async (_req, res, next) => {
+  try {
+    let upserted = 0;
+    for (const ex of seedExercises) {
+      await Exercise.findOneAndUpdate(
+        { name: ex.name },
+        { $set: ex },
+        { upsert: true, new: true, runValidators: true },
+      );
+      upserted++;
+    }
+
+    const totalExercises = await Exercise.countDocuments();
+
+    res.json({
+      message: "Catalogo de ejercicios sincronizado correctamente.",
+      upserted,
+      totalExercises,
     });
   } catch (err) {
     next(err);

@@ -5,6 +5,7 @@
 require("dotenv").config({ path: "../.env" });
 const mongoose = require("mongoose");
 const Exercise = require("../models/Exercise");
+const { findDuplicateExerciseByName } = require("../utils/exerciseName");
 
 const exercises = [
   // ══════════════ PECHO ══════════════
@@ -1685,11 +1686,16 @@ async function seed() {
 
     let upserted = 0;
     for (const ex of allExercises) {
-      await Exercise.findOneAndUpdate(
-        { name: ex.name },
-        { $set: ex },
-        { upsert: true, new: true },
-      );
+      const existing = await findDuplicateExerciseByName(ex.name);
+      if (existing?._id) {
+        await Exercise.findByIdAndUpdate(
+          existing._id,
+          { $set: ex },
+          { new: true, runValidators: true },
+        );
+      } else {
+        await Exercise.create(ex);
+      }
       upserted++;
     }
     console.log(`✅ Seeded ${upserted} exercises (upsert by name)`);

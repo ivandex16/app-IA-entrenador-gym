@@ -3,6 +3,7 @@ const {
   aiExerciseRecommend,
   aiExerciseSuggestOpen,
 } = require("../services/recommendationEngine");
+const { findDuplicateExerciseByName } = require("../utils/exerciseName");
 
 const MUSCLE_GROUPS = new Set([
   "chest",
@@ -44,33 +45,6 @@ const toSlug = (value) =>
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
-const escapeRegex = (value) =>
-  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const normalizeName = (value) =>
-  String(value || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-async function findDuplicateByName(rawName) {
-  const trimmed = String(rawName || "").trim();
-  if (!trimmed) return null;
-
-  // Fast path: exact (case-insensitive)
-  const exact = await Exercise.findOne({
-    name: { $regex: new RegExp(`^${escapeRegex(trimmed)}$`, "i") },
-  });
-  if (exact) return exact;
-
-  // Robust path: ignore accents/symbols/extra spaces
-  const normalizedTarget = normalizeName(trimmed);
-  if (!normalizedTarget) return null;
-  const all = await Exercise.find({}, "name").lean();
-  const dup = all.find((e) => normalizeName(e.name) === normalizedTarget);
-  return dup || null;
-}
 
 // POST /api/exercises/ai-recommend  (protected)
 exports.aiRecommend = async (req, res, next) => {
@@ -116,7 +90,7 @@ exports.createCustom = async (req, res, next) => {
       return res.status(400).json({ message: "El nombre del ejercicio es obligatorio" });
     }
 
-    const existing = await findDuplicateByName(rawName);
+    const existing = await findDuplicateExerciseByName(rawName);
     if (existing) {
       return res.status(200).json({
         message: "El ejercicio ya existe en el catalogo",
@@ -205,7 +179,7 @@ exports.getById = async (req, res, next) => {
 // POST /api/exercises  (admin)
 exports.create = async (req, res, next) => {
   try {
-    const existing = await findDuplicateByName(req.body?.name);
+    const existing = await findDuplicateExerciseByName(req.body?.name);
     if (existing) {
       return res.status(409).json({
         message: "Ya existe un ejercicio con ese nombre",
@@ -223,7 +197,7 @@ exports.create = async (req, res, next) => {
 exports.update = async (req, res, next) => {
   try {
     if (req.body?.name) {
-      const existing = await findDuplicateByName(req.body.name);
+      const existing = await findDuplicateExerciseByName(req.body.name);
       if (existing && String(existing._id) !== String(req.params.id)) {
         return res.status(409).json({
           message: "Ya existe un ejercicio con ese nombre",

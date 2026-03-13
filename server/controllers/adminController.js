@@ -6,6 +6,7 @@ const Goal = require("../models/Goal");
 const Exercise = require("../models/Exercise");
 const { exercises: seedExercises } = require("../seeds/seedExercises");
 const { autoFillYoutubeShorts } = require("../scripts/autoFillYoutubeShorts");
+const { findDuplicateExerciseByName } = require("../utils/exerciseName");
 
 function generateTemporaryPassword(length = 12) {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
@@ -177,11 +178,16 @@ exports.seedExercisesCatalog = async (_req, res, next) => {
   try {
     let upserted = 0;
     for (const ex of seedExercises) {
-      await Exercise.findOneAndUpdate(
-        { name: ex.name },
-        { $set: ex },
-        { upsert: true, new: true, runValidators: true },
-      );
+      const existing = await findDuplicateExerciseByName(ex.name);
+      if (existing?._id) {
+        await Exercise.findByIdAndUpdate(
+          existing._id,
+          { $set: ex },
+          { new: true, runValidators: true },
+        );
+      } else {
+        await Exercise.create(ex);
+      }
       upserted++;
     }
 

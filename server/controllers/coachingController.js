@@ -3,6 +3,7 @@ const Exercise = require("../models/Exercise");
 const Routine = require("../models/Routine");
 const User = require("../models/User");
 const WorkoutLog = require("../models/WorkoutLog");
+const { notifyRoutineAssignment } = require("../services/notificationService");
 
 const GOALS = new Set([
   "muscle_gain",
@@ -326,6 +327,14 @@ exports.createAssignment = async (req, res, next) => {
       .populate("trainer", "name email role")
       .populate("routine", "name description updatedAt")
       .populate("days.exercises.exercise", "name muscleGroup");
+
+    await notifyRoutineAssignment({
+      clientId: access.client._id,
+      trainerName: req.user.name || "Tu entrenador",
+      routineName: String(title).trim(),
+      assignmentId: assignment._id,
+      routineId: routine._id,
+    });
 
     res.status(201).json({
       message: "Rutina asignada correctamente",

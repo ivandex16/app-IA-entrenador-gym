@@ -48,6 +48,7 @@ app.use("/api/recommendations", require("./routes/recommendations"));
 app.use("/api/weight", require("./routes/weight"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/coaching", require("./routes/coaching"));
+app.use("/api/notifications", require("./routes/notifications"));
 
 // ── Health check ──
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));

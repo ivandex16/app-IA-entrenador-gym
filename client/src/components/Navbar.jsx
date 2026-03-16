@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   LuDumbbell, LuLayoutDashboard, LuListChecks, LuSword, LuSearch,
   LuTarget, LuTrendingUp, LuSparkles, LuUser, LuLogOut, LuMenu, LuX,
-  LuChevronDown, LuCompass, LuShield, LuUsers,
+  LuChevronDown, LuCompass, LuShield, LuUsers, LuBell,
   LuChefHat,
 } from 'react-icons/lu';
 import api from '../api/axios';
@@ -26,11 +26,26 @@ export default function Navbar({ onStartTour }) {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const profileRef = useRef(null);
+  const notificationsRef = useRef(null);
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
+
+  const fetchNotifications = async () => {
+    try {
+      const { data } = await api.get('/notifications?limit=8');
+      setNotifications(data.notifications || []);
+      setUnreadCount(data.unreadCount || 0);
+    } catch {
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  };
 
   // Scroll shadow effect
   useEffect(() => {
@@ -42,21 +57,29 @@ export default function Navbar({ onStartTour }) {
   // Fetch avatar
   useEffect(() => {
     if (user) {
-  api.get('/users/profile').then((r) => setAvatarUrl(r.data.avatar || '')).catch(() => { });
+      api.get('/users/profile').then((r) => setAvatarUrl(r.data.avatar || '')).catch(() => { });
+      fetchNotifications();
     }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+    const timer = window.setInterval(fetchNotifications, 30000);
+    return () => window.clearInterval(timer);
   }, [user]);
 
   // Close profile dropdown on click outside
   useEffect(() => {
     const handler = (e) => {
       if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
+      if (notificationsRef.current && !notificationsRef.current.contains(e.target)) setNotificationsOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   // Close mobile menu on route change
-  useEffect(() => { setOpen(false); setProfileOpen(false); }, [location.pathname]);
+  useEffect(() => { setOpen(false); setProfileOpen(false); setNotificationsOpen(false); }, [location.pathname]);
 
   if (!user) return null;
 
@@ -70,6 +93,31 @@ export default function Navbar({ onStartTour }) {
       : []),
   ];
   const initials = (user.name || 'U').split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
+
+  const handleNotificationClick = async (notification) => {
+    try {
+      if (!notification.readAt) {
+        await api.patch(`/notifications/${notification._id}/read`);
+        setNotifications((prev) =>
+          prev.map((item) =>
+            item._id === notification._id ? { ...item, readAt: new Date().toISOString() } : item,
+          ),
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      }
+    } catch { }
+
+    setNotificationsOpen(false);
+    navigate(notification.entityType === 'routine' ? '/routines' : '/dashboard');
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await api.patch('/notifications/read-all');
+      setNotifications((prev) => prev.map((item) => ({ ...item, readAt: item.readAt || new Date().toISOString() })));
+      setUnreadCount(0);
+    } catch { }
+  };
 
   return (
     <>
@@ -124,6 +172,60 @@ export default function Navbar({ onStartTour }) {
 
             {/* â”€â”€ Right section: Profile dropdown â”€â”€ */}
             <div className="hidden lg:flex items-center gap-3">
+              <div className="relative" ref={notificationsRef}>
+                <button
+                  onClick={() => setNotificationsOpen((prev) => !prev)}
+                  className={`relative w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${notificationsOpen ? 'bg-white/10 ring-1 ring-primary/30' : 'hover:bg-white/5'}`}
+                >
+                  <LuBell className="w-5 h-5 text-slate-300" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {notificationsOpen && (
+                  <div className="absolute right-0 mt-2 w-96 rounded-2xl bg-slate-800/95 backdrop-blur-xl border border-slate-700/60 shadow-2xl shadow-black/40 overflow-hidden">
+                    <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-700/50">
+                      <div>
+                        <p className="text-sm font-semibold text-white">Notificaciones</p>
+                        <p className="text-xs text-slate-400">Avisos internos de la aplicacion</p>
+                      </div>
+                      {unreadCount > 0 && (
+                        <button onClick={handleMarkAllRead} className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">
+                          Marcar todo
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-96 overflow-auto">
+                      {notifications.length ? notifications.map((notification) => (
+                        <button
+                          key={notification._id}
+                          onClick={() => handleNotificationClick(notification)}
+                          className={`w-full text-left px-4 py-3 border-b border-slate-700/40 hover:bg-white/5 transition-colors ${notification.readAt ? '' : 'bg-cyan-500/5'}`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-white">{notification.title}</p>
+                              <p className="text-xs text-slate-400 mt-1">{notification.message}</p>
+                            </div>
+                            {!notification.readAt && <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 mt-1.5 shrink-0" />}
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-2">
+                            {new Date(notification.createdAt).toLocaleString('es-CO')}
+                          </p>
+                        </button>
+                      )) : (
+                        <div className="px-4 py-6 text-sm text-slate-400">
+                          No tienes notificaciones por ahora.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Profile dropdown */}
               <div className="relative" ref={profileRef}>
                 <button
@@ -281,6 +383,37 @@ export default function Navbar({ onStartTour }) {
 
           {/* Bottom actions */}
           <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-slate-700/50 bg-slate-900/50 space-y-1">
+            <button
+              onClick={() => setNotificationsOpen((prev) => !prev)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-white/5 transition-all"
+            >
+              <LuBell className="w-4.5 h-4.5 text-primary" />
+              Notificaciones
+              {unreadCount > 0 && (
+                <span className="ml-auto min-w-[20px] h-5 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+            {notificationsOpen && (
+              <div className="rounded-xl bg-slate-800/80 border border-slate-700/50 overflow-hidden max-h-56 overflow-auto">
+                {notifications.length ? notifications.map((notification) => (
+                  <button
+                    key={notification._id}
+                    onClick={() => {
+                      setOpen(false);
+                      handleNotificationClick(notification);
+                    }}
+                    className={`w-full text-left px-3 py-3 border-b border-slate-700/40 ${notification.readAt ? 'text-slate-300' : 'text-white bg-cyan-500/5'}`}
+                  >
+                    <p className="text-sm font-semibold">{notification.title}</p>
+                    <p className="text-xs text-slate-400 mt-1">{notification.message}</p>
+                  </button>
+                )) : (
+                  <div className="px-3 py-4 text-xs text-slate-400">No tienes notificaciones por ahora.</div>
+                )}
+              </div>
+            )}
             <Link
               to="/profile"
               onClick={() => setOpen(false)}

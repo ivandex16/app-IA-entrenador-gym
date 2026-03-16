@@ -3,7 +3,11 @@ const Exercise = require("../models/Exercise");
 const Routine = require("../models/Routine");
 const User = require("../models/User");
 const WorkoutLog = require("../models/WorkoutLog");
-const { notifyRoutineAssignment } = require("../services/notificationService");
+const {
+  notifyRoutineAssignment,
+  notifyCoachComment,
+  notifyAssignmentStatusChange,
+} = require("../services/notificationService");
 
 const GOALS = new Set([
   "muscle_gain",
@@ -371,6 +375,13 @@ exports.addComment = async (req, res, next) => {
     await assignment.save();
 
     await assignment.populate("comments.author", "name email role");
+    await notifyCoachComment({
+      clientId: assignment.client,
+      authorName: req.user.name || "Tu entrenador",
+      routineName: assignment.title,
+      assignmentId: assignment._id,
+      routineId: assignment.routine,
+    });
     res.status(201).json({
       message: "Comentario agregado correctamente",
       comments: assignment.comments,
@@ -400,6 +411,13 @@ exports.updateAssignmentStatus = async (req, res, next) => {
 
     assignment.status = status;
     await assignment.save();
+    await notifyAssignmentStatusChange({
+      clientId: assignment.client,
+      status,
+      routineName: assignment.title,
+      assignmentId: assignment._id,
+      routineId: assignment.routine,
+    });
 
     res.json({
       message: "Estado actualizado correctamente",

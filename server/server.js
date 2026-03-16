@@ -7,12 +7,14 @@ const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 const connectDB = require("./config/db");
 const errorHandler = require("./middleware/errorHandler");
+const { startReminderScheduler } = require("./services/reminderScheduler");
 if (typeof dns.setDefaultResultOrder === "function") {
   dns.setDefaultResultOrder("ipv4first");
 }
 
 // ── Connect to MongoDB ──
 connectDB();
+startReminderScheduler();
 
 const app = express();
 

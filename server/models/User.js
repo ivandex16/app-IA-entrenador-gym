@@ -12,8 +12,9 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
     password: { type: String, required: true, minlength: 6, select: false },
-    role: { type: String, enum: ["user", "admin"], default: "user" },
+    role: { type: String, enum: ["user", "trainer", "admin"], default: "user" },
     avatar: { type: String, default: "" },
+    assignedTrainer: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     level: {
       type: String,
       enum: ["beginner", "intermediate", "advanced"],

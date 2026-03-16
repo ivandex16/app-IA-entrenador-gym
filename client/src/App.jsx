@@ -25,6 +25,7 @@ import Recommendations from './pages/Recommendations';
 import FitRecipes from './pages/FitRecipes';
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/AdminDashboard';
+import CoachingHub from './pages/CoachingHub';
 
 export default function App() {
   const { user, setUser } = useAuth();
@@ -68,6 +69,7 @@ export default function App() {
         <Route path="/progress" element={<ProtectedRoute><Progress /></ProtectedRoute>} />
         <Route path="/recommendations" element={<ProtectedRoute><Recommendations /></ProtectedRoute>} />
         <Route path="/fit-recipes" element={<ProtectedRoute><FitRecipes /></ProtectedRoute>} />
+        <Route path="/coaching" element={<ProtectedRoute><CoachingHub /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
       </Routes>

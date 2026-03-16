@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   LuDumbbell, LuLayoutDashboard, LuListChecks, LuSword, LuSearch,
   LuTarget, LuTrendingUp, LuSparkles, LuUser, LuLogOut, LuMenu, LuX,
-  LuChevronDown, LuCompass, LuShield,
+  LuChevronDown, LuCompass, LuShield, LuUsers,
   LuChefHat,
 } from 'react-icons/lu';
 import api from '../api/axios';
@@ -60,9 +60,15 @@ export default function Navbar({ onStartTour }) {
 
   if (!user) return null;
 
-  const navLinks = user.role === 'admin'
-    ? [...baseNavLinks, { to: '/admin', label: 'Admin', icon: LuShield, tourId: 'nav-admin' }]
-    : baseNavLinks;
+  const navLinks = [
+    ...baseNavLinks,
+    ...((user.role === 'trainer' || user.role === 'admin')
+      ? [{ to: '/coaching', label: 'Coaching', icon: LuUsers, tourId: 'nav-coaching' }]
+      : []),
+    ...(user.role === 'admin'
+      ? [{ to: '/admin', label: 'Admin', icon: LuShield, tourId: 'nav-admin' }]
+      : []),
+  ];
   const initials = (user.name || 'U').split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 
   return (

@@ -13,6 +13,12 @@ const LEVEL_LABELS = {
   advanced: { label: 'Avanzado', color: 'text-red-400 bg-red-500/15' },
 };
 
+const ROLE_LABELS = {
+  user: { label: 'Usuario', color: 'text-gray-300 bg-slate-600/30' },
+  trainer: { label: 'Entrenador', color: 'text-cyan-300 bg-cyan-500/15' },
+  admin: { label: 'Admin', color: 'text-amber-400 bg-amber-500/15', icon: LuCrown },
+};
+
 const EMPTY_CONFIRM = {
   open: false,
   busy: false,
@@ -76,8 +82,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleRoleToggle = async (userId, currentRole) => {
-    const newRole = currentRole === 'admin' ? 'user' : 'admin';
+  const handleRoleChange = async (userId, newRole) => {
     try {
       await api.patch(`/admin/users/${userId}/role`, { role: newRole });
       setUsers((prev) =>
@@ -311,13 +316,10 @@ export default function AdminDashboard() {
                         <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg ${lvl.color}`}>{lvl.label}</span>
                       </td>
                       <td className="px-5 py-3 text-center">
-                        {u.role === 'admin' ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg text-amber-400 bg-amber-500/15">
-                            <LuCrown className="w-3 h-3" /> Admin
-                          </span>
-                        ) : (
-                          <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg text-gray-400 bg-slate-600/30">Usuario</span>
-                        )}
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg ${ROLE_LABELS[u.role]?.color || ROLE_LABELS.user.color}`}>
+                          {u.role === 'admin' && <LuCrown className="w-3 h-3" />}
+                          {ROLE_LABELS[u.role]?.label || 'Usuario'}
+                        </span>
                       </td>
                       <td className="px-5 py-3 text-center text-sm font-bold text-white">{u.workoutCount}</td>
                       <td className="px-5 py-3 text-center text-xs text-gray-500">
@@ -334,13 +336,16 @@ export default function AdminDashboard() {
                               Clave temp
                             </button>
                           )}
-                          <button
-                            onClick={() => handleRoleToggle(u._id, u.role)}
-                            className="p-1.5 rounded-lg hover:bg-indigo-500/10 text-gray-500 hover:text-indigo-400 transition-colors"
-                            title={u.role === 'admin' ? 'Quitar admin' : 'Hacer admin'}
+                          <select
+                            value={u.role}
+                            onChange={(e) => handleRoleChange(u._id, e.target.value)}
+                            className="rounded-lg border border-slate-600/50 bg-slate-700/80 px-2 py-1 text-xs text-white outline-none focus:ring-2 focus:ring-indigo-500/50"
+                            title="Cambiar rol"
                           >
-                            <LuShield className="w-4 h-4" />
-                          </button>
+                            <option value="user">Usuario</option>
+                            <option value="trainer">Entrenador</option>
+                            <option value="admin">Admin</option>
+                          </select>
                           {u.role !== 'admin' && (
                             <button
                               onClick={() => handleDelete(u._id, u.name)}
@@ -380,11 +385,10 @@ export default function AdminDashboard() {
                         <p className="text-xs text-gray-500">{u.email}</p>
                       </div>
                     </div>
-                    {u.role === 'admin' && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md text-amber-400 bg-amber-500/15">
-                        <LuCrown className="w-3 h-3" /> Admin
-                      </span>
-                    )}
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${ROLE_LABELS[u.role]?.color || ROLE_LABELS.user.color}`}>
+                      {u.role === 'admin' && <LuCrown className="w-3 h-3" />}
+                      {ROLE_LABELS[u.role]?.label || 'Usuario'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${lvl.color}`}>{lvl.label}</span>
@@ -404,12 +408,15 @@ export default function AdminDashboard() {
                         Clave temporal
                       </button>
                     )}
-                    <button
-                      onClick={() => handleRoleToggle(u._id, u.role)}
-                      className="text-xs px-3 py-1.5 rounded-lg bg-slate-700/60 text-gray-400 hover:text-indigo-400 transition-colors"
+                    <select
+                      value={u.role}
+                      onChange={(e) => handleRoleChange(u._id, e.target.value)}
+                      className="text-xs px-3 py-1.5 rounded-lg bg-slate-700/60 text-gray-200 border border-slate-600/50 outline-none"
                     >
-                      {u.role === 'admin' ? 'Quitar admin' : 'Hacer admin'}
-                    </button>
+                      <option value="user">Usuario</option>
+                      <option value="trainer">Entrenador</option>
+                      <option value="admin">Admin</option>
+                    </select>
                     {u.role !== 'admin' && (
                       <button
                         onClick={() => handleDelete(u._id, u.name)}

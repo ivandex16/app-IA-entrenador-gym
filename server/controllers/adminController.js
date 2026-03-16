@@ -4,6 +4,7 @@ const WorkoutLog = require("../models/WorkoutLog");
 const Routine = require("../models/Routine");
 const Goal = require("../models/Goal");
 const Exercise = require("../models/Exercise");
+const CoachingAssignment = require("../models/CoachingAssignment");
 const { exercises: seedExercises } = require("../seeds/seedExercises");
 const { autoFillYoutubeShorts } = require("../scripts/autoFillYoutubeShorts");
 const { findDuplicateExerciseByName } = require("../utils/exerciseName");
@@ -69,8 +70,9 @@ exports.listUsers = async (_req, res, next) => {
   try {
     const users = await User.find()
       .select(
-        "name email role level height weight weeklyFrequency createdAt avatar",
+        "name email role level height weight weeklyFrequency createdAt avatar assignedTrainer",
       )
+      .populate("assignedTrainer", "name email role")
       .sort("-createdAt");
 
     // Enrich with workout count per user
@@ -95,12 +97,12 @@ exports.listUsers = async (_req, res, next) => {
   }
 };
 
-// PATCH /api/admin/users/:id/role  { role: 'admin' | 'user' }
+// PATCH /api/admin/users/:id/role  { role: 'admin' | 'trainer' | 'user' }
 exports.updateUserRole = async (req, res, next) => {
   try {
     const { role } = req.body;
-    if (!["admin", "user"].includes(role)) {
-      return res.status(400).json({ message: "Rol inválido" });
+    if (!["admin", "trainer", "user"].includes(role)) {
+      return res.status(400).json({ message: "Rol invalido" });
     }
     const user = await User.findByIdAndUpdate(
       req.params.id,
@@ -132,10 +134,59 @@ exports.deleteUser = async (req, res, next) => {
       WorkoutLog.deleteMany({ user: user._id }),
       Routine.deleteMany({ user: user._id }),
       Goal.deleteMany({ user: user._id }),
+      CoachingAssignment.deleteMany({
+        $or: [{ client: user._id }, { trainer: user._id }, { createdBy: user._id }],
+      }),
+      User.updateMany({ assignedTrainer: user._id }, { $set: { assignedTrainer: null } }),
     ]);
     await User.findByIdAndDelete(user._id);
 
     res.json({ message: "Usuario y sus datos eliminados" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// PATCH /api/admin/users/:id/trainer
+exports.assignTrainer = async (req, res, next) => {
+  try {
+    const { trainerId } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+    if (user.role !== "user") {
+      return res.status(400).json({
+        message: "Solo puedes asignar entrenador a usuarios cliente",
+      });
+    }
+
+    let assignedTrainer = null;
+    if (trainerId) {
+      assignedTrainer = await User.findOne({
+        _id: trainerId,
+        role: { $in: ["trainer", "admin"] },
+      }).select("name email role");
+
+      if (!assignedTrainer) {
+        return res.status(404).json({
+          message: "Entrenador no encontrado o no disponible",
+        });
+      }
+    }
+
+    user.assignedTrainer = assignedTrainer ? assignedTrainer._id : null;
+    await user.save();
+
+    res.json({
+      message: assignedTrainer
+        ? "Entrenador asignado correctamente"
+        : "Entrenador desasignado correctamente",
+      user: {
+        _id: user._id,
+        assignedTrainer,
+      },
+    });
   } catch (err) {
     next(err);
   }

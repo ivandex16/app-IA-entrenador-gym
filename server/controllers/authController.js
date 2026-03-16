@@ -12,6 +12,7 @@ const serializeUser = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role,
+  assignedTrainer: user.assignedTrainer || null,
   level: user.level,
   height: user.height,
   weight: user.weight,

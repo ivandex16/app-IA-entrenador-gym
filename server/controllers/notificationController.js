@@ -67,3 +67,35 @@ exports.markAllAsRead = async (req, res, next) => {
     next(err);
   }
 };
+
+// DELETE /api/notifications/:id
+exports.deleteOne = async (req, res, next) => {
+  try {
+    const notification = await Notification.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+
+    if (!notification) {
+      return res.status(404).json({ message: "Notificacion no encontrada" });
+    }
+
+    res.json({ message: "Notificacion eliminada" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// DELETE /api/notifications
+exports.deleteAll = async (req, res, next) => {
+  try {
+    const result = await Notification.deleteMany({ user: req.user._id });
+
+    res.json({
+      message: "Notificaciones eliminadas",
+      deletedCount: result.deletedCount || 0,
+    });
+  } catch (err) {
+    next(err);
+  }
+};

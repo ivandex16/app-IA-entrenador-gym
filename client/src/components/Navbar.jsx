@@ -5,7 +5,7 @@ import {
   LuDumbbell, LuLayoutDashboard, LuListChecks, LuSword, LuSearch,
   LuTarget, LuTrendingUp, LuSparkles, LuUser, LuLogOut, LuMenu, LuX,
   LuChevronDown, LuCompass, LuShield, LuUsers, LuBell,
-  LuChefHat,
+  LuChefHat, LuTrash2,
 } from 'react-icons/lu';
 import api from '../api/axios';
 
@@ -119,6 +119,25 @@ export default function Navbar({ onStartTour }) {
     } catch { }
   };
 
+  const handleDeleteNotification = async (notificationId) => {
+    try {
+      const removed = notifications.find((item) => item._id === notificationId);
+      await api.delete(`/notifications/${notificationId}`);
+      setNotifications((prev) => prev.filter((item) => item._id !== notificationId));
+      if (removed && !removed.readAt) {
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      }
+    } catch { }
+  };
+
+  const handleDeleteAllNotifications = async () => {
+    try {
+      await api.delete('/notifications');
+      setNotifications([]);
+      setUnreadCount(0);
+    } catch { }
+  };
+
   return (
     <>
       <nav
@@ -192,30 +211,52 @@ export default function Navbar({ onStartTour }) {
                         <p className="text-sm font-semibold text-white">Notificaciones</p>
                         <p className="text-xs text-slate-400">Avisos internos de la aplicacion</p>
                       </div>
-                      {unreadCount > 0 && (
-                        <button onClick={handleMarkAllRead} className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">
-                          Marcar todo
-                        </button>
-                      )}
+                      <div className="flex items-center gap-3">
+                        {unreadCount > 0 && (
+                          <button onClick={handleMarkAllRead} className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">
+                            Marcar todo
+                          </button>
+                        )}
+                        {notifications.length > 0 && (
+                          <button onClick={handleDeleteAllNotifications} className="text-xs font-semibold text-rose-300 hover:text-rose-200">
+                            Limpiar todo
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="max-h-96 overflow-auto">
                       {notifications.length ? notifications.map((notification) => (
-                        <button
+                        <div
                           key={notification._id}
-                          onClick={() => handleNotificationClick(notification)}
-                          className={`w-full text-left px-4 py-3 border-b border-slate-700/40 hover:bg-white/5 transition-colors ${notification.readAt ? '' : 'bg-cyan-500/5'}`}
+                          className={`px-4 py-3 border-b border-slate-700/40 ${notification.readAt ? '' : 'bg-cyan-500/5'}`}
                         >
                           <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold text-white">{notification.title}</p>
-                              <p className="text-xs text-slate-400 mt-1">{notification.message}</p>
-                            </div>
-                            {!notification.readAt && <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 mt-1.5 shrink-0" />}
+                            <button
+                              onClick={() => handleNotificationClick(notification)}
+                              className="flex-1 text-left rounded-xl p-1 -m-1 hover:bg-white/5 transition-colors"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-white">{notification.title}</p>
+                                  <p className="text-xs text-slate-400 mt-1">{notification.message}</p>
+                                </div>
+                                {!notification.readAt && <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 mt-1.5 shrink-0" />}
+                              </div>
+                              <p className="text-[11px] text-slate-500 mt-2">
+                                {new Date(notification.createdAt).toLocaleString('es-CO')}
+                              </p>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteNotification(notification._id)}
+                              className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-rose-500/10 hover:text-rose-300"
+                              aria-label="Quitar notificacion"
+                              title="Quitar notificacion"
+                            >
+                              <LuTrash2 className="w-4 h-4" />
+                            </button>
                           </div>
-                          <p className="text-[11px] text-slate-500 mt-2">
-                            {new Date(notification.createdAt).toLocaleString('es-CO')}
-                          </p>
-                        </button>
+                        </div>
                       )) : (
                         <div className="px-4 py-6 text-sm text-slate-400">
                           No tienes notificaciones por ahora.
@@ -397,18 +438,44 @@ export default function Navbar({ onStartTour }) {
             </button>
             {notificationsOpen && (
               <div className="rounded-xl bg-slate-800/80 border border-slate-700/50 overflow-hidden max-h-56 overflow-auto">
+                {notifications.length > 0 && (
+                  <div className="flex items-center justify-end gap-3 px-3 py-2 border-b border-slate-700/40">
+                    {unreadCount > 0 && (
+                      <button onClick={handleMarkAllRead} className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">
+                        Marcar todo
+                      </button>
+                    )}
+                    <button onClick={handleDeleteAllNotifications} className="text-xs font-semibold text-rose-300 hover:text-rose-200">
+                      Limpiar todo
+                    </button>
+                  </div>
+                )}
                 {notifications.length ? notifications.map((notification) => (
-                  <button
+                  <div
                     key={notification._id}
-                    onClick={() => {
-                      setOpen(false);
-                      handleNotificationClick(notification);
-                    }}
-                    className={`w-full text-left px-3 py-3 border-b border-slate-700/40 ${notification.readAt ? 'text-slate-300' : 'text-white bg-cyan-500/5'}`}
+                    className={`px-3 py-3 border-b border-slate-700/40 ${notification.readAt ? 'text-slate-300' : 'text-white bg-cyan-500/5'}`}
                   >
-                    <p className="text-sm font-semibold">{notification.title}</p>
-                    <p className="text-xs text-slate-400 mt-1">{notification.message}</p>
-                  </button>
+                    <div className="flex items-start gap-2">
+                      <button
+                        onClick={() => {
+                          setOpen(false);
+                          handleNotificationClick(notification);
+                        }}
+                        className="flex-1 text-left"
+                      >
+                        <p className="text-sm font-semibold">{notification.title}</p>
+                        <p className="text-xs text-slate-400 mt-1">{notification.message}</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteNotification(notification._id)}
+                        className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-rose-500/10 hover:text-rose-300"
+                        aria-label="Quitar notificacion"
+                      >
+                        <LuTrash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                 )) : (
                   <div className="px-3 py-4 text-xs text-slate-400">No tienes notificaciones por ahora.</div>
                 )}

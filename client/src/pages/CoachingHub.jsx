@@ -24,6 +24,16 @@ const GOALS = [
   { value: 'endurance', label: 'Resistencia' },
 ];
 
+const WEEKDAYS = [
+  { value: 'lunes', label: 'Lunes' },
+  { value: 'martes', label: 'Martes' },
+  { value: 'miercoles', label: 'Miercoles' },
+  { value: 'jueves', label: 'Jueves' },
+  { value: 'viernes', label: 'Viernes' },
+  { value: 'sabado', label: 'Sabado' },
+  { value: 'domingo', label: 'Domingo' },
+];
+
 const EMPTY_EXERCISE = {
   exercise: '',
   sets: 3,
@@ -520,13 +530,22 @@ export default function CoachingHub() {
                       Activar
                     </label>
                   </div>
+                  <p className="text-xs text-slate-400 mb-3">
+                    El recordatorio se enviara cada semana el dia y la hora seleccionados.
+                  </p>
                   <div className="grid md:grid-cols-3 gap-3">
-                    <input
+                    <select
                       value={form.reminder.weekday}
                       onChange={(event) => updateReminder('weekday', event.target.value)}
                       className="input-base"
-                      placeholder="Dia"
-                    />
+                    >
+                      <option value="">Selecciona un dia</option>
+                      {WEEKDAYS.map((weekday) => (
+                        <option key={weekday.value} value={weekday.value}>
+                          {weekday.label}
+                        </option>
+                      ))}
+                    </select>
                     <input
                       type="time"
                       value={form.reminder.time}
@@ -662,8 +681,18 @@ export default function CoachingHub() {
                             <LuBell className="w-4 h-4 text-amber-300" />
                             <p className="font-semibold text-white">Recordatorio</p>
                           </div>
+                          <p className="text-xs text-slate-400 mb-3">
+                            Se repetira semanalmente el dia y la hora que dejes configurados.
+                          </p>
                           <div className="grid md:grid-cols-3 gap-3">
-                            <input value={assignment.reminder?.weekday || ''} onChange={(event) => setAssignments((prev) => prev.map((item) => item._id === assignment._id ? { ...item, reminder: { ...item.reminder, weekday: event.target.value } } : item))} className="input-base" placeholder="Dia" />
+                            <select value={assignment.reminder?.weekday || ''} onChange={(event) => setAssignments((prev) => prev.map((item) => item._id === assignment._id ? { ...item, reminder: { ...item.reminder, weekday: event.target.value } } : item))} className="input-base">
+                              <option value="">Selecciona un dia</option>
+                              {WEEKDAYS.map((weekday) => (
+                                <option key={weekday.value} value={weekday.value}>
+                                  {weekday.label}
+                                </option>
+                              ))}
+                            </select>
                             <input type="time" value={assignment.reminder?.time || ''} onChange={(event) => setAssignments((prev) => prev.map((item) => item._id === assignment._id ? { ...item, reminder: { ...item.reminder, time: event.target.value } } : item))} className="input-base" />
                             <label className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-300">
                               <input type="checkbox" checked={Boolean(assignment.reminder?.enabled)} onChange={(event) => setAssignments((prev) => prev.map((item) => item._id === assignment._id ? { ...item, reminder: { ...item.reminder, enabled: event.target.checked } } : item))} />

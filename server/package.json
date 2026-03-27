@@ -1,19 +1,19 @@
 {
   "name": "stephfit-server",
   "version": "1.0.0",
-  "description": "StephFit backend â€“ Express + MongoDB + AI recommendations",
+  "description": "StephFit backend Express + MongoDB + AI recommendations",
   "main": "server.js",
   "scripts": {
-    "dev": "nodemon server.js",
+    "dev": "bun --watch server.js",
     "start": "node server.js",
-    "seed": "node seeds/seedExercises.js",
-    "videos:migrate-shorts": "node scripts/migrateYoutubeToShorts.js",
-    "videos:auto-shorts": "node scripts/autoFillYoutubeShorts.js",
-    "exercises:backfill-content": "node scripts/backfillExerciseContent.js",
-    "exercises:normalize-names": "node scripts/normalizeExerciseNames.js",
-    "videos:export-template": "node scripts/exportExerciseVideoTemplate.js",
-    "videos:import-template": "node scripts/importExerciseVideoTemplate.js",
-    "test": "jest --forceExit --detectOpenHandles"
+    "seed": "bun seeds/seedExercises.js",
+    "videos:migrate-shorts": "bun scripts/migrateYoutubeToShorts.js",
+    "videos:auto-shorts": "bun scripts/autoFillYoutubeShorts.js",
+    "exercises:backfill-content": "bun scripts/backfillExerciseContent.js",
+    "exercises:normalize-names": "bun scripts/normalizeExerciseNames.js",
+    "videos:export-template": "bun scripts/exportExerciseVideoTemplate.js",
+    "videos:import-template": "bun scripts/importExerciseVideoTemplate.js",
+    "test": "bun test"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -32,8 +32,6 @@
     "pdf-parse": "^2.4.5"
   },
   "devDependencies": {
-    "jest": "^29.7.0",
-    "nodemon": "^3.1.9",
     "supertest": "^7.0.0"
   }
 }

@@ -85,7 +85,7 @@ SMTP variables (`SMTP_HOST`, `SMTP_USER`, etc.) are needed for email features. A
 
 **State management**: React Context only (`AuthContext.jsx` for auth/user state). No Redux.
 
-**API calls**: All requests go through `api/axiosClient.js`, which attaches the JWT from `localStorage` and handles 401 redirects globally.
+**API calls**: All requests go through `api/axios.js`, which attaches the JWT from `localStorage` and handles 401 redirects globally.
 
 **Protected routes**: Wrap private pages with `<ProtectedRoute>` in `App.jsx`.
 

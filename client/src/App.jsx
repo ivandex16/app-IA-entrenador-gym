@@ -57,14 +57,14 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/verify-email/:token" element={<VerifyEmail />} />
-        <Route path="/exercises" element={<Exercises />} />
-        <Route path="/exercises/:id" element={<ExerciseDetail />} />
 
         {/* Protected */}
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/routines" element={<ProtectedRoute><Routines /></ProtectedRoute>} />
         <Route path="/routines/:id" element={<ProtectedRoute><RoutineDetail /></ProtectedRoute>} />
         <Route path="/workouts" element={<ProtectedRoute><Workouts /></ProtectedRoute>} />
+        <Route path="/exercises" element={<ProtectedRoute><Exercises /></ProtectedRoute>} />
+        <Route path="/exercises/:id" element={<ProtectedRoute><ExerciseDetail /></ProtectedRoute>} />
         <Route path="/goals" element={<ProtectedRoute><Goals /></ProtectedRoute>} />
         <Route path="/progress" element={<ProtectedRoute><Progress /></ProtectedRoute>} />
         <Route path="/recommendations" element={<ProtectedRoute><Recommendations /></ProtectedRoute>} />

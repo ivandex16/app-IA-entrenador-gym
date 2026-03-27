@@ -337,10 +337,12 @@ export default function Navbar({ onStartTour }) {
 
             {/* â”€â”€ Mobile hamburger â”€â”€ */}
             <button
-              className="lg:hidden relative w-10 h-10 rounded-xl flex items-center justify-center hover:bg-white/5 transition-colors"
+              type="button"
+              aria-label={open ? 'Cerrar menu' : 'Abrir menu'}
+              className="lg:hidden relative z-[60] shrink-0 w-10 h-10 rounded-xl border border-slate-700/60 bg-slate-800/40 text-slate-100 flex items-center justify-center hover:bg-slate-700/50 hover:text-white transition-colors"
               onClick={() => setOpen(!open)}
             >
-              {open ? <LuX className="w-5 h-5" /> : <LuMenu className="w-5 h-5" />}
+              {open ? <LuX className="w-5 h-5 shrink-0" /> : <LuMenu className="w-5 h-5 shrink-0" />}
             </button>
           </div>
         </div>

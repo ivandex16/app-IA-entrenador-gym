@@ -20,7 +20,14 @@ api.interceptors.response.use(
     const isLoginRequest = url.includes('/auth/login');
 
     if (status === 401 && !isLoginRequest) {
+      const hadToken = Boolean(localStorage.getItem('token'));
       localStorage.removeItem('token');
+      if (hadToken) {
+        try {
+          sessionStorage.setItem('session_expired', '1');
+          sessionStorage.setItem('post_login_redirect', window.location.pathname + window.location.search);
+        } catch { }
+      }
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }

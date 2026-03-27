@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -11,6 +11,14 @@ export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState({ email: '', password: '', form: '' });
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const expired = sessionStorage.getItem('session_expired');
+    if (expired) {
+      toast.error('Tu sesion expiro. Inicia sesion nuevamente.');
+      sessionStorage.removeItem('session_expired');
+    }
+  }, []);
 
   const validateForm = () => {
     const nextErrors = { email: '', password: '' };
@@ -49,7 +57,9 @@ export default function Login() {
     try {
       await login(form.email.trim(), form.password);
       toast.success('Bienvenido de nuevo.');
-      navigate('/dashboard');
+      const redirectTo = sessionStorage.getItem('post_login_redirect');
+      sessionStorage.removeItem('post_login_redirect');
+      navigate(redirectTo && redirectTo !== '/login' ? redirectTo : '/dashboard');
     } catch (err) {
       const status = err.response?.status;
       const apiMessage = err.response?.data?.message;

@@ -159,7 +159,7 @@ export default function Navbar({ onStartTour }) {
                 </div>
                 <div className="absolute -inset-1 rounded-xl bg-primary/20 blur-sm opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
               </div>
-              <span className="text-lg font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">
+              <span className="hidden min-[360px]:inline text-lg font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">
                 StephFit
               </span>
             </Link>
@@ -336,14 +336,29 @@ export default function Navbar({ onStartTour }) {
             </div>
 
             {/* â”€â”€ Mobile hamburger â”€â”€ */}
-            <button
-              type="button"
-              aria-label={open ? 'Cerrar menu' : 'Abrir menu'}
-              className="lg:hidden relative z-[60] shrink-0 w-10 h-10 rounded-xl border border-slate-700/60 bg-slate-800/40 text-slate-100 flex items-center justify-center hover:bg-slate-700/50 hover:text-white transition-colors"
-              onClick={() => setOpen(!open)}
-            >
-              {open ? <LuX className="w-5 h-5 shrink-0" /> : <LuMenu className="w-5 h-5 shrink-0" />}
-            </button>
+            <div className="lg:hidden relative z-[60] flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                aria-label="Cerrar sesion"
+                title="Cerrar sesion"
+                onClick={() => {
+                  logout();
+                  navigate('/login');
+                  setOpen(false);
+                }}
+                className="w-10 h-10 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-200 flex items-center justify-center hover:bg-rose-500/20 hover:text-rose-100 transition-colors"
+              >
+                <LuLogOut className="w-4.5 h-4.5 shrink-0" />
+              </button>
+              <button
+                type="button"
+                aria-label={open ? 'Cerrar menu' : 'Abrir menu'}
+                className="w-10 h-10 rounded-xl border border-slate-700/60 bg-slate-800/40 text-slate-100 flex items-center justify-center hover:bg-slate-700/50 hover:text-white transition-colors"
+                onClick={() => setOpen(!open)}
+              >
+                {open ? <LuX className="w-5 h-5 shrink-0" /> : <LuMenu className="w-5 h-5 shrink-0" />}
+              </button>
+            </div>
           </div>
         </div>
       </nav>

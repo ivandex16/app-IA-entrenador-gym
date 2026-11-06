@@ -17,6 +17,13 @@ body {
 
 /* ── Global animations ── */
 @layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
   .stagger-1 {
     animation-delay: 0.05s;
   }

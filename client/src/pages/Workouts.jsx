@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
@@ -7,8 +7,9 @@ import {
   LuDumbbell, LuFlame, LuCalendar, LuTrophy, LuBrain, LuZap, LuDroplets,
   LuMedal, LuTrendingUp, LuSunrise, LuGem, LuBot, LuBrickWall,
   LuRefreshCw, LuHourglass, LuSkipForward, LuTimer, LuPlay, LuSquare,
-  LuEye, LuClipboardList, LuLightbulb, LuClock, LuPlus, LuArrowRight,
-  LuActivity, LuTarget, LuChevronRight,
+  LuEye, LuClipboardList, LuLightbulb, LuClock, LuPlus,
+  LuActivity, LuTarget, LuCheck, LuTrash2, LuMinus,
+  LuHistory, LuChevronDown
 } from 'react-icons/lu';
 
 /* ───── helpers ───── */
@@ -18,6 +19,16 @@ function fmtTime(totalSec) {
   const s = totalSec % 60;
   const pad = (n) => String(n).padStart(2, '0');
   return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+}
+
+function fmtPreset(sec) {
+  if (sec >= 60 && sec % 60 === 0) {
+    return `${sec / 60}m`;
+  }
+  if (sec >= 60) {
+    return `${Math.floor(sec / 60)}m ${sec % 60}s`;
+  }
+  return `${sec}s`;
 }
 
 const FEELINGS = [
@@ -46,11 +57,15 @@ const MOTIVATIONAL_MESSAGES = [
   { text: "Roma no se construyó en un día, pero pusieron ladrillos cada día.", Icon: LuBrickWall },
 ];
 
+const REST_SET_PRESETS = [45, 60, 90, 120, 180];
+const REST_EX_PRESETS = [60, 120, 180, 240, 300];
+
 export default function Workouts() {
   const location = useLocation();
   const [logs, setLogs] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [exercises, setExercises] = useState([]);
+  const [showRestConfig, setShowRestConfig] = useState(false);
   const [form, setForm] = useState({
     date: new Date().toISOString().slice(0, 10),
     notes: '',
@@ -70,9 +85,8 @@ export default function Workouts() {
   const [restRemaining, setRestRemaining] = useState(0);
   const [restType, setRestType] = useState(null); // 'set' | 'exercise' | null
   const restRef = useRef(null);
-  const alertAudioRef = useRef(null);
 
-  /* ── Completed sets tracking: completedSets[exerciseIdx][setIdx] = true ── */
+  /* ── Completed sets tracking: completedSets[exerciseIdx-setIdx] = true ── */
   const [completedSets, setCompletedSets] = useState({});
 
   /* ── Exercise preview modal ── */
@@ -119,9 +133,8 @@ export default function Workouts() {
         setRestRemaining((prev) => {
           if (prev <= 1) {
             clearInterval(restRef.current);
-            // Alert!
             playRestAlert();
-            toast('¡Descanso terminado! A trabajar', { icon: '✓', duration: 4000 });
+            toast('¡Descanso terminado! A trabajar', { icon: '⚡', duration: 4000 });
             setRestType(null);
             return 0;
           }
@@ -134,7 +147,6 @@ export default function Workouts() {
 
   const playRestAlert = useCallback(() => {
     try {
-      // Use Web Audio API for alert sound
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       const playBeep = (freq, delay) => {
         const osc = ctx.createOscillator();
@@ -164,24 +176,32 @@ export default function Workouts() {
     setRestType(null);
   };
 
-  /* ── Complete a set ── */
+  /* ── Complete / Toggle a set ── */
   const completeSet = (exIdx, setIdx) => {
     const key = `${exIdx}-${setIdx}`;
-    if (completedSets[key]) return; // already done
+    
+    // Toggle off if already done
+    if (completedSets[key]) {
+      setCompletedSets((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+      return;
+    }
 
+    // Mark as completed
     setCompletedSets((prev) => ({ ...prev, [key]: true }));
 
     // Determine if this was the last set of this exercise
-    const exerciseSets = form.exercises[exIdx].sets;
+    const exerciseSets = form.exercises[exIdx]?.sets || [];
     const allDone = exerciseSets.every((_, si) =>
       si === setIdx || completedSets[`${exIdx}-${si}`]
     );
 
     if (allDone) {
-      // Last set of this exercise → rest between exercises
       startRestTimer('exercise');
     } else {
-      // Not last set → rest between sets
       startRestTimer('set');
     }
 
@@ -206,12 +226,11 @@ export default function Workouts() {
     const durationMinutes = Math.round(elapsedSec / 60);
     try {
       const res = await api.post('/workouts', { ...form, durationMinutes });
-      // Pick a random motivational message
       const msg = MOTIVATIONAL_MESSAGES[Math.floor(Math.random() * MOTIVATIONAL_MESSAGES.length)];
       setWorkoutSummary({
         duration: fmtTime(elapsedSec),
         exerciseCount: form.exercises.length,
-        totalSets: form.exercises.reduce((sum, ex) => sum + ex.sets.length, 0),
+        totalSets: form.exercises.reduce((sum, ex) => sum + (ex.sets?.length || 0), 0),
         caloriesBurned: res.data.caloriesBurned || 0,
       });
       setMotivationalMsg(msg);
@@ -257,568 +276,798 @@ export default function Workouts() {
     }
   };
 
+  /* ── Historical Reference Helper ── */
+  const getPreviousSetReference = useCallback((exerciseId, setIdx) => {
+    if (!logs || logs.length === 0 || !exerciseId) return '—';
+    for (const log of logs) {
+      if (!log.exercises) continue;
+      const foundEx = log.exercises.find((e) => {
+        const id = typeof e.exercise === 'object' ? e.exercise?._id : e.exercise;
+        return id === exerciseId;
+      });
+      if (foundEx && foundEx.sets && foundEx.sets[setIdx]) {
+        const s = foundEx.sets[setIdx];
+        if (s.weight > 0 || s.reps > 0) {
+          return `${s.weight}kg × ${s.reps}`;
+        }
+      }
+    }
+    return '—';
+  }, [logs]);
+
+  /* ── Telemetry calculations ── */
+  const totalSetsCount = useMemo(() => {
+    return form.exercises.reduce((sum, ex) => sum + (ex.sets?.length || 0), 0);
+  }, [form.exercises]);
+
+  const completedSetsCount = useMemo(() => {
+    return Object.values(completedSets).filter(Boolean).length;
+  }, [completedSets]);
+
+  const totalVolumeKg = useMemo(() => {
+    return form.exercises.reduce((acc, ex, ei) => {
+      return acc + (ex.sets || []).reduce((sAcc, s, si) => {
+        const isDone = completedSets[`${ei}-${si}`];
+        if (isActive && !isDone) return sAcc;
+        const w = Number(s.weight) || 0;
+        const r = Number(s.reps) || 0;
+        return sAcc + (w * r);
+      }, 0);
+    }, 0);
+  }, [form.exercises, completedSets, isActive]);
+
   const restProgress = restType
     ? ((restType === 'exercise' ? restBetweenExercises : restBetweenSets) - restRemaining) /
     (restType === 'exercise' ? restBetweenExercises : restBetweenSets)
     : 0;
 
-  const FEELING_COLORS = {
-    great: 'from-emerald-500 to-green-400',
-    good: 'from-blue-500 to-cyan-400',
-    ok: 'from-amber-500 to-yellow-400',
-    tired: 'from-orange-500 to-red-400',
-    bad: 'from-red-500 to-rose-400',
-  };
-
   return (
-    <div className="min-h-screen pb-24">
-      {/* ══════════ HERO BANNER ══════════ */}
-      <div className="relative overflow-hidden">
+    <div className="min-h-screen bg-[#08090D] text-zinc-100 pb-28 selection:bg-lime-400 selection:text-black">
+      {/* ══════════════════════════════════════════════════════════════════════
+          HERO BANNER CON IMAGEN DE FONDO ORIGINAL (Siempre visible en la parte superior)
+          ══════════════════════════════════════════════════════════════════════ */}
+      <div className="relative overflow-hidden border-b border-white/10">
+        {/* Foto de fondo oficial del gimnasio */}
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1400&q=80)' }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-dark/80 via-dark/70 to-dark" />
-        <div className="absolute top-0 right-1/4 w-[500px] h-[300px] bg-primary/15 rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 left-1/4 w-[400px] h-[200px] bg-accent/10 rounded-full blur-[100px]" />
+        {/* Degradado oscuro para asegurar máximo contraste y elegancia */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/85 via-black/75 to-[#08090D]" />
+        <div className="absolute top-0 right-1/4 w-[500px] h-[300px] bg-lime-400/10 rounded-full blur-[140px] pointer-events-none" />
+        <div className="absolute bottom-0 left-1/4 w-[400px] h-[200px] bg-cyan-400/10 rounded-full blur-[120px] pointer-events-none" />
 
-        <div className="relative max-w-5xl mx-auto px-4 pt-12 pb-16">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="animate-fadeInUp">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center shadow-lg shadow-primary/30">
-                  <LuActivity className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-                    Mis <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Entrenamientos</span>
-                  </h1>
-                </div>
+        <div className="relative max-w-5xl mx-auto px-4 pt-10 pb-12">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2.5 mb-2">
+                <span className="px-2.5 py-1 rounded-md bg-lime-400/10 border border-lime-400/20 text-lime-400 text-xs font-bold uppercase tracking-wider">
+                  Sala de Entrenamiento
+                </span>
+                {isActive && (
+                  <span className="px-2.5 py-1 rounded-md bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
+                    En vivo
+                  </span>
+                )}
               </div>
-              <p className="text-gray-400 text-base md:text-lg max-w-lg">
-                Registra cada sesión, mide tu progreso y supera tus límites día a día.
+
+              <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+                {showForm ? (
+                  location.state?.routineName ? (
+                    location.state.routineName
+                  ) : form.notes.startsWith('Rutina:') ? (
+                    form.notes.replace('Rutina: ', '')
+                  ) : (
+                    'Registrar Entrenamiento'
+                  )
+                ) : (
+                  <>
+                    Mis <span className="text-lime-400">Entrenamientos</span>
+                  </>
+                )}
+              </h1>
+
+              <p className="text-zinc-300 text-sm md:text-base mt-1 max-w-lg">
+                {showForm
+                  ? 'Registra cada repetición y peso levantado. Supera tus marcas serie a serie.'
+                  : 'Registra cada sesión, mide tu volumen total y supera tus límites día a día.'}
               </p>
 
-              {/* Stats strip */}
-              {logs.length > 0 && (
-                <div className="flex gap-6 mt-5">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-primary">{logs.length}</p>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">Sesiones</p>
+              {/* Estadísticas de cabecera en modo vista previa */}
+              {logs.length > 0 && !showForm && (
+                <div className="flex items-center gap-5 mt-5">
+                  <div>
+                    <p className="text-2xl font-black text-white font-mono">{logs.length}</p>
+                    <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">Sesiones</p>
                   </div>
-                  <div className="w-px bg-slate-700" />
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-accent">
+                  <div className="w-px h-8 bg-zinc-800" />
+                  <div>
+                    <p className="text-2xl font-black text-lime-400 font-mono">
                       {logs.reduce((sum, l) => sum + (l.exercises?.length || 0), 0)}
                     </p>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">Ejercicios</p>
+                    <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">Ejercicios</p>
                   </div>
-                  <div className="w-px bg-slate-700" />
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-orange-400">
+                  <div className="w-px h-8 bg-zinc-800" />
+                  <div>
+                    <p className="text-2xl font-black text-orange-400 font-mono">
                       {logs.reduce((sum, l) => sum + (l.caloriesBurned || 0), 0).toLocaleString()}
                     </p>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">kcal totales</p>
+                    <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">kcal quemadas</p>
                   </div>
+                </div>
+              )}
+
+              {/* Telemetría activa en cabecera en modo entrenamiento */}
+              {showForm && (
+                <div className="flex items-center gap-2.5 mt-4 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/15 text-xs font-mono font-bold text-white shadow-lg">
+                    <LuClock className="w-3.5 h-3.5 text-lime-400" />
+                    {fmtTime(elapsedSec)}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/15 text-xs font-mono font-bold text-cyan-400 shadow-lg">
+                    <LuTarget className="w-3.5 h-3.5" />
+                    {completedSetsCount}/{totalSetsCount} series
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/15 text-xs font-mono font-bold text-amber-400 shadow-lg">
+                    <LuDumbbell className="w-3.5 h-3.5" />
+                    {totalVolumeKg.toLocaleString()} kg
+                  </span>
                 </div>
               )}
             </div>
 
-            {/* Action button */}
-            <div data-tour="workouts-action" className="animate-fadeInUp" style={{ animationDelay: '0.1s' }}>
-              <button
-                onClick={() => setShowForm(!showForm)}
-                className="group bg-gradient-to-r from-primary to-indigo-600 hover:from-indigo-600 hover:to-primary px-7 py-3.5 rounded-2xl text-sm font-bold transition-all flex items-center gap-2 shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02]"
-              >
-                {showForm ? (
-                  'Cancelar'
-                ) : (
-                  <>
-                    <LuPlus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" /> Registrar Entrenamiento
-                  </>
-                )}
-              </button>
+            {/* Acciones principales en el banner */}
+            <div className="flex items-center gap-3 shrink-0">
+              {showForm ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isActive && !window.confirm('¿Deseas descartar este entrenamiento en curso?')) return;
+                      setShowForm(false);
+                      setIsActive(false);
+                      clearInterval(chronoRef.current);
+                      clearInterval(restRef.current);
+                      setElapsedSec(0);
+                      setRestRemaining(0);
+                    }}
+                    className="px-4 sm:px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-white/15 text-xs sm:text-sm font-bold transition-all shadow-md"
+                  >
+                    {isActive ? 'Descartar' : 'Cerrar'}
+                  </button>
+
+                  {isActive ? (
+                    <button
+                      type="button"
+                      onClick={finishWorkout}
+                      className="px-5 sm:px-6 py-3 rounded-xl bg-lime-400 hover:bg-lime-300 text-zinc-950 font-black text-xs sm:text-sm tracking-wide shadow-xl shadow-lime-400/25 active:scale-95 transition-all flex items-center gap-2"
+                    >
+                      <LuSquare className="w-4 h-4 fill-zinc-950" /> TERMINAR
+                    </button>
+                  ) : (
+                    form.exercises.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={startWorkout}
+                        className="px-5 sm:px-6 py-3 rounded-xl bg-lime-400 hover:bg-lime-300 text-zinc-950 font-black text-xs sm:text-sm tracking-wide shadow-xl shadow-lime-400/25 active:scale-95 transition-all flex items-center gap-2"
+                      >
+                        <LuPlay className="w-4 h-4 fill-zinc-950" /> INICIAR
+                      </button>
+                    )
+                  )}
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowForm(true)}
+                  className="px-7 py-3.5 rounded-2xl bg-lime-400 hover:bg-lime-300 text-zinc-950 font-black text-sm tracking-wide shadow-xl shadow-lime-400/25 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2"
+                >
+                  <LuPlus className="w-5 h-5 stroke-[2.5]" />
+                  <span>REGISTRAR ENTRENAMIENTO</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
 
+      {/* ══════════════════════════════════════════════════════════════════════
+          CONTENIDO PRINCIPAL
+          ══════════════════════════════════════════════════════════════════════ */}
       <div className="max-w-5xl mx-auto px-4 mt-6 space-y-4">
-
-        {showForm && (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* ─── Chronometer & Rest Timer Bar ─── */}
-            {isActive && (
-              <div className="sticky top-0 z-30 space-y-2">
-                {/* Main chronometer */}
-                <div className="bg-slate-800 border border-slate-700 rounded-xl p-3 flex items-center justify-between shadow-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-                    <span className="text-xs text-gray-400 uppercase tracking-wide">Entrenamiento en curso</span>
+        {showForm ? (
+          <div className="space-y-4">
+            {/* ── Overlay flotante de descanso cuando está activo ── */}
+            {isActive && restRemaining > 0 && (
+              <div className="sticky top-4 z-40 bg-zinc-900 border border-lime-400/50 rounded-2xl p-4 shadow-2xl backdrop-blur-md animate-fadeIn">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-lime-400 flex items-center gap-1.5">
+                    {restType === 'exercise' ? (
+                      <><LuRefreshCw className="w-4 h-4 animate-spin text-cyan-400" /> Descanso entre ejercicios</>
+                    ) : (
+                      <><LuHourglass className="w-4 h-4 text-lime-400" /> Descanso entre series</>
+                    )}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRestRemaining((prev) => prev + 15)}
+                      className="text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg border border-white/10 active:scale-95 transition"
+                    >
+                      +15s
+                    </button>
+                    <button
+                      type="button"
+                      onClick={skipRest}
+                      className="text-xs font-bold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-1 active:scale-95 transition"
+                    >
+                      Saltar <LuSkipForward className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <span className="text-2xl font-mono font-bold text-white tabular-nums">
-                    {fmtTime(elapsedSec)}
+                </div>
+                <div className="text-center my-1">
+                  <span className="text-4xl sm:text-5xl font-mono font-black text-white tabular-nums tracking-tight">
+                    {fmtTime(restRemaining)}
                   </span>
                 </div>
-
-                {/* Rest timer overlay */}
-                {restRemaining > 0 && (
-                  <div className="bg-slate-800 border border-amber-500/50 rounded-xl p-4 shadow-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-semibold text-amber-400 flex items-center gap-1.5">
-                        {restType === 'exercise' ? <><LuRefreshCw className="w-4 h-4" /> Descanso entre ejercicios</> : <><LuHourglass className="w-4 h-4" /> Descanso entre series</>}
-                      </span>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setRestRemaining((prev) => prev + 10)}
-                          className="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-full transition"
-                        >
-                          +10s
-                        </button>
-                        <button
-                          type="button"
-                          onClick={skipRest}
-                          className="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-full transition"
-                        >
-                          Saltar <LuSkipForward className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <span className="text-4xl font-mono font-bold text-amber-400 tabular-nums">
-                        {fmtTime(restRemaining)}
-                      </span>
-                    </div>
-                    {/* Progress bar */}
-                    <div className="w-full bg-slate-700 rounded-full h-2 mt-3 overflow-hidden">
-                      <div
-                        className="h-full bg-amber-500 rounded-full transition-all duration-1000"
-                        style={{ width: `${restProgress * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
+                <div className="w-full bg-zinc-800 rounded-full h-2 mt-3 overflow-hidden border border-white/5">
+                  <div
+                    className="h-full bg-lime-400 rounded-full transition-all duration-1000 shadow-[0_0_12px_rgba(163,230,53,0.5)]"
+                    style={{ width: `${restProgress * 100}%` }}
+                  />
+                </div>
               </div>
             )}
 
-            {/* ─── Rest Configuration ─── */}
-            <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 space-y-4">
-              <div className="flex flex-wrap gap-3 items-end">
-                <div className="flex-1 min-w-[140px]">
+            {/* ── Barra táctica de sesión (Fecha, Ánimo y Descansos) ── */}
+            <div className="bg-zinc-900 border border-white/10 rounded-2xl p-4 space-y-3 shadow-xl">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                {/* Selector de fecha */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">Fecha:</span>
                   <input
                     type="date"
-                    className="w-full bg-slate-700 rounded-lg px-3 py-2"
+                    className="bg-zinc-800 border border-white/15 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-lime-400"
                     value={form.date}
                     onChange={(e) => setForm({ ...form, date: e.target.value })}
                   />
                 </div>
-                <div className="flex-1 min-w-[140px]">
-                  <select
-                    className="w-full bg-slate-700 rounded-lg px-3 py-2"
-                    value={form.feeling}
-                    onChange={(e) => setForm({ ...form, feeling: e.target.value })}
-                  >
-                    {FEELINGS.map((f) => (
-                      <option key={f.v} value={f.v}>{f.l}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
 
-              {/* Timer configuration */}
-              <div className="border-t border-slate-700 pt-3">
-                <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-2 flex items-center gap-1.5"><LuTimer className="w-4 h-4" /> Temporizadores de descanso</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-gray-400 block mb-1">
-                      Entre series: <span className="text-white font-semibold">{restBetweenSets}s</span>
-                    </label>
-                    <input
-                      type="range"
-                      min="15"
-                      max="300"
-                      step="15"
-                      className="w-full accent-primary"
-                      value={restBetweenSets}
-                      onChange={(e) => setRestBetweenSets(+e.target.value)}
-                    />
-                    <div className="flex justify-between text-[10px] text-gray-500">
-                      <span>15s</span><span>1m</span><span>2m</span><span>3m</span><span>5m</span>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-400 block mb-1">
-                      Entre ejercicios: <span className="text-white font-semibold">{restBetweenExercises}s</span>
-                    </label>
-                    <input
-                      type="range"
-                      min="30"
-                      max="600"
-                      step="30"
-                      className="w-full accent-amber-500"
-                      value={restBetweenExercises}
-                      onChange={(e) => setRestBetweenExercises(+e.target.value)}
-                    />
-                    <div className="flex justify-between text-[10px] text-gray-500">
-                      <span>30s</span><span>2m</span><span>5m</span><span>8m</span><span>10m</span>
-                    </div>
-                  </div>
+                {/* Selector de estado de ánimo */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider mr-1">Ánimo:</span>
+                  {FEELINGS.map((f) => {
+                    const isSelected = form.feeling === f.v;
+                    const Icon = f.Icon;
+                    return (
+                      <button
+                        key={f.v}
+                        type="button"
+                        onClick={() => setForm({ ...form, feeling: f.v })}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                          isSelected
+                            ? 'bg-lime-400 text-zinc-950 shadow-md shadow-lime-400/20'
+                            : 'bg-zinc-800 text-zinc-300 hover:text-white border border-white/10 hover:bg-zinc-700'
+                        }`}
+                        title={f.l}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">{f.l}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
 
-              {/* Start workout button */}
-              {!isActive && form.exercises.length > 0 && (
+                {/* Botón selector de descanso */}
                 <button
                   type="button"
-                  onClick={startWorkout}
-                  className="w-full bg-green-600 hover:bg-green-700 py-3 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2"
+                  onClick={() => setShowRestConfig(!showRestConfig)}
+                  className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-xs font-bold text-zinc-200 hover:text-white flex items-center gap-1.5 transition-colors"
                 >
-                  <LuPlay className="w-5 h-5" /> Iniciar Entrenamiento
+                  <LuTimer className="w-4 h-4 text-lime-400" />
+                  <span>Descansos</span>
+                  <LuChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showRestConfig ? 'rotate-180' : ''}`} />
                 </button>
+              </div>
+
+              {/* Pestaña expandible de configuración de descansos */}
+              {showRestConfig && (
+                <div className="pt-3 border-t border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fadeIn">
+                  {/* Entre series */}
+                  <div className="bg-zinc-950 border border-white/10 rounded-xl p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                        <LuHourglass className="w-3.5 h-3.5 text-lime-400" /> Entre series:
+                      </span>
+                      <span className="text-xs font-mono font-bold text-lime-400">
+                        {fmtPreset(restBetweenSets)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setRestBetweenSets((prev) => Math.max(15, prev - 15))}
+                        className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold"
+                      >
+                        -15s
+                      </button>
+                      {REST_SET_PRESETS.map((sec) => (
+                        <button
+                          key={sec}
+                          type="button"
+                          onClick={() => setRestBetweenSets(sec)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                            restBetweenSets === sec
+                              ? 'bg-lime-400 text-zinc-950'
+                              : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                          }`}
+                        >
+                          {fmtPreset(sec)}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setRestBetweenSets((prev) => Math.min(600, prev + 15))}
+                        className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold"
+                      >
+                        +15s
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Entre ejercicios */}
+                  <div className="bg-zinc-950 border border-white/10 rounded-xl p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                        <LuRefreshCw className="w-3.5 h-3.5 text-cyan-400" /> Entre ejercicios:
+                      </span>
+                      <span className="text-xs font-mono font-bold text-cyan-400">
+                        {fmtPreset(restBetweenExercises)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setRestBetweenExercises((prev) => Math.max(30, prev - 30))}
+                        className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold"
+                      >
+                        -30s
+                      </button>
+                      {REST_EX_PRESETS.map((sec) => (
+                        <button
+                          key={sec}
+                          type="button"
+                          onClick={() => setRestBetweenExercises(sec)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                            restBetweenExercises === sec
+                              ? 'bg-cyan-400 text-zinc-950'
+                              : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                          }`}
+                        >
+                          {fmtPreset(sec)}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setRestBetweenExercises((prev) => Math.min(900, prev + 30))}
+                        className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold"
+                      >
+                        +30s
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 
-            {/* ─── Exercises ─── */}
-            {form.exercises.map((ex, i) => {
-              const exName = exercises.find((e) => e._id === ex.exercise)?.name;
-              return (
-                <div key={i} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
-                  {/* Exercise header */}
-                  <div className="bg-slate-700/50 px-4 py-2 flex items-center justify-between">
-                    <span className="text-xs text-gray-400 font-semibold uppercase tracking-wide">
-                      Ejercicio {i + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const copy = [...form.exercises];
-                        copy.splice(i, 1);
-                        setForm({ ...form, exercises: copy });
-                      }}
-                      className="text-gray-500 hover:text-red-400 text-sm transition"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <div className="p-4 space-y-3">
-                    <div className="flex gap-2">
-                      <select
-                        className="bg-slate-700 rounded-lg px-3 py-2 flex-1"
-                        value={ex.exercise}
-                        onChange={(e) => {
-                          const copy = [...form.exercises];
-                          copy[i].exercise = e.target.value;
-                          setForm({ ...form, exercises: copy });
-                        }}
-                      >
-                        {exercises.map((opt) => (
-                          <option key={opt._id} value={opt._id}>{opt.name}</option>
-                        ))}
-                      </select>
+            {/* ── Formulario de ejercicios ── */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {form.exercises.map((ex, i) => {
+                const exFound = exercises.find((e) => e._id === ex.exercise);
+
+                return (
+                  <div
+                    key={i}
+                    className="bg-zinc-900 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4"
+                  >
+                    {/* Fila superior de cabecera de ejercicio */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <span className="w-8 h-8 rounded-xl bg-lime-400 text-zinc-950 text-sm font-black flex items-center justify-center shrink-0">
+                          {i + 1}
+                        </span>
+
+                        <div className="flex-1 min-w-0">
+                          <select
+                            className="w-full bg-zinc-800 border border-white/15 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-lime-400 truncate"
+                            value={ex.exercise}
+                            onChange={(e) => {
+                              const copy = [...form.exercises];
+                              copy[i].exercise = e.target.value;
+                              setForm({ ...form, exercises: copy });
+                            }}
+                          >
+                            {exercises.map((opt) => (
+                              <option key={opt._id} value={opt._id} className="bg-zinc-900 text-white">
+                                {opt.name} ({opt.muscleGroup})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Botones de acción del ejercicio */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {exFound && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewExercise(exFound)}
+                            className="w-10 h-10 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white border border-white/10 flex items-center justify-center transition-colors"
+                            title="Ver técnica"
+                          >
+                            <LuEye className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const copy = [...form.exercises];
+                            copy.splice(i, 1);
+                            setForm({ ...form, exercises: copy });
+                          }}
+                          className="w-10 h-10 rounded-xl bg-zinc-800/80 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 border border-white/10 flex items-center justify-center transition-colors"
+                          title="Eliminar ejercicio"
+                        >
+                          <LuTrash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* ── Tabla de series sólida y alineada (CSS Grid) ── */}
+                    <div className="space-y-2">
+                      {/* Cabecera de columnas */}
+                      <div className="grid grid-cols-[44px_1fr_90px_80px_48px] sm:grid-cols-[52px_1.2fr_110px_90px_52px] items-center gap-2 sm:gap-3 px-2 pb-1 text-center">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400 text-left">
+                          Serie
+                        </span>
+                        <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400">
+                          Anterior
+                        </span>
+                        <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400">
+                          Peso (kg)
+                        </span>
+                        <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400">
+                          Reps
+                        </span>
+                        <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400 text-center">
+                          ✓
+                        </span>
+                      </div>
+
+                      {/* Filas de series */}
+                      {ex.sets.map((s, si) => {
+                        const isDone = completedSets[`${i}-${si}`];
+                        const prevRef = getPreviousSetReference(ex.exercise, si);
+
+                        return (
+                          <div
+                            key={si}
+                            className={`grid grid-cols-[44px_1fr_90px_80px_48px] sm:grid-cols-[52px_1.2fr_110px_90px_52px] items-center gap-2 sm:gap-3 px-2 py-2 rounded-xl transition-all duration-150 ${
+                              isDone
+                                ? 'bg-lime-400/10 border border-lime-400/30'
+                                : 'bg-zinc-950/60 hover:bg-zinc-800/40 border border-white/5'
+                            }`}
+                          >
+                            {/* Número de serie */}
+                            <div className="flex items-center justify-start">
+                              <span
+                                className={`w-8 h-8 rounded-xl text-xs font-black flex items-center justify-center transition-colors ${
+                                  isDone
+                                    ? 'bg-lime-400 text-zinc-950'
+                                    : 'bg-zinc-800 text-zinc-200 border border-white/10'
+                                }`}
+                              >
+                                {s.setNumber}
+                              </span>
+                            </div>
+
+                            {/* Referencia histórica */}
+                            <div className="text-center truncate">
+                              <span className="text-xs sm:text-sm font-mono font-semibold text-zinc-400">
+                                {prevRef}
+                              </span>
+                            </div>
+
+                            {/* Input de peso */}
+                            <div className="flex justify-center">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                placeholder="0"
+                                className={`w-full max-w-[100px] h-10 bg-zinc-900 border rounded-xl text-center text-sm sm:text-base font-black text-white tabular-nums outline-none transition focus:ring-2 focus:ring-lime-400/40 ${
+                                  isDone
+                                    ? 'border-lime-500/50 text-lime-300'
+                                    : 'border-white/15 focus:border-lime-400'
+                                }`}
+                                value={s.weight}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  if (v !== '' && !/^\d*\.?\d*$/.test(v)) return;
+                                  const copy = [...form.exercises];
+                                  copy[i].sets[si].weight = v === '' ? '' : (/\.$/.test(v) ? v : Number(v));
+                                  setForm({ ...form, exercises: copy });
+                                }}
+                                onBlur={(e) => {
+                                  if (e.target.value === '' || e.target.value === '.') {
+                                    const copy = [...form.exercises];
+                                    copy[i].sets[si].weight = 0;
+                                    setForm({ ...form, exercises: copy });
+                                  }
+                                }}
+                              />
+                            </div>
+
+                            {/* Input de repeticiones */}
+                            <div className="flex justify-center">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                placeholder="0"
+                                className={`w-full max-w-[80px] h-10 bg-zinc-900 border rounded-xl text-center text-sm sm:text-base font-black text-white tabular-nums outline-none transition focus:ring-2 focus:ring-lime-400/40 ${
+                                  isDone
+                                    ? 'border-lime-500/50 text-lime-300'
+                                    : 'border-white/15 focus:border-lime-400'
+                                }`}
+                                value={s.reps}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  if (v !== '' && !/^\d+$/.test(v)) return;
+                                  const copy = [...form.exercises];
+                                  copy[i].sets[si].reps = v === '' ? '' : Number(v);
+                                  setForm({ ...form, exercises: copy });
+                                }}
+                                onBlur={(e) => {
+                                  if (e.target.value === '') {
+                                    const copy = [...form.exercises];
+                                    copy[i].sets[si].reps = 0;
+                                    setForm({ ...form, exercises: copy });
+                                  }
+                                }}
+                              />
+                            </div>
+
+                            {/* Botón táctil de Check ✓ */}
+                            <div className="flex justify-center">
+                              <button
+                                type="button"
+                                onClick={() => completeSet(i, si)}
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-90 ${
+                                  isDone
+                                    ? 'bg-lime-400 text-zinc-950 font-black shadow-lg shadow-lime-400/30'
+                                    : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-white/10'
+                                }`}
+                                title={isDone ? 'Serie completada (clic para desmarcar)' : 'Marcar como completada'}
+                              >
+                                <LuCheck className={`w-5 h-5 stroke-[3] ${isDone ? 'text-zinc-950' : 'text-zinc-400'}`} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Acciones para agregar/quitar series */}
+                    <div className="flex items-center justify-between gap-3 pt-2">
                       <button
                         type="button"
                         onClick={() => {
-                          const found = exercises.find((e) => e._id === ex.exercise);
-                          if (found) setPreviewExercise(found);
+                          const copy = [...form.exercises];
+                          const lastSet = copy[i].sets[copy[i].sets.length - 1];
+                          copy[i].sets.push({
+                            setNumber: copy[i].sets.length + 1,
+                            reps: lastSet ? lastSet.reps : 10,
+                            weight: lastSet ? lastSet.weight : 0,
+                          });
+                          setForm({ ...form, exercises: copy });
                         }}
-                        className="bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg text-sm transition shrink-0"
-                        title="Ver cómo se hace"
+                        className="py-2.5 px-4 rounded-xl border border-dashed border-white/20 hover:border-lime-400/50 bg-zinc-850 hover:bg-zinc-800 text-xs font-bold text-zinc-200 hover:text-lime-400 transition-colors flex items-center gap-1.5"
                       >
-                        <LuEye className="w-4 h-4" />
+                        <LuPlus className="w-3.5 h-3.5" /> Agregar Serie
                       </button>
-                    </div>
 
-                    {/* Column headers */}
-                    <div className="flex gap-2 text-xs text-gray-400 font-semibold items-center">
-                      <span className="w-16"></span>
-                      <span className="w-20 text-center">Reps</span>
-                      <span className="w-20 text-center">Peso (kg)</span>
-                      {isActive && <span className="w-10 text-center">Hecho</span>}
-                    </div>
-
-                    {ex.sets.map((s, si) => {
-                      const isDone = completedSets[`${i}-${si}`];
-                      return (
-                        <div
-                          key={si}
-                          className={`flex gap-2 text-sm items-center rounded-lg px-1 py-1 transition ${isDone ? 'bg-green-900/20' : ''
-                            }`}
+                      {ex.sets.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const copy = [...form.exercises];
+                            copy[i].sets.pop();
+                            setForm({ ...form, exercises: copy });
+                          }}
+                          className="py-2 px-3 rounded-xl text-zinc-400 hover:text-red-400 text-xs font-semibold transition-colors flex items-center gap-1"
                         >
-                          <span className={`w-16 text-sm ${isDone ? 'text-green-400' : 'text-gray-400'}`}>
-                            Serie {s.setNumber}
-                          </span>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="Reps"
-                            className={`bg-slate-700 rounded-lg px-2 py-1.5 w-20 text-center outline-none focus:ring-2 focus:ring-primary ${isDone ? 'opacity-60' : ''
-                              }`}
-                            value={s.reps}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              if (v !== '' && !/^\d+$/.test(v)) return;
-                              const copy = [...form.exercises];
-                              copy[i].sets[si].reps = v === '' ? '' : Number(v);
-                              setForm({ ...form, exercises: copy });
-                            }}
-                            onBlur={(e) => {
-                              if (e.target.value === '') {
-                                const copy = [...form.exercises];
-                                copy[i].sets[si].reps = 0;
-                                setForm({ ...form, exercises: copy });
-                              }
-                            }}
-                          />
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            placeholder="kg"
-                            className={`bg-slate-700 rounded-lg px-2 py-1.5 w-20 text-center outline-none focus:ring-2 focus:ring-primary ${isDone ? 'opacity-60' : ''
-                              }`}
-                            value={s.weight}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              if (v !== '' && !/^\d*\.?\d*$/.test(v)) return;
-                              const copy = [...form.exercises];
-                              copy[i].sets[si].weight = v === '' ? '' : (/\.$/.test(v) ? v : Number(v));
-                              setForm({ ...form, exercises: copy });
-                            }}
-                            onBlur={(e) => {
-                              if (e.target.value === '' || e.target.value === '.') {
-                                const copy = [...form.exercises];
-                                copy[i].sets[si].weight = 0;
-                                setForm({ ...form, exercises: copy });
-                              }
-                            }}
-                          />
-                          {/* Check button — only visible when workout is active */}
-                          {isActive && (
-                            <button
-                              type="button"
-                              onClick={() => completeSet(i, si)}
-                              disabled={isDone}
-                              className={`w-10 h-8 rounded-lg flex items-center justify-center text-lg transition ${isDone
-                                ? 'bg-green-600 text-white cursor-default'
-                                : 'bg-slate-700 hover:bg-green-600 hover:text-white text-gray-400'
-                                }`}
-                              title={isDone ? 'Completada' : 'Marcar como completada'}
-                            >
-                              ✓
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-
-                    <button
-                      type="button"
-                      className="text-xs text-accent hover:underline"
-                      onClick={() => {
-                        const copy = [...form.exercises];
-                        copy[i].sets.push({ setNumber: copy[i].sets.length + 1, reps: 10, weight: 0 });
-                        setForm({ ...form, exercises: copy });
-                      }}
-                    >
-                      + Agregar Serie
-                    </button>
+                          <LuMinus className="w-3.5 h-3.5" /> Quitar serie
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
 
-            <button type="button" onClick={addExercise} className="text-sm text-primary hover:underline">
-              + Agregar Ejercicio
-            </button>
-
-            <textarea
-              placeholder="Notas / sensaciones…"
-              rows={2}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary resize-none"
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            />
-
-            {/* ─── Bottom action ─── */}
-            {isActive ? (
+              {/* Botón para agregar ejercicio */}
               <button
                 type="button"
-                onClick={finishWorkout}
-                className="w-full bg-red-600 hover:bg-red-700 py-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2"
+                onClick={addExercise}
+                className="w-full py-4 rounded-2xl border border-dashed border-white/20 hover:border-lime-400/60 bg-zinc-900 hover:bg-zinc-850 text-sm font-bold text-white hover:text-lime-400 transition-all flex items-center justify-center gap-2 shadow-lg"
               >
-                <LuSquare className="w-5 h-5" /> Terminar Entrenamiento ({fmtTime(elapsedSec)})
+                <LuPlus className="w-4 h-4" /> Agregar Ejercicio a la Sesión
               </button>
-            ) : (
-              <button
-                type="submit"
-                className="w-full bg-primary hover:bg-indigo-600 py-3 rounded-xl font-semibold text-sm transition"
-              >
-                Guardar Entrenamiento
-              </button>
-            )}
-          </form>
-        )}
 
-        {/* ─── Workout history ─── */}
-        {!showForm && logs.length === 0 ? (
-          <div className="animate-fadeInUp text-center py-20 space-y-5">
-            <div className="relative inline-block">
-              <div className="w-24 h-24 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl flex items-center justify-center mx-auto border border-primary/20">
-                <LuActivity className="w-12 h-12 text-primary animate-float" />
+              {/* Notas de la sesión */}
+              <div className="bg-zinc-900 border border-white/10 rounded-2xl p-4 space-y-2 shadow-xl">
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-300 block">
+                  Notas / Sensaciones del entrenamiento
+                </label>
+                <textarea
+                  placeholder="Ej: Buena congestión en piernas, aumentar carga en sentadilla la próxima semana..."
+                  rows={2}
+                  className="w-full bg-zinc-950 border border-white/15 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-zinc-500 outline-none focus:border-lime-400 resize-none transition"
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                />
               </div>
-              <div className="absolute -top-2 -right-2 w-8 h-8 bg-accent/20 rounded-full flex items-center justify-center border border-accent/30">
-                <LuPlus className="w-4 h-4 text-accent" />
-              </div>
-            </div>
-            <div>
-              <p className="text-gray-300 text-xl font-semibold">Sin entrenamientos aún</p>
-              <p className="text-gray-500 mt-1">Registra tu primera sesión y comienza a construir tu historial</p>
-            </div>
-            <button
-              onClick={() => setShowForm(true)}
-              className="bg-gradient-to-r from-primary to-indigo-600 hover:from-indigo-600 hover:to-primary px-8 py-3 rounded-2xl text-sm font-bold transition-all shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02] inline-flex items-center gap-2"
-            >
-              <LuPlus className="w-5 h-5" /> Registrar mi primer entrenamiento
-            </button>
+
+              {/* Botón final inferior */}
+              {isActive ? (
+                <button
+                  type="button"
+                  onClick={finishWorkout}
+                  className="w-full py-4 rounded-2xl bg-lime-400 hover:bg-lime-300 text-zinc-950 font-black text-sm tracking-wide shadow-xl shadow-lime-400/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+                >
+                  <LuSquare className="w-4 h-4 fill-zinc-950" /> TERMINAR ENTRENAMIENTO ({fmtTime(elapsedSec)})
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  className="w-full py-4 rounded-2xl bg-lime-400 hover:bg-lime-300 text-zinc-950 font-black text-sm tracking-wide shadow-xl shadow-lime-400/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+                >
+                  <LuCheck className="w-4 h-4 stroke-[3]" /> GUARDAR ENTRENAMIENTO
+                </button>
+              )}
+            </form>
           </div>
         ) : (
-          !showForm && (
+          /* ══════════════════════════════════════════════════════════════════════
+              VISTA DE HISTORIAL
+              ══════════════════════════════════════════════════════════════════════ */
+          logs.length === 0 ? (
+            <div className="text-center py-20 space-y-5 animate-fadeInUp">
+              <div className="w-20 h-20 rounded-3xl bg-zinc-900 border border-white/10 flex items-center justify-center mx-auto text-lime-400">
+                <LuActivity className="w-10 h-10" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">Sin entrenamientos aún</h3>
+                <p className="text-zinc-400 text-sm mt-1 max-w-sm mx-auto">
+                  Inicia tu primera sesión hoy y lleva el conteo exacto de series, peso y repeticiones.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowForm(true)}
+                className="px-6 py-3 rounded-xl bg-lime-400 hover:bg-lime-300 text-zinc-950 font-bold text-sm transition-all inline-flex items-center gap-2"
+              >
+                <LuPlus className="w-4 h-4" /> Comenzar mi primer entreno
+              </button>
+            </div>
+          ) : (
             <div className="space-y-4">
-              {/* Section title */}
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 bg-primary/15 rounded-xl flex items-center justify-center">
-                  <LuCalendar className="w-4 h-4 text-primary" />
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="flex items-center gap-2">
+                  <LuHistory className="w-4 h-4 text-lime-400" />
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-300">
+                    Historial de Sesiones
+                  </h2>
                 </div>
-                <h2 className="text-lg font-bold">Historial de Sesiones</h2>
-                <div className="flex-1 h-px bg-gradient-to-r from-slate-700 to-transparent" />
+                <span className="text-xs text-zinc-500 font-mono">{logs.length} registradas</span>
               </div>
 
               {logs.map((log, idx) => {
                 const feeling = FEELINGS.find((f) => f.v === log.feeling) || FEELINGS[1];
                 const FeelingIcon = feeling.Icon;
-                const feelingGradient = FEELING_COLORS[log.feeling] || FEELING_COLORS.good;
-                const exerciseNames = log.exercises.map((e) => e.exercise?.name || 'Ejercicio');
-                const totalSets = log.exercises.reduce((sum, e) => sum + (e.sets?.length || 0), 0);
-                const maxWeight = log.exercises.reduce((max, e) => {
+                const exerciseNames = (log.exercises || []).map((e) => e.exercise?.name || 'Ejercicio');
+                const totalSets = (log.exercises || []).reduce((sum, e) => sum + (e.sets?.length || 0), 0);
+                const maxWeight = (log.exercises || []).reduce((max, e) => {
                   const exMax = (e.sets || []).reduce((m, s) => Math.max(m, s.weight || 0), 0);
                   return Math.max(max, exMax);
                 }, 0);
 
                 return (
                   <div
-                    key={log._id}
-                    className="animate-fadeInUp group bg-slate-800/80 backdrop-blur-sm border border-slate-700/50 rounded-2xl overflow-hidden hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300"
-                    style={{ animationDelay: `${idx * 0.05}s` }}
+                    key={log._id || idx}
+                    className="group bg-zinc-900 border border-white/10 hover:border-lime-400/40 rounded-2xl p-5 transition-all duration-200 shadow-md space-y-4"
                   >
-                    {/* Top accent bar with gradient */}
-                    <div className={`h-1 bg-gradient-to-r ${feelingGradient}`} />
-
-                    <div className="p-5">
-                      {/* Header row */}
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          {/* Date badge */}
-                          <div className="bg-slate-700/60 rounded-xl px-3 py-2 text-center border border-slate-600/30 min-w-[60px]">
-                            <p className="text-lg font-bold text-white leading-none">
-                              {new Date(log.date).getDate()}
-                            </p>
-                            <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">
-                              {new Date(log.date).toLocaleDateString('es', { month: 'short' })}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500">
-                              {new Date(log.date).toLocaleDateString('es', { weekday: 'long' })}
-                            </p>
-                            <p className="font-bold text-white mt-0.5 line-clamp-1">
-                              {exerciseNames.length <= 3
-                                ? exerciseNames.join(', ')
-                                : `${exerciseNames.slice(0, 3).join(', ')} +${exerciseNames.length - 3} más`}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Feeling badge */}
-                        <div className={`flex items-center gap-1.5 bg-gradient-to-r ${feelingGradient} px-3 py-1.5 rounded-full text-xs font-bold shadow-md`}>
-                          <FeelingIcon className="w-3.5 h-3.5" />
-                          <span>{feeling.l}</span>
-                        </div>
-                      </div>
-
-                      {/* Stats grid */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-                        {log.durationMinutes > 0 && (
-                          <div className="bg-slate-700/40 rounded-xl px-3 py-2.5 border border-slate-600/20 flex items-center gap-2">
-                            <div className="w-7 h-7 bg-blue-500/15 rounded-lg flex items-center justify-center shrink-0">
-                              <LuClock className="w-3.5 h-3.5 text-blue-400" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-white">{log.durationMinutes} min</p>
-                              <p className="text-[10px] text-gray-500">Duración</p>
-                            </div>
-                          </div>
-                        )}
-                        <div className="bg-slate-700/40 rounded-xl px-3 py-2.5 border border-slate-600/20 flex items-center gap-2">
-                          <div className="w-7 h-7 bg-primary/15 rounded-lg flex items-center justify-center shrink-0">
-                            <LuDumbbell className="w-3.5 h-3.5 text-primary" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-white">{log.exercises.length}</p>
-                            <p className="text-[10px] text-gray-500">Ejercicios</p>
-                          </div>
-                        </div>
-                        {totalSets > 0 && (
-                          <div className="bg-slate-700/40 rounded-xl px-3 py-2.5 border border-slate-600/20 flex items-center gap-2">
-                            <div className="w-7 h-7 bg-emerald-500/15 rounded-lg flex items-center justify-center shrink-0">
-                              <LuTarget className="w-3.5 h-3.5 text-emerald-400" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-white">{totalSets}</p>
-                              <p className="text-[10px] text-gray-500">Series</p>
-                            </div>
-                          </div>
-                        )}
-                        <div className="bg-slate-700/40 rounded-xl px-3 py-2.5 border border-slate-600/20 flex items-center gap-2">
-                          <div className="w-7 h-7 bg-orange-500/15 rounded-lg flex items-center justify-center shrink-0">
-                            <LuFlame className="w-3.5 h-3.5 text-orange-400" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-white">{log.caloriesBurned || 0} kcal</p>
-                            <p className="text-[10px] text-gray-500">Calorías</p>
-                          </div>
-                        </div>
-                        {maxWeight > 0 && (
-                          <div className="bg-slate-700/40 rounded-xl px-3 py-2.5 border border-slate-600/20 flex items-center gap-2">
-                            <div className="w-7 h-7 bg-amber-500/15 rounded-lg flex items-center justify-center shrink-0">
-                              <LuTrendingUp className="w-3.5 h-3.5 text-amber-400" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-white">{maxWeight} kg</p>
-                              <p className="text-[10px] text-gray-500">Peso máx.</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Exercise pills */}
-                      <div className="flex flex-wrap gap-1.5">
-                        {exerciseNames.map((name, i) => (
-                          <span
-                            key={i}
-                            className="bg-gradient-to-r from-primary/10 to-indigo-500/10 text-primary text-[11px] px-2.5 py-1 rounded-lg font-medium border border-primary/15"
-                          >
-                            {name}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-zinc-800 border border-white/10 flex flex-col items-center justify-center shrink-0">
+                          <span className="text-base font-black text-white leading-none font-mono">
+                            {new Date(log.date).getDate()}
                           </span>
-                        ))}
+                          <span className="text-[10px] text-zinc-400 font-bold uppercase mt-0.5">
+                            {new Date(log.date).toLocaleDateString('es', { month: 'short' })}
+                          </span>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-zinc-400 capitalize">
+                            {new Date(log.date).toLocaleDateString('es', { weekday: 'long' })}
+                          </p>
+                          <h3 className="font-bold text-white text-base leading-tight mt-0.5">
+                            {exerciseNames.length <= 3
+                              ? exerciseNames.join(', ')
+                              : `${exerciseNames.slice(0, 3).join(', ')} +${exerciseNames.length - 3} más`}
+                          </h3>
+                        </div>
                       </div>
 
-                      {/* Notes */}
-                      {log.notes && (
-                        <p className="text-sm text-gray-400 mt-3 pl-3 border-l-2 border-primary/30 italic">
-                          {log.notes}
-                        </p>
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-800 border border-white/10 text-xs font-semibold text-zinc-200">
+                        <FeelingIcon className="w-3.5 h-3.5 text-lime-400" />
+                        <span>{feeling.l}</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      {log.durationMinutes > 0 && (
+                        <div className="bg-zinc-950 border border-white/5 rounded-xl px-3 py-2 flex items-center gap-2">
+                          <LuClock className="w-4 h-4 text-cyan-400 shrink-0" />
+                          <div>
+                            <p className="text-xs font-bold text-white font-mono">{log.durationMinutes} min</p>
+                            <p className="text-[10px] text-zinc-500">Duración</p>
+                          </div>
+                        </div>
+                      )}
+                      <div className="bg-zinc-950 border border-white/5 rounded-xl px-3 py-2 flex items-center gap-2">
+                        <LuDumbbell className="w-4 h-4 text-lime-400 shrink-0" />
+                        <div>
+                          <p className="text-xs font-bold text-white font-mono">{log.exercises?.length || 0}</p>
+                          <p className="text-[10px] text-zinc-500">Ejercicios</p>
+                        </div>
+                      </div>
+                      {totalSets > 0 && (
+                        <div className="bg-zinc-950 border border-white/5 rounded-xl px-3 py-2 flex items-center gap-2">
+                          <LuTarget className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <div>
+                            <p className="text-xs font-bold text-white font-mono">{totalSets}</p>
+                            <p className="text-[10px] text-zinc-500">Series</p>
+                          </div>
+                        </div>
+                      )}
+                      {maxWeight > 0 && (
+                        <div className="bg-zinc-950 border border-white/5 rounded-xl px-3 py-2 flex items-center gap-2">
+                          <LuTrendingUp className="w-4 h-4 text-amber-400 shrink-0" />
+                          <div>
+                            <p className="text-xs font-bold text-white font-mono">{maxWeight} kg</p>
+                            <p className="text-[10px] text-zinc-500">Peso máx.</p>
+                          </div>
+                        </div>
                       )}
                     </div>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {exerciseNames.map((name, i) => (
+                        <span
+                          key={i}
+                          className="bg-zinc-800 text-zinc-300 text-[11px] px-2.5 py-1 rounded-lg font-medium border border-white/5"
+                        >
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+
+                    {log.notes && (
+                      <p className="text-xs text-zinc-400 italic pl-3 border-l-2 border-lime-400/40">
+                        {log.notes}
+                      </p>
+                    )}
                   </div>
                 );
               })}
@@ -827,29 +1076,28 @@ export default function Workouts() {
         )}
       </div>
 
-      {/* ── Exercise Preview Modal ── */}
+      {/* ── Modal de vista previa del ejercicio ── */}
       {previewExercise && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn"
           onClick={() => setPreviewExercise(null)}
         >
           <div
-            className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
+            className="bg-zinc-900 border border-white/10 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="sticky top-0 bg-slate-800 border-b border-slate-700 p-4 flex items-center justify-between z-10">
-              <h3 className="text-lg font-bold truncate">{previewExercise.name}</h3>
+            <div className="sticky top-0 bg-zinc-900/95 backdrop-blur-md border-b border-white/10 p-4 flex items-center justify-between z-10">
+              <h3 className="text-base font-bold text-white truncate">{previewExercise.name}</h3>
               <button
+                type="button"
                 onClick={() => setPreviewExercise(null)}
-                className="text-gray-400 hover:text-white bg-slate-700 hover:bg-slate-600 w-8 h-8 rounded-lg flex items-center justify-center transition shrink-0"
+                className="text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 w-8 h-8 rounded-lg flex items-center justify-center transition shrink-0"
               >
                 ✕
               </button>
             </div>
 
             <div className="p-4 space-y-4">
-              {/* YouTube Video */}
               {previewExercise.youtubeVideoId && (
                 <div className="aspect-video rounded-xl overflow-hidden bg-black">
                   <iframe
@@ -862,43 +1110,43 @@ export default function Workouts() {
                 </div>
               )}
 
-              {/* Tags */}
               <div className="flex flex-wrap gap-2">
-                <span className="bg-primary/10 text-primary text-xs px-2.5 py-1 rounded-full capitalize">
+                <span className="bg-lime-400/10 text-lime-400 border border-lime-400/20 text-xs px-2.5 py-1 rounded-full capitalize font-semibold">
                   {previewExercise.muscleGroup}
                 </span>
-                <span className="bg-slate-700 text-xs px-2.5 py-1 rounded-full capitalize">
+                <span className="bg-zinc-800 text-zinc-300 text-xs px-2.5 py-1 rounded-full capitalize">
                   {previewExercise.difficulty === 'beginner' ? 'Principiante' : previewExercise.difficulty === 'intermediate' ? 'Intermedio' : 'Avanzado'}
                 </span>
-                <span className="bg-slate-700 text-xs px-2.5 py-1 rounded-full capitalize">
+                <span className="bg-zinc-800 text-zinc-300 text-xs px-2.5 py-1 rounded-full capitalize">
                   {previewExercise.equipment}
                 </span>
               </div>
 
-              {/* Description */}
               {previewExercise.description && (
-                <p className="text-sm text-gray-300">{previewExercise.description}</p>
+                <p className="text-sm text-zinc-300 leading-relaxed">{previewExercise.description}</p>
               )}
 
-              {/* Instructions */}
               {previewExercise.instructions?.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5"><LuClipboardList className="w-4 h-4" /> Instrucciones</h4>
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                    <LuClipboardList className="w-4 h-4 text-lime-400" /> Instrucciones
+                  </h4>
                   <ol className="list-decimal list-inside space-y-1.5">
                     {previewExercise.instructions.map((step, i) => (
-                      <li key={i} className="text-sm text-gray-300">{step}</li>
+                      <li key={i} className="text-sm text-zinc-300">{step}</li>
                     ))}
                   </ol>
                 </div>
               )}
 
-              {/* Tips */}
               {previewExercise.tips?.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5"><LuLightbulb className="w-4 h-4" /> Consejos</h4>
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                    <LuLightbulb className="w-4 h-4 text-amber-400" /> Consejos de técnica
+                  </h4>
                   <ul className="space-y-1.5">
                     {previewExercise.tips.map((tip, i) => (
-                      <li key={i} className="text-sm text-gray-300 flex gap-2">
+                      <li key={i} className="text-sm text-zinc-300 flex gap-2">
                         <span className="text-amber-400 shrink-0">•</span>
                         {tip}
                       </li>
@@ -911,48 +1159,54 @@ export default function Workouts() {
         </div>
       )}
 
-      {/* ── Motivational Modal ── */}
+      {/* ── Modal de resumen motivacional ── */}
       {motivationalMsg && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-gradient-to-br from-slate-800 via-slate-800 to-indigo-900/50 border border-primary/30 rounded-2xl w-full max-w-md shadow-2xl shadow-primary/20 animate-slideUp text-center p-8 space-y-5">
-            {/* Animated icon */}
-            <div className="animate-bounce"><motivationalMsg.Icon className="w-16 h-16 mx-auto text-primary" /></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-zinc-900 border border-lime-400/30 rounded-3xl w-full max-w-md shadow-2xl p-7 space-y-5 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-lime-400/10 border border-lime-400/20 text-lime-400 flex items-center justify-center mx-auto">
+              <motivationalMsg.Icon className="w-8 h-8" />
+            </div>
 
-            <h2 className="text-2xl font-extrabold text-white">
-              ¡Entrenamiento Completado!
-            </h2>
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-lime-400">Sesión Finalizada</span>
+              <h2 className="text-2xl font-black text-white mt-1">
+                ¡Entrenamiento Completado!
+              </h2>
+            </div>
 
-            <p className="text-lg text-gray-200 italic leading-relaxed">
+            <p className="text-sm text-zinc-300 italic leading-relaxed bg-zinc-950 p-4 rounded-xl border border-white/10">
               "{motivationalMsg.text}"
             </p>
 
-            {/* Workout summary */}
             {workoutSummary && (
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <div className="bg-slate-700/60 rounded-xl p-3">
-                  <p className="text-2xl font-bold text-primary">{workoutSummary.duration}</p>
-                  <p className="text-xs text-gray-400">Duración</p>
+              <div className="grid grid-cols-2 gap-2.5 pt-1">
+                <div className="bg-zinc-950 border border-white/5 rounded-xl p-3">
+                  <p className="text-xl font-black text-white font-mono">{workoutSummary.duration}</p>
+                  <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">Duración</p>
                 </div>
-                <div className="bg-slate-700/60 rounded-xl p-3">
-                  <p className="text-2xl font-bold text-accent">{workoutSummary.exerciseCount}</p>
-                  <p className="text-xs text-gray-400">Ejercicios</p>
+                <div className="bg-zinc-950 border border-white/5 rounded-xl p-3">
+                  <p className="text-xl font-black text-cyan-400 font-mono">{workoutSummary.exerciseCount}</p>
+                  <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">Ejercicios</p>
                 </div>
-                <div className="bg-slate-700/60 rounded-xl p-3">
-                  <p className="text-2xl font-bold text-green-400">{workoutSummary.totalSets}</p>
-                  <p className="text-xs text-gray-400">Series</p>
+                <div className="bg-zinc-950 border border-white/5 rounded-xl p-3">
+                  <p className="text-xl font-black text-lime-400 font-mono">{workoutSummary.totalSets}</p>
+                  <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">Series Totales</p>
                 </div>
-                <div className="bg-slate-700/60 rounded-xl p-3">
-                  <p className="text-2xl font-bold text-orange-400 flex items-center justify-center gap-1"><LuFlame className="w-6 h-6" /> {workoutSummary.caloriesBurned}</p>
-                  <p className="text-xs text-gray-400">Calorías (est.)</p>
+                <div className="bg-zinc-950 border border-white/5 rounded-xl p-3">
+                  <p className="text-xl font-black text-orange-400 font-mono flex items-center justify-center gap-1">
+                    <LuFlame className="w-5 h-5" /> {workoutSummary.caloriesBurned}
+                  </p>
+                  <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">kcal est.</p>
                 </div>
               </div>
             )}
 
             <button
+              type="button"
               onClick={() => { setMotivationalMsg(null); setWorkoutSummary(null); }}
-              className="w-full bg-primary hover:bg-indigo-600 py-3 rounded-xl font-bold text-sm transition-all hover:scale-[1.02] active:scale-95"
+              className="w-full py-3.5 rounded-xl bg-lime-400 hover:bg-lime-300 text-zinc-950 font-black text-sm transition-all shadow-lg shadow-lime-400/20 active:scale-95"
             >
-              ¡Vamos! <LuDumbbell className="inline w-4 h-4 ml-1" />
+              ¡A descansar!
             </button>
           </div>
         </div>

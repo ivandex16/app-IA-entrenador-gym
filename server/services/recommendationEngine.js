@@ -134,7 +134,7 @@ function getGeminiModel() {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
   const genAI = new GoogleGenerativeAI(apiKey);
-  return genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  return genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 }
 
 async function llmRecommend(user) {
@@ -622,4 +622,93 @@ async function recommend(user, tier = "scoring") {
   return { ...result, recommendationId: rec._id };
 }
 
-module.exports = { recommend, generateRoutineWithAI };
+// ─────────────────────────────────────────────
+//  AI Exercise Recommender (free-text query)
+// ─────────────────────────────────────────────
+async function aiExerciseRecommend(user, query) {
+  const allExercises = await Exercise.find({}).lean();
+
+  // Build a compact catalog summary for the prompt
+  const catalogSummary = allExercises
+    .map((e) => `- ${e.name} (${e.muscleGroup}, ${e.difficulty}, ${e.equipment})`)
+    .join("\n");
+
+  const userContext = [
+    user.level ? `Nivel: ${user.level}` : null,
+    user.preferences?.equipment?.length
+      ? `Equipamiento disponible: ${user.preferences.equipment.join(", ")}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(". ");
+
+  const prompt = `Eres un entrenador personal experto. El usuario pregunta: "${query}"
+${userContext ? `Contexto del usuario: ${userContext}` : ""}
+
+Catálogo de ejercicios disponibles:
+${catalogSummary}
+
+Responde en español con este JSON (sin markdown):
+{
+  "catalogMatches": ["nombre exacto del ejercicio del catálogo", ...],
+  "extraSuggestions": [
+    { "name": "nombre", "muscleGroup": "grupo", "description": "cómo hacerlo brevemente", "reason": "por qué ayuda al objetivo" }
+  ],
+  "advice": "consejo general en 2-3 oraciones sobre el objetivo del usuario"
+}
+
+- "catalogMatches": ejercicios del catálogo que coincidan (máx 6). Usa los nombres EXACTOS del catálogo.
+- "extraSuggestions": ejercicios útiles que NO están en el catálogo (máx 4). Solo si aportan valor real.
+- "advice": consejo motivador y específico al objetivo.`;
+
+  let parsed = null;
+
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const { GoogleGenerativeAI } = require("@google/generative-ai");
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const result = await model.generateContent(prompt);
+      const text = result.response.text().trim();
+      // Strip possible markdown code fences
+      const clean = text.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+      parsed = JSON.parse(clean);
+    } catch (e) {
+      // Fall through to local fallback
+    }
+  }
+
+  // Local fallback: simple keyword matching
+  if (!parsed) {
+    const q = query.toLowerCase();
+    const matched = allExercises.filter(
+      (e) =>
+        e.name.toLowerCase().includes(q) ||
+        e.muscleGroup.toLowerCase().includes(q) ||
+        (e.description || "").toLowerCase().includes(q)
+    );
+    parsed = {
+      catalogMatches: matched.slice(0, 6).map((e) => e.name),
+      extraSuggestions: [],
+      advice: `Aquí tienes ejercicios relacionados con "${query}". Consulta a un entrenador para un plan personalizado.`,
+    };
+  }
+
+  // Hydrate catalog matches with full exercise objects
+  const matchedExercises = (parsed.catalogMatches || [])
+    .map((name) =>
+      allExercises.find(
+        (e) => e.name.toLowerCase() === name.toLowerCase()
+      )
+    )
+    .filter(Boolean);
+
+  return {
+    advice: parsed.advice || "",
+    catalogMatches: matchedExercises,
+    extraSuggestions: parsed.extraSuggestions || [],
+    query,
+  };
+}
+
+module.exports = { recommend, generateRoutineWithAI, aiExerciseRecommend };

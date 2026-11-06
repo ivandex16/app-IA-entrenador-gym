@@ -1,32 +1,58 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/axios';
+import toast from 'react-hot-toast';
 import {
-  LuSearch, LuDumbbell, LuArrowRight, LuZap, LuFlame, LuStar,
+  LuSearch, LuDumbbell, LuArrowRight, LuZap, LuFlame,
   LuShield, LuHeart, LuActivity, LuTarget, LuTrendingUp, LuX,
-  LuCheck, LuFilter, LuSparkles,
+  LuCheck, LuFilter, LuSparkles, LuSend, LuBrain, LuLoader,
+  LuLightbulb, LuChevronDown, LuChevronUp, LuChevronLeft, LuChevronRight,
+  LuLayoutGrid, LuList, LuSlidersHorizontal, LuPlus, LuUser,
 } from 'react-icons/lu';
+
+/* ─── helpers ─── */
+function cleanExerciseName(rawName) {
+  if (!rawName) return '';
+  let name = rawName;
+  // Remove PDF pagination/split markers like "- 2 of 6 --", "- 1 of 4 -", "Page 2 of 6"
+  name = name.replace(/-?\s*\d+\s+of\s+\d+\s*-*/gi, '');
+  name = name.replace(/\bpage\s*\d+(\s*of\s*\d+)?\b/gi, '');
+  // Remove repetitive dashes/spaces at start/end
+  name = name.replace(/^[-–—\s]+|[-–—\s]+$/g, '');
+  // Normalize double spaces
+  name = name.replace(/\s{2,}/g, ' ');
+  return name.trim();
+}
 
 /* ─── muscle-group config ─── */
 const MUSCLE_GROUPS = [
-  { v: 'chest', l: 'Pecho', icon: <LuShield className="w-4 h-4" />, emoji: '💪' },
-  { v: 'back', l: 'Espalda', icon: <LuActivity className="w-4 h-4" />, emoji: '🏋️' },
-  { v: 'shoulders', l: 'Hombros', icon: <LuTarget className="w-4 h-4" />, emoji: '🎯' },
-  { v: 'biceps', l: 'Bíceps', icon: <LuDumbbell className="w-4 h-4" />, emoji: '💪' },
-  { v: 'triceps', l: 'Tríceps', icon: <LuDumbbell className="w-4 h-4" />, emoji: '🔥' },
-  { v: 'legs', l: 'Piernas', icon: <LuZap className="w-4 h-4" />, emoji: '🦵' },
-  { v: 'glutes', l: 'Glúteos', icon: <LuTrendingUp className="w-4 h-4" />, emoji: '🍑' },
-  { v: 'abs', l: 'Abdominales', icon: <LuFlame className="w-4 h-4" />, emoji: '🔥' },
-  { v: 'forearms', l: 'Antebrazos', icon: <LuDumbbell className="w-4 h-4" />, emoji: '✊' },
-  { v: 'calves', l: 'Pantorrillas', icon: <LuZap className="w-4 h-4" />, emoji: '🦵' },
-  { v: 'full_body', l: 'Cuerpo completo', icon: <LuHeart className="w-4 h-4" />, emoji: '⚡' },
-  { v: 'cardio', l: 'Cardio', icon: <LuActivity className="w-4 h-4" />, emoji: '❤️' },
+  { v: 'chest', l: 'Pecho', icon: <LuShield className="w-3.5 h-3.5" />, emoji: '💪' },
+  { v: 'back', l: 'Espalda', icon: <LuActivity className="w-3.5 h-3.5" />, emoji: '🏋️' },
+  { v: 'shoulders', l: 'Hombros', icon: <LuTarget className="w-3.5 h-3.5" />, emoji: '🎯' },
+  { v: 'biceps', l: 'Bíceps', icon: <LuDumbbell className="w-3.5 h-3.5" />, emoji: '💪' },
+  { v: 'triceps', l: 'Tríceps', icon: <LuDumbbell className="w-3.5 h-3.5" />, emoji: '🔥' },
+  { v: 'legs', l: 'Piernas', icon: <LuZap className="w-3.5 h-3.5" />, emoji: '🦵' },
+  { v: 'glutes', l: 'Glúteos', icon: <LuTrendingUp className="w-3.5 h-3.5" />, emoji: '🍑' },
+  { v: 'abs', l: 'Abdominales', icon: <LuFlame className="w-3.5 h-3.5" />, emoji: '🔥' },
+  { v: 'forearms', l: 'Antebrazos', icon: <LuDumbbell className="w-3.5 h-3.5" />, emoji: '✊' },
+  { v: 'calves', l: 'Pantorrillas', icon: <LuZap className="w-3.5 h-3.5" />, emoji: '🦵' },
+  { v: 'full_body', l: 'Cuerpo completo', icon: <LuHeart className="w-3.5 h-3.5" />, emoji: '⚡' },
+  { v: 'cardio', l: 'Cardio', icon: <LuActivity className="w-3.5 h-3.5" />, emoji: '❤️' },
+];
+
+const EQUIPMENT_FILTERS = [
+  { v: 'all', l: 'Todo el equipo' },
+  { v: 'dumbbell', l: 'Mancuernas' },
+  { v: 'barbell', l: 'Barra' },
+  { v: 'cable', l: 'Polea / Cable' },
+  { v: 'machine', l: 'Máquinas' },
+  { v: 'bodyweight', l: 'Peso Corporal' },
 ];
 
 const DIFFICULTY_CONFIG = {
   beginner: { label: 'Principiante', text: 'text-emerald-400', bg: 'bg-emerald-500/15', dot: 'bg-emerald-400' },
   intermediate: { label: 'Intermedio', text: 'text-amber-400', bg: 'bg-amber-500/15', dot: 'bg-amber-400' },
-  advanced: { label: 'Avanzado', text: 'text-red-400', bg: 'bg-red-500/15', dot: 'bg-red-400' },
+  advanced: { label: 'Avanzado', text: 'text-rose-400', bg: 'bg-rose-500/15', dot: 'bg-rose-400' },
 };
 
 const EQUIPMENT_LABELS = {
@@ -34,57 +60,437 @@ const EQUIPMENT_LABELS = {
   bodyweight: 'Peso corporal', kettlebell: 'Kettlebell', band: 'Banda', other: 'Otro',
 };
 
-/* Each muscle group gets its own Unsplash preview + gradient overlay */
-const MUSCLE_IMAGE = {
-  chest: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&q=80',
-  back: 'https://images.unsplash.com/photo-1603287681836-b174ce5074c2?w=400&q=80',
-  shoulders: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400&q=80',
-  biceps: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=400&q=80',
-  triceps: 'https://images.unsplash.com/photo-1530822847156-5df684ec5ee1?w=400&q=80',
-  legs: 'https://images.unsplash.com/photo-1434608519344-49d77a699e1d?w=400&q=80',
-  glutes: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=400&q=80',
-  abs: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=80',
-  forearms: 'https://images.unsplash.com/photo-1534368959876-26bf04f2c947?w=400&q=80',
-  calves: 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=400&q=80',
-  full_body: 'https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=400&q=80',
-  cardio: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=400&q=80',
+function getEquipmentIcon(eq, className = 'w-6 h-6') {
+  switch (eq) {
+    case 'dumbbell':
+      return <LuDumbbell className={`${className} text-lime-400`} />;
+    case 'barbell':
+      return <LuZap className={`${className} text-amber-400`} />;
+    case 'cable':
+      return <LuActivity className={`${className} text-cyan-400`} />;
+    case 'machine':
+      return <LuSlidersHorizontal className={`${className} text-violet-400`} />;
+    case 'bodyweight':
+      return <LuUser className={`${className} text-emerald-400`} />;
+    case 'kettlebell':
+      return <LuFlame className={`${className} text-orange-400`} />;
+    default:
+      return <LuDumbbell className={`${className} text-zinc-300`} />;
+  }
+}
+
+/* ─── Exercise CDN & Fallback Illustrations (free-exercise-db) ─── */
+const FREE_EXERCISE_CDN = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
+const cdn = (id) => `${FREE_EXERCISE_CDN}/${id}/0.jpg`;
+
+/* Ilustraciones anatómicas limpias por grupo muscular (fallbacks de alta precisión) */
+const MUSCLE_FALLBACK_IMAGES = {
+  chest: cdn('Barbell_Bench_Press_-_Medium_Grip'),
+  back: cdn('Pullups'),
+  shoulders: cdn('Side_Lateral_Raise'),
+  biceps: cdn('Barbell_Curl'),
+  triceps: cdn('Triceps_Pushdown'),
+  legs: cdn('Barbell_Full_Squat'),
+  glutes: cdn('Barbell_Hip_Thrust'),
+  abs: cdn('Ab_Crunch_Machine'),
+  forearms: cdn('Palms-Down_Wrist_Curl_Over_A_Bench'),
+  calves: cdn('Standing_Calf_Raises'),
+  full_body: cdn('Clean_and_Press'),
+  cardio: cdn('Freehand_Jump_Squat'),
 };
 
-const MUSCLE_GRADIENT = {
-  chest: 'from-red-600/90 to-rose-800/90',
-  back: 'from-blue-600/90 to-indigo-800/90',
-  shoulders: 'from-orange-600/90 to-amber-800/90',
-  biceps: 'from-purple-600/90 to-violet-800/90',
-  triceps: 'from-fuchsia-600/90 to-pink-800/90',
-  legs: 'from-emerald-600/90 to-green-800/90',
-  glutes: 'from-pink-600/90 to-rose-800/90',
-  abs: 'from-cyan-600/90 to-teal-800/90',
-  forearms: 'from-indigo-600/90 to-blue-800/90',
-  calves: 'from-teal-600/90 to-cyan-800/90',
-  full_body: 'from-amber-600/90 to-yellow-800/90',
-  cardio: 'from-rose-600/90 to-red-800/90',
-};
+function normalizeExerciseText(str) {
+  return (str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
-const MUSCLE_FILTER_GRADIENT = {
-  chest: 'from-red-500 to-rose-600', back: 'from-blue-500 to-indigo-600',
-  shoulders: 'from-orange-500 to-amber-600', biceps: 'from-purple-500 to-violet-600',
-  triceps: 'from-fuchsia-500 to-pink-600', legs: 'from-emerald-500 to-green-600',
-  glutes: 'from-pink-500 to-rose-600', abs: 'from-cyan-500 to-teal-600',
-  forearms: 'from-indigo-500 to-blue-600', calves: 'from-teal-500 to-cyan-600',
-  full_body: 'from-amber-500 to-yellow-600', cardio: 'from-rose-500 to-red-600',
-};
+const EXERCISE_PATTERNS = [
+  // Antebrazos (prioritario antes de curl general)
+  { pattern: /curl.*muneca|wrist.*curl/, url: cdn('Palms-Down_Wrist_Curl_Over_A_Bench') },
+  { pattern: /farmer|granjero/, url: cdn('Farmers_Walk') },
+
+  // Pecho / Chest
+  { pattern: /press.*declinado/, url: cdn('Decline_Barbell_Bench_Press') },
+  { pattern: /press.*inclinado/, url: cdn('Incline_Dumbbell_Press') },
+  { pattern: /press.*banca|bench.*press/, url: cdn('Barbell_Bench_Press_-_Medium_Grip') },
+  { pattern: /apertura/, url: cdn('Dumbbell_Flyes') },
+  { pattern: /cruce.*polea|cable.*crossover/, url: cdn('Cable_Crossover') },
+  { pattern: /flexion|pushup/, url: cdn('Pushups') },
+
+  // Espalda / Back
+  { pattern: /dominada|pullup|pull.*up/, url: cdn('Pullups') },
+  { pattern: /jalon.*pecho|lat.*pulldown/, url: cdn('Wide-Grip_Lat_Pulldown') },
+  { pattern: /peso.*muerto.*rumano/, url: cdn('Romanian_Deadlift') },
+  { pattern: /peso.*muerto.*sumo/, url: cdn('Sumo_Deadlift') },
+  { pattern: /peso.*muerto|deadlift/, url: cdn('Barbell_Deadlift') },
+  { pattern: /remo.*barra/, url: cdn('Bent_Over_Barbell_Row') },
+  { pattern: /remo.*mancuerna/, url: cdn('One-Arm_Dumbbell_Row') },
+  { pattern: /remo.*polea|remo.*maquina|seated.*row/, url: cdn('Seated_Cable_Rows') },
+  { pattern: /face.*pull/, url: cdn('Face_Pull') },
+
+  // Hombros / Shoulders
+  { pattern: /press.*arnold/, url: cdn('Arnold_Dumbbell_Press') },
+  { pattern: /press.*militar|military.*press/, url: cdn('Standing_Military_Press') },
+  { pattern: /elevacion.*lateral|lateral.*raise/, url: cdn('Side_Lateral_Raise') },
+  { pattern: /elevacion.*frontal|front.*raise/, url: cdn('Front_Dumbbell_Raise') },
+  { pattern: /pajaro|elevacion.*posterior|rear.*delt/, url: cdn('Seated_Bent-Over_Rear_Delt_Raise') },
+
+  // Piernas / Legs
+  { pattern: /sentadilla.*bulgara|bulgarian/, url: cdn('Split_Squat_with_Dumbbells') },
+  { pattern: /sentadilla.*salto|jump.*squat/, url: cdn('Freehand_Jump_Squat') },
+  { pattern: /sentadilla|squat/, url: cdn('Barbell_Full_Squat') },
+  { pattern: /prensa|leg.*press/, url: cdn('Leg_Press') },
+  { pattern: /extension.*cuadricep|leg.*extension/, url: cdn('Leg_Extensions') },
+  { pattern: /curl.*femoral|leg.*curl/, url: cdn('Lying_Leg_Curls') },
+  { pattern: /zancada|lunge/, url: cdn('Dumbbell_Lunges') },
+  { pattern: /step.*up/, url: cdn('Step-up_with_Knee_Raise') },
+  { pattern: /abductor|abductores/, url: cdn('Thigh_Abductor') },
+  { pattern: /adductor|aductores/, url: cdn('Thigh_Adductor') },
+  { pattern: /pantorrilla.*sentado/, url: cdn('Seated_Calf_Raise') },
+  { pattern: /pantorrilla.*pie|pantorrilla|gemelo|calf/, url: cdn('Standing_Calf_Raises') },
+
+  // Glúteos / Glutes
+  { pattern: /hip.*thrust/, url: cdn('Barbell_Hip_Thrust') },
+  { pattern: /puente.*gluteo|glute.*bridge/, url: cdn('Butt_Lift_Bridge') },
+  { pattern: /patada.*gluteo|glute.*kickback/, url: cdn('Glute_Kickback') },
+
+  // Bíceps
+  { pattern: /curl.*concentrado/, url: cdn('Concentration_Curls') },
+  { pattern: /curl.*martillo|hammer.*curl/, url: cdn('Hammer_Curls') },
+  { pattern: /curl.*polea/, url: cdn('High_Cable_Curls') },
+  { pattern: /curl.*barra|bicep.*curl/, url: cdn('Barbell_Curl') },
+
+  // Tríceps
+  { pattern: /press.*frances|rompe.*craneo/, url: cdn('Lying_Triceps_Press') },
+  { pattern: /patada.*tricep|tricep.*kickback/, url: cdn('Tricep_Dumbbell_Kickback') },
+  { pattern: /extension.*tricep|tricep.*pushdown|polea.*tricep/, url: cdn('Triceps_Pushdown') },
+  { pattern: /fondo.*paralela|fondo|dip/, url: cdn('Dips_-_Chest_Version') },
+
+  // Abdominales / Core
+  { pattern: /crunch/, url: cdn('Ab_Crunch_Machine') },
+  { pattern: /plancha|plank/, url: cdn('Plank') },
+  { pattern: /elevacion.*pierna|hanging.*leg/, url: cdn('Hanging_Leg_Raise') },
+  { pattern: /mountain.*climber/, url: cdn('Mountain_Climbers') },
+  { pattern: /russian.*twist/, url: cdn('Russian_Twist') },
+
+  // Full body / Cardio
+  { pattern: /clean.*press|cargada.*press/, url: cdn('Clean_and_Press') },
+  { pattern: /thruster/, url: cdn('Kettlebell_Thruster') },
+  { pattern: /burpee/, url: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=600&q=80' },
+  { pattern: /cajon|box.*jump/, url: cdn('Front_Box_Jump') },
+  { pattern: /tijera|jumping.*jack/, url: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=600&q=80' },
+];
+
+function getExerciseImage(name, muscleGroup) {
+  const norm = normalizeExerciseText(name);
+  if (norm) {
+    const match = EXERCISE_PATTERNS.find((item) => item.pattern.test(norm));
+    if (match) return match.url;
+  }
+  const group = muscleGroup || 'full_body';
+  return MUSCLE_FALLBACK_IMAGES[group] || MUSCLE_FALLBACK_IMAGES.full_body;
+}
+
+const QUICK_PROMPTS = [
+  '¿Qué ejercicios me ayudan a ganar masa muscular en el pecho?',
+  'Quiero quemar grasa y tonificar abdomen, ¿qué me recomiendas?',
+  'Ejercicios para corregir y mejorar postura',
+  'Rutina para piernas sin pesas (peso corporal)',
+  '¿Cómo fortalecer la espalda baja y lumbar?',
+];
+
+/* ─── Compact Collapsible AI Advisor ─── */
+function AiAdvisor({ allExercises }) {
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [open, setOpen] = useState(false);
+
+  const ask = async (q) => {
+    const text = q || query;
+    if (!text.trim()) return;
+    setLoading(true);
+    setResult(null);
+    setOpen(true);
+    try {
+      const { data } = await api.post('/exercises/ai-recommend', { query: text });
+      setResult(data);
+      if (q) setQuery(q);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Error al consultar la IA');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-zinc-900 border border-violet-500/25 hover:border-violet-500/40 rounded-2xl p-4 shadow-xl transition-all duration-200">
+      {/* Compact Interactive Header */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-violet-400 shrink-0 shadow-sm">
+            <LuBrain className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-500/15 text-violet-300 border border-violet-500/30 text-[11px] font-bold uppercase tracking-wider">
+                <LuSparkles className="w-3 h-3 text-violet-400" /> Asesor IA Gemini
+              </span>
+              {result && (
+                <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+              )}
+            </div>
+            <p className="text-xs text-zinc-400 truncate mt-0.5">
+              {open ? 'Escribe tu objetivo o selecciona una consulta rápida' : 'Pregúntale a la IA qué ejercicios necesitas para tus metas'}
+            </p>
+          </div>
+        </div>
+
+        {/* Toggle Button */}
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="px-3.5 py-2 rounded-xl bg-violet-500/15 hover:bg-violet-500/25 text-violet-300 border border-violet-500/30 text-xs font-bold transition flex items-center gap-1.5 shrink-0"
+        >
+          <span>{open ? 'Ocultar' : 'Consultar'}</span>
+          <LuChevronDown className={`w-4 h-4 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+
+      {/* Expandable Body */}
+      {open && (
+        <div className="mt-4 pt-4 border-t border-white/10 space-y-4 animate-fadeIn">
+          {/* Query Input */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <LuSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-400" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && ask()}
+                placeholder="Ej: quiero ganar fuerza en hombros con mancuernas…"
+                className="w-full bg-zinc-950 border border-violet-500/30 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-zinc-500 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/40 transition"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => ask()}
+              disabled={loading || !query.trim()}
+              className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white transition active:scale-95 shadow-md shadow-violet-600/20 shrink-0"
+            >
+              {loading ? <LuLoader className="w-4 h-4 animate-spin" /> : <LuSend className="w-4 h-4" />}
+              <span>{loading ? 'Pensando…' : 'Preguntar'}</span>
+            </button>
+          </div>
+
+          {/* Quick Prompts Chips */}
+          {!result && (
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Consultas sugeridas:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_PROMPTS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => ask(p)}
+                    disabled={loading}
+                    className="text-xs px-3 py-1.5 rounded-xl bg-zinc-800/80 hover:bg-violet-500/20 text-zinc-300 hover:text-violet-200 border border-white/10 hover:border-violet-500/30 transition disabled:opacity-50"
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Results Display */}
+          {result && (
+            <div className="space-y-4 pt-1 animate-fadeIn">
+              {/* Advice Box */}
+              <div className="flex gap-3 bg-violet-950/40 border border-violet-500/30 rounded-2xl p-4 shadow-inner">
+                <LuLightbulb className="w-5 h-5 text-violet-400 shrink-0 mt-0.5" />
+                <p className="text-sm text-violet-100 leading-relaxed font-medium">{result.advice}</p>
+              </div>
+
+              {/* Catalog Matches */}
+              {result.catalogMatches?.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-violet-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <LuCheck className="w-3.5 h-3.5 text-lime-400" /> Disponibles en tu catálogo ({result.catalogMatches.length})
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {result.catalogMatches.map((ex) => {
+                      const diff = DIFFICULTY_CONFIG[ex.difficulty] || DIFFICULTY_CONFIG.intermediate;
+                      const muscleLabel = MUSCLE_GROUPS.find(mg => mg.v === ex.muscleGroup)?.l || ex.muscleGroup;
+                      const cleanName = cleanExerciseName(ex.name);
+                      return (
+                        <Link
+                          key={ex._id}
+                          to={`/exercises/${ex._id}`}
+                          className="flex items-center gap-3 bg-zinc-950 hover:bg-zinc-800/80 border border-white/10 hover:border-violet-500/40 rounded-xl p-3 transition group"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-violet-500/15 flex items-center justify-center shrink-0">
+                            <LuDumbbell className="w-4 h-4 text-violet-400" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold text-white truncate group-hover:text-violet-300 transition">{cleanName}</p>
+                            <p className="text-xs text-zinc-400">{muscleLabel} · <span className={diff.text}>{diff.label}</span></p>
+                          </div>
+                          <LuArrowRight className="w-4 h-4 text-zinc-500 group-hover:text-violet-400 transition shrink-0" />
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Extra AI Suggestions */}
+              {result.extraSuggestions?.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <LuSparkles className="w-3.5 h-3.5" /> Recomendados adicionales por IA
+                  </p>
+                  <div className="space-y-2">
+                    {result.extraSuggestions.map((s, i) => (
+                      <div key={i} className="bg-zinc-950 border border-purple-500/25 rounded-xl p-3 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <LuZap className="w-4 h-4 text-purple-400 shrink-0" />
+                          <p className="text-sm font-bold text-purple-200">{cleanExerciseName(s.name)}</p>
+                          {s.muscleGroup && (
+                            <span className="ml-auto text-[11px] bg-purple-500/20 text-purple-300 px-2.5 py-0.5 rounded-full font-semibold">{s.muscleGroup}</span>
+                          )}
+                        </div>
+                        {s.description && <p className="text-xs text-zinc-300 pl-6 leading-relaxed">{s.description}</p>}
+                        {s.reason && <p className="text-xs text-purple-300/80 pl-6 italic">{s.reason}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Reset query button */}
+              <button
+                type="button"
+                onClick={() => { setResult(null); setQuery(''); }}
+                className="text-xs font-semibold text-zinc-400 hover:text-white transition flex items-center gap-1.5 pt-1"
+              >
+                <LuX className="w-3.5 h-3.5" /> Limpiar consulta de IA
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Exercises() {
   const [exercises, setExercises] = useState([]);
   const [selectedGroups, setSelectedGroups] = useState([]);   // multi-select
+  const [selectedEquipment, setSelectedEquipment] = useState('all'); // single-select equipment
   const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+  const [expandMuscles, setExpandMuscles] = useState(false); // Default to false for fluid horizontal carousel scroll
+
+  // Carousel ref, drag & scroll detection
+  const carouselRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const scrollLeftStartRef = useRef(0);
+  const hasDraggedRef = useRef(false);
+
+  const checkScroll = useCallback(() => {
+    if (!carouselRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = carouselRef.current;
+    setCanScrollLeft(scrollLeft > 6);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 6);
+  }, []);
+
+  useEffect(() => {
+    checkScroll();
+    window.addEventListener('resize', checkScroll);
+    return () => window.removeEventListener('resize', checkScroll);
+  }, [checkScroll]);
+
+  // Manejo de rueda de ratón en el carrusel: desliza horizontalmente SIN saltos verticales de la página
+  useEffect(() => {
+    const el = carouselRef.current;
+    if (!el || expandMuscles) return;
+
+    const handleWheel = (e) => {
+      // Interceptar siempre que haya movimiento vertical o intencional para deslizar horizontalmente
+      if (Math.abs(e.deltaY) > 0 || Math.abs(e.deltaX) > 0) {
+        const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+        const atStart = el.scrollLeft <= 0 && delta < 0;
+        const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1 && delta > 0;
+
+        if (!atStart && !atEnd) {
+          e.preventDefault();
+          el.scrollLeft += delta;
+          checkScroll();
+        }
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, [expandMuscles, checkScroll]);
+
+  const scroll = (direction) => {
+    if (!carouselRef.current) return;
+    const offset = direction === 'left' ? -280 : 280;
+    carouselRef.current.scrollBy({ left: offset, behavior: 'smooth' });
+    setTimeout(checkScroll, 320);
+  };
+
+  // Drag con el ratón (click y arrastrar para deslizar fluido en PC)
+  const handleMouseDown = (e) => {
+    const el = carouselRef.current;
+    if (!el) return;
+    isDraggingRef.current = true;
+    startXRef.current = e.pageX - el.offsetLeft;
+    scrollLeftStartRef.current = el.scrollLeft;
+    hasDraggedRef.current = false;
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDraggingRef.current) return;
+    const el = carouselRef.current;
+    if (!el) return;
+    e.preventDefault();
+    const x = e.pageX - el.offsetLeft;
+    const walk = (x - startXRef.current) * 1.3;
+    if (Math.abs(walk) > 4) {
+      hasDraggedRef.current = true;
+    }
+    el.scrollLeft = scrollLeftStartRef.current - walk;
+    checkScroll();
+  };
+
+  const handleMouseUpOrLeave = () => {
+    isDraggingRef.current = false;
+    setTimeout(() => {
+      hasDraggedRef.current = false;
+    }, 60);
+  };
 
   useEffect(() => {
     const params = {};
     if (selectedGroups.length > 0) params.muscleGroup = selectedGroups.join(',');
+    if (selectedEquipment && selectedEquipment !== 'all') params.equipment = selectedEquipment;
     if (search) params.search = search;
-    api.get('/exercises', { params }).then((r) => setExercises(r.data));
-  }, [selectedGroups, search]);
+    api.get('/exercises', { params }).then((r) => {
+      setExercises(r.data);
+      setTimeout(checkScroll, 100);
+    });
+  }, [selectedGroups, selectedEquipment, search, checkScroll]);
 
   const toggleGroup = useCallback((v) => {
     setSelectedGroups((prev) =>
@@ -92,57 +498,61 @@ export default function Exercises() {
     );
   }, []);
 
-  const clearFilters = () => { setSelectedGroups([]); setSearch(''); };
-
-  const activeLabels = selectedGroups.map(g => MUSCLE_GROUPS.find(mg => mg.v === g)?.l).filter(Boolean);
+  const clearFilters = () => {
+    setSelectedGroups([]);
+    setSelectedEquipment('all');
+    setSearch('');
+  };
 
   return (
-    <div className="min-h-screen pb-12">
+    <div className="min-h-screen bg-[#08090D] text-zinc-100 pb-24 selection:bg-lime-400 selection:text-black">
       {/* ══════════ HERO BANNER ══════════ */}
-      <div className="relative overflow-hidden">
+      <div className="relative overflow-hidden border-b border-white/10">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1526506118085-60ce8714f8c5?w=1400&q=80)' }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-dark/80 via-dark/70 to-dark" />
-        <div className="absolute top-10 right-1/4 w-[400px] h-[300px] bg-primary/15 rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 left-1/4 w-[350px] h-[200px] bg-accent/10 rounded-full blur-[100px]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/85 via-black/75 to-[#08090D]" />
+        <div className="absolute top-10 right-1/4 w-[450px] h-[300px] bg-lime-400/10 rounded-full blur-[140px] pointer-events-none" />
+        <div className="absolute bottom-0 left-1/4 w-[350px] h-[200px] bg-cyan-400/10 rounded-full blur-[120px] pointer-events-none" />
 
-        <div className="relative max-w-6xl mx-auto px-4 pt-12 pb-14">
-          <div className="animate-fadeInUp">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-2xl flex items-center justify-center shadow-lg shadow-primary/25">
-                <LuDumbbell className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-                  Catálogo de <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-indigo-400 to-accent">Ejercicios</span>
-                </h1>
-                <p className="text-gray-400 text-sm">Encuentra el ejercicio perfecto para tu entrenamiento</p>
-              </div>
+        <div className="relative max-w-6xl mx-auto px-4 pt-10 pb-12">
+          <div>
+            <div className="flex items-center gap-2.5 mb-2">
+              <span className="px-2.5 py-1 rounded-md bg-lime-400/10 border border-lime-400/20 text-lime-400 text-xs font-bold uppercase tracking-wider">
+                Biblioteca Técnica
+              </span>
             </div>
+            <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
+              Catálogo de <span className="text-lime-400">Ejercicios</span>
+            </h1>
+            <p className="text-zinc-300 text-sm md:text-base mt-1 max-w-lg">
+              Explora movimientos biomecánicos, videos demostrativos y guías de ejecución paso a paso.
+            </p>
           </div>
 
           {/* Stats strip */}
-          <div className="animate-fadeInUp stagger-1 flex flex-wrap items-center gap-3 mt-6">
-            <div className="flex items-center gap-2 bg-slate-800/60 backdrop-blur-sm px-4 py-2 rounded-xl border border-slate-700/50">
-              <LuDumbbell className="w-4 h-4 text-primary" />
-              <span className="text-sm font-bold text-white">{exercises.length}</span>
-              <span className="text-xs text-gray-400">ejercicios</span>
+          <div className="flex flex-wrap items-center gap-3 mt-5">
+            <div className="flex items-center gap-2 bg-zinc-900 border border-white/10 px-4 py-2 rounded-xl shadow-md">
+              <LuDumbbell className="w-4 h-4 text-lime-400" />
+              <span className="text-sm font-black text-white font-mono">{exercises.length}</span>
+              <span className="text-xs text-zinc-400">ejercicios disponibles</span>
             </div>
-            {selectedGroups.length > 0 && (
+
+            {(selectedGroups.length > 0 || selectedEquipment !== 'all') && (
               <>
-                <div className="flex items-center gap-2 bg-primary/15 backdrop-blur-sm px-4 py-2 rounded-xl border border-primary/30">
-                  <LuFilter className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-bold text-primary">{selectedGroups.length} filtro{selectedGroups.length > 1 ? 's' : ''}</span>
-                </div>
-                {activeLabels.map((label) => (
-                  <span key={label} className="bg-slate-700/60 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-300 border border-slate-600/40">
-                    {label}
+                <div className="flex items-center gap-2 bg-lime-400/15 border border-lime-400/30 px-3.5 py-2 rounded-xl">
+                  <LuFilter className="w-3.5 h-3.5 text-lime-400" />
+                  <span className="text-xs font-bold text-lime-400">
+                    Filtros activos: {selectedGroups.length + (selectedEquipment !== 'all' ? 1 : 0)}
                   </span>
-                ))}
-                <button onClick={clearFilters} className="text-xs text-gray-500 hover:text-red-400 transition flex items-center gap-1">
-                  <LuX className="w-3.5 h-3.5" /> Limpiar
+                </div>
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-xs font-bold text-zinc-400 hover:text-red-400 transition flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-zinc-850"
+                >
+                  <LuX className="w-3.5 h-3.5" /> Limpiar filtros
                 </button>
               </>
             )}
@@ -150,151 +560,429 @@ export default function Exercises() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 mt-6 space-y-6">
-        {/* ══════════ SEARCH + FILTERS ══════════ */}
-        <div data-tour="exercises-filters" className="animate-fadeInUp stagger-2 space-y-5">
-          {/* Search bar */}
-          <div className="relative max-w-md">
-            <LuSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-            <input
-              placeholder="Buscar ejercicio…"
-              className="w-full bg-slate-800/80 backdrop-blur-sm border border-slate-700/50 rounded-2xl pl-12 pr-4 py-3 outline-none text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all placeholder-gray-500"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition"
-              >
-                <LuX className="w-4 h-4" />
-              </button>
-            )}
+      <div className="max-w-6xl mx-auto px-4 mt-6 space-y-5">
+        {/* ══════════ ASESOR IA (COMPACTO Y COLAPSABLE) ══════════ */}
+        <AiAdvisor allExercises={exercises} />
+
+        {/* ══════════ BUSCADOR + FILTROS MUSCULARES Y EQUIPAMIENTO ══════════ */}
+        <div data-tour="exercises-filters" className="space-y-3.5 bg-zinc-900/60 border border-white/[0.08] rounded-2xl p-4 shadow-xl">
+          {/* Fila del buscador y Toggle de vista expandida */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="relative flex-1 max-w-md">
+              <LuSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Buscar por nombre (ej: Press banca, Sentadilla)..."
+                className="w-full bg-zinc-950 border border-white/10 rounded-xl pl-10 pr-9 py-2.5 text-sm font-semibold text-white placeholder-zinc-500 outline-none focus:border-lime-400 focus:ring-1 focus:ring-lime-400/30 transition-all shadow-inner"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white p-1 rounded-lg transition"
+                  title="Borrar búsqueda"
+                >
+                  <LuX className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Toggle discreto para expandir todos los músculos o mantener carrusel */}
+            <button
+              type="button"
+              onClick={() => setExpandMuscles(!expandMuscles)}
+              className={`text-xs font-bold transition flex items-center gap-1.5 px-3 py-2.5 rounded-xl border shrink-0 ${
+                expandMuscles
+                  ? 'bg-lime-400/10 text-lime-400 border-lime-400/30 hover:bg-lime-400/20'
+                  : 'bg-zinc-950 text-zinc-400 hover:text-white border-white/10 hover:border-white/20'
+              }`}
+              title={expandMuscles ? 'Modo carrusel deslizante' : 'Ver todos los músculos en cuadrícula'}
+            >
+              {expandMuscles ? (
+                <>
+                  <LuChevronUp className="w-3.5 h-3.5 text-lime-400" />
+                  <span className="hidden sm:inline">Modo carrusel</span>
+                </>
+              ) : (
+                <>
+                  <LuChevronDown className="w-3.5 h-3.5 text-lime-400" />
+                  <span className="hidden sm:inline">Ver todos ({MUSCLE_GROUPS.length})</span>
+                </>
+              )}
+            </button>
           </div>
 
-          {/* Multi-select muscle group pills */}
-          <div>
-            <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5">
-              <LuSparkles className="w-3.5 h-3.5 text-primary" /> Selecciona uno o varios grupos musculares
-            </p>
-            <div className="flex flex-wrap gap-2">
+          {/* Fila de Filtros Musculares: Carrusel deslizable o Cuadrícula expandida */}
+          {expandMuscles ? (
+            /* Modo Cuadrícula Expandida */
+            <div className="flex flex-wrap gap-2 pt-1 animate-fadeIn">
+              <button
+                type="button"
+                onClick={() => setSelectedGroups([])}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+                  selectedGroups.length === 0
+                    ? 'bg-lime-400 text-zinc-950 shadow-md shadow-lime-400/20 scale-[1.02]'
+                    : 'bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-850 border border-white/10 font-semibold'
+                }`}
+              >
+                <span>Todos los músculos</span>
+              </button>
+
               {MUSCLE_GROUPS.map((mg) => {
                 const isActive = selectedGroups.includes(mg.v);
-                const grad = MUSCLE_FILTER_GRADIENT[mg.v];
                 return (
                   <button
                     key={mg.v}
+                    type="button"
                     onClick={() => toggleGroup(mg.v)}
-                    className={`group/pill flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${isActive
-                      ? `bg-gradient-to-r ${grad} text-white shadow-lg shadow-primary/20 scale-[1.03]`
-                      : 'bg-slate-800/80 text-gray-400 border border-slate-700/50 hover:border-slate-500/70 hover:text-white hover:bg-slate-700/80'
-                      }`}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                      isActive
+                        ? 'bg-lime-400 text-zinc-950 shadow-md shadow-lime-400/20 scale-[1.02]'
+                        : 'bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-850 border border-white/10'
+                    }`}
                   >
-                    {isActive ? (
-                      <span className="w-4 h-4 bg-white/25 rounded-md flex items-center justify-center">
-                        <LuCheck className="w-3 h-3" />
+                    <span className="text-sm leading-none">{mg.emoji}</span>
+                    <span>{mg.l}</span>
+                    {isActive && (
+                      <span className="w-4 h-4 rounded-full bg-zinc-950/20 flex items-center justify-center text-zinc-950">
+                        <LuCheck className="w-3 h-3 stroke-[3]" />
                       </span>
-                    ) : (
-                      mg.icon
                     )}
-                    {mg.l}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            /* Modo Carrusel con Flechas Flotantes, Fade Mask, Drag y Wheel suave */
+            <div className="relative group/carousel">
+              {/* Botón flotante Izquierdo con degradado de desvanecimiento */}
+              {canScrollLeft && (
+                <div className="absolute left-0 top-0 bottom-0 z-20 flex items-center pr-6 bg-gradient-to-r from-zinc-900 via-zinc-900/95 to-transparent pointer-events-none">
+                  <button
+                    type="button"
+                    onClick={() => scroll('left')}
+                    className="pointer-events-auto w-8 h-8 rounded-full bg-zinc-800 hover:bg-lime-400 hover:text-zinc-950 text-white border border-white/15 shadow-xl shadow-black/60 flex items-center justify-center transition-all duration-200 active:scale-90"
+                    title="Desplazar a la izquierda"
+                  >
+                    <LuChevronLeft className="w-4 h-4 stroke-[2.5]" />
+                  </button>
+                </div>
+              )}
+
+              {/* Botón flotante Derecho con degradado de desvanecimiento */}
+              {canScrollRight && (
+                <div className="absolute right-0 top-0 bottom-0 z-20 flex items-center pl-6 bg-gradient-to-l from-zinc-900 via-zinc-900/95 to-transparent pointer-events-none">
+                  <button
+                    type="button"
+                    onClick={() => scroll('right')}
+                    className="pointer-events-auto w-8 h-8 rounded-full bg-zinc-800 hover:bg-lime-400 hover:text-zinc-950 text-white border border-white/15 shadow-xl shadow-black/60 flex items-center justify-center transition-all duration-200 active:scale-90"
+                    title="Desplazar a la derecha"
+                  >
+                    <LuChevronRight className="w-4 h-4 stroke-[2.5]" />
+                  </button>
+                </div>
+              )}
+
+              {/* Contenedor deslizable con soporte de arrastre con ratón */}
+              <div
+                ref={carouselRef}
+                onScroll={checkScroll}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUpOrLeave}
+                onMouseLeave={handleMouseUpOrLeave}
+                className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full py-1 cursor-grab active:cursor-grabbing select-none"
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (hasDraggedRef.current) return;
+                    setSelectedGroups([]);
+                  }}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 ${
+                    selectedGroups.length === 0
+                      ? 'bg-lime-400 text-zinc-950 shadow-md shadow-lime-400/20 scale-[1.02]'
+                      : 'bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-850 border border-white/10 font-semibold'
+                  }`}
+                >
+                  <span>Todos los músculos</span>
+                </button>
+
+                {MUSCLE_GROUPS.map((mg) => {
+                  const isActive = selectedGroups.includes(mg.v);
+                  return (
+                    <button
+                      key={mg.v}
+                      type="button"
+                      onClick={() => {
+                        if (hasDraggedRef.current) return;
+                        toggleGroup(mg.v);
+                      }}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-2 ${
+                        isActive
+                          ? 'bg-lime-400 text-zinc-950 shadow-md shadow-lime-400/20 scale-[1.02]'
+                          : 'bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-850 border border-white/10'
+                      }`}
+                    >
+                      <span className="text-sm leading-none">{mg.emoji}</span>
+                      <span>{mg.l}</span>
+                      {isActive && (
+                        <span className="w-4 h-4 rounded-full bg-zinc-950/20 flex items-center justify-center text-zinc-950">
+                          <LuCheck className="w-3 h-3 stroke-[3]" />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Fila Secundaria: Filtro por Equipamiento (Barra compacta deslizable) */}
+          <div className="flex items-center gap-2 pt-2 border-t border-white/5">
+            <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider shrink-0 flex items-center gap-1.5 pr-1">
+              <LuSlidersHorizontal className="w-3.5 h-3.5 text-lime-400" /> EQUIPO:
+            </span>
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth w-full py-1">
+              {EQUIPMENT_FILTERS.map((eq) => {
+                const isActive = selectedEquipment === eq.v;
+                return (
+                  <button
+                    key={eq.v}
+                    type="button"
+                    onClick={() => setSelectedEquipment(eq.v)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-zinc-200 text-zinc-950 font-bold shadow-sm scale-[1.02]'
+                        : 'bg-zinc-900/90 text-zinc-400 hover:text-white hover:bg-zinc-850 border border-white/5 font-semibold'
+                    }`}
+                  >
+                    {eq.l}
                   </button>
                 );
               })}
             </div>
           </div>
-        </div>
 
-        {/* ══════════ EXERCISE GRID ══════════ */}
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {exercises.map((ex, idx) => {
-            const diff = DIFFICULTY_CONFIG[ex.difficulty] || DIFFICULTY_CONFIG.intermediate;
-            const muscleLabel = MUSCLE_GROUPS.find(mg => mg.v === ex.muscleGroup)?.l || ex.muscleGroup;
-            const equipLabel = EQUIPMENT_LABELS[ex.equipment] || ex.equipment;
-            const gradient = MUSCLE_GRADIENT[ex.muscleGroup] || 'from-slate-600/90 to-slate-800/90';
-            const previewImg = ex.imageUrl || MUSCLE_IMAGE[ex.muscleGroup] || MUSCLE_IMAGE.full_body;
+          {/* Fila de estado: Contador de resultados y Selector de vista (Grid vs Lista) */}
+          <div className="flex items-center justify-between gap-3 pt-2.5 border-t border-white/10">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-mono font-semibold text-zinc-400">
+                Mostrando <strong className="text-white font-bold">{exercises.length}</strong> ejercicios
+              </span>
+              {(selectedGroups.length > 0 || selectedEquipment !== 'all' || search) && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-xs font-bold text-zinc-400 hover:text-red-400 transition-colors flex items-center gap-1 px-2 py-0.5 rounded-lg hover:bg-zinc-800"
+                >
+                  <LuX className="w-3.5 h-3.5" /> Limpiar filtros
+                </button>
+              )}
+            </div>
 
-            return (
-              <Link
-                to={`/exercises/${ex._id}`}
-                key={ex._id}
-                className="animate-fadeInUp group relative bg-slate-800/80 backdrop-blur-sm rounded-2xl overflow-hidden border border-slate-700/50 hover:border-primary/50 transition-all duration-300 hover:shadow-xl hover:shadow-primary/15 hover:-translate-y-1"
-                style={{ animationDelay: `${Math.min(idx * 40, 500)}ms` }}
-              >
-                {/* Preview image with gradient overlay */}
-                <div className="relative h-36 overflow-hidden">
-                  <img
-                    src={previewImg}
-                    alt={ex.name}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    loading="lazy"
-                  />
-                  <div className={`absolute inset-0 bg-gradient-to-t ${gradient}`} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent" />
-
-                  {/* Difficulty badge on image */}
-                  <div className="absolute top-3 right-3">
-                    <span className={`inline-flex items-center gap-1 ${diff.bg} backdrop-blur-sm px-2.5 py-1 rounded-lg text-[11px] font-bold ${diff.text} border border-white/10`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${diff.dot}`} />
-                      {diff.label}
-                    </span>
-                  </div>
-
-                  {/* Muscle group label on image */}
-                  <div className="absolute bottom-3 left-3">
-                    <span className="inline-flex items-center gap-1.5 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs font-bold text-white border border-white/10">
-                      <LuTarget className="w-3 h-3" />
-                      {muscleLabel}
-                    </span>
-                  </div>
-
-                  {/* Arrow on hover */}
-                  <div className="absolute bottom-3 right-3 w-8 h-8 bg-primary/80 backdrop-blur-sm rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300">
-                    <LuArrowRight className="w-4 h-4 text-white" />
-                  </div>
-                </div>
-
-                {/* Card body */}
-                <div className="p-4">
-                  <h3 className="font-bold text-[15px] leading-tight group-hover:text-primary transition-colors mb-2">
-                    {ex.name}
-                  </h3>
-
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="inline-flex items-center gap-1 bg-slate-700/60 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-gray-300">
-                      <LuDumbbell className="w-3 h-3 text-gray-500" />
-                      {equipLabel}
-                    </span>
-                    {ex.secondaryMuscles?.length > 0 && (
-                      <span className="inline-flex items-center gap-1 bg-primary/10 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-primary/80">
-                        +{ex.secondaryMuscles.length} secundario{ex.secondaryMuscles.length > 1 ? 's' : ''}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-
-          {/* Empty state */}
-          {exercises.length === 0 && (
-            <div className="col-span-full text-center py-16 space-y-4 animate-fadeInUp">
-              <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl flex items-center justify-center mx-auto border border-primary/20">
-                <LuSearch className="w-10 h-10 text-primary animate-float" />
-              </div>
-              <div>
-                <p className="text-gray-300 text-lg font-semibold">No se encontraron ejercicios</p>
-                <p className="text-gray-500 text-sm mt-1">Intenta con otro filtro o término de búsqueda</p>
-              </div>
+            {/* Toggle de Visualización Grid vs Lista */}
+            <div className="flex items-center gap-1 bg-zinc-950 border border-white/10 p-1 rounded-xl shrink-0">
               <button
-                onClick={clearFilters}
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-primary to-indigo-600 hover:from-indigo-600 hover:to-primary px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-primary/25"
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  viewMode === 'grid'
+                    ? 'bg-zinc-800 text-lime-400 shadow-sm'
+                    : 'text-zinc-500 hover:text-white'
+                }`}
+                title="Vista en tarjetas"
               >
-                <LuX className="w-4 h-4" /> Limpiar filtros
+                <LuLayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-zinc-800 text-lime-400 shadow-sm'
+                    : 'text-zinc-500 hover:text-white'
+                }`}
+                title="Vista en lista compacta"
+              >
+                <LuList className="w-4 h-4" />
               </button>
             </div>
-          )}
+          </div>
         </div>
+
+        {/* ══════════ CATÁLOGO: VISTA EN GRID O EN LISTA ══════════ */}
+        {exercises.length === 0 ? (
+          <div className="text-center py-16 space-y-4 bg-zinc-900 border border-white/10 rounded-2xl">
+            <div className="w-16 h-16 rounded-3xl bg-zinc-950 border border-white/10 flex items-center justify-center mx-auto text-zinc-500">
+              <LuSearch className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">No se encontraron ejercicios</h3>
+              <p className="text-zinc-400 text-xs sm:text-sm mt-1 max-w-sm mx-auto">
+                Prueba ajustando el término de búsqueda o cambiando los filtros de músculos y equipamiento.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex items-center gap-2 bg-lime-400 hover:bg-lime-300 text-zinc-950 px-5 py-2.5 rounded-xl text-xs font-black transition-all shadow-lg shadow-lime-400/20 active:scale-95"
+            >
+              <LuX className="w-4 h-4 stroke-[2.5]" /> Limpiar filtros
+            </button>
+          </div>
+        ) : viewMode === 'grid' ? (
+          /* ── VISTA DE TARJETAS (GRID) ── */
+          <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 animate-fadeIn">
+            {exercises.map((ex) => {
+              const diff = DIFFICULTY_CONFIG[ex.difficulty] || DIFFICULTY_CONFIG.intermediate;
+              const muscleObj = MUSCLE_GROUPS.find((mg) => mg.v === ex.muscleGroup);
+              const muscleLabel = muscleObj?.l || ex.muscleGroup;
+              const muscleEmoji = muscleObj?.emoji || '💪';
+              const equipLabel = EQUIPMENT_LABELS[ex.equipment] || ex.equipment;
+              const cleanName = cleanExerciseName(ex.name);
+              const imgSrc = ex.imageUrl || getExerciseImage(ex.name, ex.muscleGroup);
+              const fallbackImg = MUSCLE_FALLBACK_IMAGES[ex.muscleGroup] || MUSCLE_FALLBACK_IMAGES.full_body;
+
+              return (
+                <Link
+                  to={`/exercises/${ex._id}`}
+                  key={ex._id}
+                  className="group bg-zinc-900 border border-white/10 hover:border-lime-400/40 rounded-2xl overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-lime-400/5 flex flex-col"
+                >
+                  {/* Media Thumbnail con CDN real y fallback consistente */}
+                  <div className="relative aspect-[16/10] w-full overflow-hidden bg-zinc-950">
+                    <img
+                      src={imgSrc}
+                      alt={cleanName}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 filter brightness-95 group-hover:brightness-105"
+                      loading="lazy"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = fallbackImg;
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent pointer-events-none" />
+
+                    {/* Difficulty Badge (Top Right) */}
+                    <div className="absolute top-2.5 right-2.5 z-20">
+                      <span className={`inline-flex items-center gap-1 ${diff.bg} backdrop-blur-md px-2.5 py-0.5 rounded-lg text-[10px] font-bold ${diff.text} border border-white/10 shadow-sm uppercase tracking-wider`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${diff.dot}`} />
+                        {diff.label}
+                      </span>
+                    </div>
+
+                    {/* Muscle Group Badge (Bottom Left) */}
+                    <div className="absolute bottom-2.5 left-2.5 z-20">
+                      <span className="inline-flex items-center gap-1.5 bg-zinc-900/90 backdrop-blur-md px-2.5 py-1 rounded-lg text-xs font-bold text-white border border-white/15 shadow-sm">
+                        <span className="text-xs leading-none">{muscleEmoji}</span>
+                        {muscleLabel}
+                      </span>
+                    </div>
+
+                    {/* Floating Action Button (Bottom Right) */}
+                    <div className="absolute bottom-2.5 right-2.5 z-20 w-8 h-8 rounded-xl bg-lime-400 text-zinc-950 flex items-center justify-center shadow-lg shadow-lime-400/25 group-hover:scale-110 transition-all duration-200">
+                      <LuArrowRight className="w-4 h-4 stroke-[2.5]" />
+                    </div>
+                  </div>
+
+                  {/* Card Content */}
+                  <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                    <div>
+                      <h3 className="font-bold text-sm sm:text-base text-white leading-snug group-hover:text-lime-400 transition-colors line-clamp-1">
+                        {cleanName}
+                      </h3>
+                      {ex.description && (
+                        <p className="text-xs text-zinc-400 line-clamp-2 mt-1 leading-relaxed">
+                          {ex.description}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Metadata Tags con alto contraste */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-white/5">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-800 text-zinc-200 text-xs font-bold border border-white/10 shadow-sm">
+                        <LuDumbbell className="w-3 h-3 text-lime-400" />
+                        {equipLabel}
+                      </span>
+                      {ex.secondaryMuscles?.length > 0 && (
+                        <span className="inline-flex items-center gap-1 bg-zinc-800/60 text-zinc-400 px-2 py-0.5 rounded-md text-[11px] font-medium border border-white/5">
+                          +{ex.secondaryMuscles.length} sec.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          /* ── VISTA DE LISTA COMPACTA (Filas atléticas de 56px estilo Hevy/Strong) ── */
+          <div className="space-y-2 animate-fadeIn">
+            {exercises.map((ex) => {
+              const diff = DIFFICULTY_CONFIG[ex.difficulty] || DIFFICULTY_CONFIG.intermediate;
+              const muscleObj = MUSCLE_GROUPS.find((mg) => mg.v === ex.muscleGroup);
+              const muscleLabel = muscleObj?.l || ex.muscleGroup;
+              const equipLabel = EQUIPMENT_LABELS[ex.equipment] || ex.equipment;
+              const cleanName = cleanExerciseName(ex.name);
+              const imgSrc = ex.imageUrl || getExerciseImage(ex.name, ex.muscleGroup);
+              const fallbackImg = MUSCLE_FALLBACK_IMAGES[ex.muscleGroup] || MUSCLE_FALLBACK_IMAGES.full_body;
+
+              return (
+                <Link
+                  to={`/exercises/${ex._id}`}
+                  key={ex._id}
+                  className="group bg-zinc-900/80 hover:bg-zinc-850 border border-white/5 hover:border-lime-400/40 rounded-xl px-3.5 py-2 h-14 flex items-center justify-between gap-3.5 transition-all duration-200 shadow-sm"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* Thumbnail pequeño de 40px (w-10 h-10) con imagen real/ilustración */}
+                    <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-zinc-950 shrink-0 border border-white/10">
+                      <img
+                        src={imgSrc}
+                        alt={cleanName}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        loading="lazy"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = fallbackImg;
+                        }}
+                      />
+                    </div>
+
+                    {/* Información: Nombre en blanco + badges de músculo y equipo */}
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-sm text-white group-hover:text-lime-400 transition-colors truncate">
+                        {cleanName}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-xs text-lime-400 font-semibold">
+                          {muscleLabel}
+                        </span>
+                        <span className="text-zinc-600 text-xs">•</span>
+                        <span className="text-xs text-zinc-400 font-medium">
+                          {equipLabel}
+                        </span>
+                        <span className={`hidden sm:inline-flex items-center gap-1 text-[10px] font-bold ${diff.text} ml-1`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${diff.dot}`} />
+                          {diff.label}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Botón "+" a la derecha estilo Hevy / Strong */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="w-8 h-8 rounded-xl bg-zinc-800/90 group-hover:bg-lime-400 text-zinc-400 group-hover:text-zinc-950 flex items-center justify-center transition-all duration-200 shadow-sm">
+                      <LuPlus className="w-4 h-4 stroke-[3]" />
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

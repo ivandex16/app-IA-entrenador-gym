@@ -1,4 +1,21 @@
 const Exercise = require("../models/Exercise");
+const { aiExerciseRecommend } = require("../services/recommendationEngine");
+
+// POST /api/exercises/ai-recommend  (protected)
+exports.aiRecommend = async (req, res, next) => {
+  try {
+    const { query } = req.body;
+    if (!query || !query.trim()) {
+      return res
+        .status(400)
+        .json({ message: "Debes escribir qué tipo de ejercicios buscas" });
+    }
+    const result = await aiExerciseRecommend(req.user, query.trim());
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
 
 // GET /api/exercises?muscleGroup=chest&difficulty=beginner&equipment=barbell
 exports.list = async (req, res, next) => {

@@ -2,7 +2,27 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
-import { LuActivity, LuDumbbell, LuFlame, LuHeart, LuSparkles, LuZap, LuFileUp, LuLightbulb, LuCalendar, LuTimer, LuTrash2, LuTriangleAlert, LuClipboardList, LuPlus, LuArrowRight, LuTarget } from 'react-icons/lu';
+import {
+  LuActivity,
+  LuDumbbell,
+  LuFlame,
+  LuHeart,
+  LuSparkles,
+  LuZap,
+  LuFileUp,
+  LuLightbulb,
+  LuCalendar,
+  LuTimer,
+  LuTrash2,
+  LuTriangleAlert,
+  LuClipboardList,
+  LuPlus,
+  LuArrowRight,
+  LuTarget,
+  LuSearch,
+  LuX,
+  LuLayers,
+} from 'react-icons/lu';
 
 const GOALS = [
   { v: 'general', l: 'General', Icon: LuActivity, color: 'from-blue-500 to-cyan-400' },
@@ -11,6 +31,16 @@ const GOALS = [
   { v: 'endurance', l: 'Resistencia', Icon: LuHeart, color: 'from-rose-500 to-pink-500' },
   { v: 'toning', l: 'Tonificación', Icon: LuSparkles, color: 'from-amber-400 to-yellow-500' },
   { v: 'strength', l: 'Fuerza', Icon: LuZap, color: 'from-emerald-500 to-teal-500' },
+];
+
+const FILTER_GOALS = [
+  { v: 'all', l: 'Todas' },
+  { v: 'muscle_gain', l: 'Músculo' },
+  { v: 'strength', l: 'Fuerza' },
+  { v: 'fat_loss', l: 'Perder Grasa' },
+  { v: 'endurance', l: 'Resistencia' },
+  { v: 'toning', l: 'Tonificación' },
+  { v: 'general', l: 'General' },
 ];
 
 const WEEKDAYS = [
@@ -23,7 +53,7 @@ const WEEKDAYS = [
   { v: 'domingo', l: 'Dom', full: 'Domingo' },
 ];
 
-// Card background images from Unsplash (gym themed, small size for performance)
+// Card background images from Unsplash (gym themed, high performance)
 const CARD_IMAGES = [
   'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&q=80',
   'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&q=80',
@@ -47,21 +77,35 @@ function formatDuration(min) {
   if (min < 60) return `${Math.round(min)} min`;
   const h = Math.floor(min / 60);
   const m = Math.round(min % 60);
-  return m > 0 ? `${h}h ${m}min` : `${h}h`;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
 export default function Routines() {
   const navigate = useNavigate();
   const [routines, setRoutines] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', description: '', goal: 'general', selectedDays: ['lunes'] });
   const [showPdf, setShowPdf] = useState(false);
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfUploading, setPdfUploading] = useState(false);
 
-  const load = () => api.get('/routines').then((r) => setRoutines(r.data));
+  // Quick Filter & Search states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedGoalFilter, setSelectedGoalFilter] = useState('all');
 
-  useEffect(() => { load(); }, []);
+  const load = () => {
+    setLoading(true);
+    return api
+      .get('/routines')
+      .then((r) => setRoutines(r.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -81,15 +125,19 @@ export default function Routines() {
       setForm({ name: '', description: '', goal: 'general', selectedDays: ['lunes'] });
       navigate(`/routines/${data._id}`);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Error');
+      toast.error(err.response?.data?.message || 'Error al crear rutina');
     }
   };
 
   const handleDelete = async (id) => {
     if (!confirm('¿Eliminar esta rutina?')) return;
-    await api.delete(`/routines/${id}`);
-    toast.success('Eliminada');
-    load();
+    try {
+      await api.delete(`/routines/${id}`);
+      toast.success('Rutina eliminada');
+      load();
+    } catch (err) {
+      toast.error('Error al eliminar');
+    }
   };
 
   const handlePdfUpload = async (e) => {
@@ -119,106 +167,167 @@ export default function Routines() {
 
   const getGoal = (v) => GOALS.find((g) => g.v === v) || GOALS[0];
 
-  return (
-    <div className="min-h-screen">
-      {/* ══════════ HERO BANNER ══════════ */}
-      <div className="relative overflow-hidden">
-        {/* Background image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1400&q=80)' }}
-        />
-        {/* Dark overlay with gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-dark/80 via-dark/70 to-dark" />
-        {/* Accent glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/20 rounded-full blur-[120px]" />
+  // Filtered routines list
+  const filteredRoutines = routines.filter((r) => {
+    const matchesSearch =
+      !searchQuery ||
+      r.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesGoal =
+      selectedGoalFilter === 'all' || r.goal === selectedGoalFilter;
+    return matchesSearch && matchesGoal;
+  });
 
-        <div className="relative max-w-6xl mx-auto px-4 pt-12 pb-16">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="animate-fadeInUp">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary to-indigo-400 rounded-2xl flex items-center justify-center shadow-lg shadow-primary/30">
-                  <LuDumbbell className="w-6 h-6 text-white" />
+  const totalExercises = routines.reduce((sum, r) => {
+    const allExs = (r.days || []).flatMap((d) => d.exercises || []);
+    return sum + (allExs.length || r.exercises?.length || 0);
+  }, 0);
+
+  const totalDays = routines.reduce((sum, r) => sum + (r.days?.length || 0), 0);
+
+  return (
+    <div className="min-h-screen bg-[#08090D] text-slate-100 pb-20 selection:bg-lime-400 selection:text-slate-950 font-sans">
+      {/* ── Ambient Athletic Lighting ── */}
+      <div className="fixed top-0 left-1/3 w-[500px] h-[260px] bg-lime-400/[0.04] rounded-full blur-[140px] pointer-events-none" />
+      <div className="fixed top-24 right-1/4 w-[400px] h-[300px] bg-cyan-500/[0.03] rounded-full blur-[140px] pointer-events-none" />
+
+      {/* ══════════════ 1. HERO BANNER INMERSIVO ══════════════ */}
+      <header className="relative overflow-hidden border-b border-white/[0.08] pt-10 pb-12">
+        {/* Background Gym Photography with High-Performance Overlays */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage:
+              'url(https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1400&q=80)',
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#08090D]/85 via-[#08090D]/90 to-[#08090D]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-lime-400/[0.07] via-transparent to-transparent pointer-events-none" />
+
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+
+            {/* Title & Athletic Value Proposition */}
+            <div className="space-y-2 animate-fadeInUp">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-lime-400 via-lime-300 to-emerald-400 flex items-center justify-center shadow-lg shadow-lime-400/25">
+                  <LuDumbbell className="w-6 h-6 text-black stroke-[2.5]" />
                 </div>
                 <div>
-                  <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-                    Mis <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Rutinas</span>
+                  <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white uppercase drop-shadow-md">
+                    Mis{' '}
+                    <span className="bg-gradient-to-r from-lime-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                      Rutinas
+                    </span>
                   </h1>
                 </div>
               </div>
-              <p className="text-gray-400 text-base md:text-lg max-w-lg">
-                Diseña, organiza y domina tus entrenamientos. Cada rutina te acerca más a tus metas.
+
+              <p className="text-xs sm:text-sm text-slate-300 max-w-lg font-medium leading-relaxed drop-shadow">
+                Diseña, estructura y domina cada sesión. Planifica tu progreso semanal y maximiza tus levantamientos.
               </p>
-              {/* Stats strip */}
+
+              {/* Stats Strip */}
               {routines.length > 0 && (
-                <div className="flex gap-6 mt-5">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-primary">{routines.length}</p>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">Rutinas</p>
+                <div className="flex items-center gap-4 sm:gap-6 pt-2">
+                  <div className="flex items-center gap-2 bg-[#12141F]/80 backdrop-blur-md border border-white/[0.08] px-3.5 py-1.5 rounded-xl">
+                    <span className="text-base sm:text-lg font-black text-lime-400">{routines.length}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Rutinas</span>
                   </div>
-                  <div className="w-px bg-slate-700" />
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-accent">
-                      {routines.reduce((sum, r) => {
-                        const allExs = (r.days || []).flatMap((d) => d.exercises || []);
-                        return sum + (allExs.length || r.exercises?.length || 0);
-                      }, 0)}
-                    </p>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">Ejercicios</p>
+                  <div className="flex items-center gap-2 bg-[#12141F]/80 backdrop-blur-md border border-white/[0.08] px-3.5 py-1.5 rounded-xl">
+                    <span className="text-base sm:text-lg font-black text-cyan-400">{totalExercises}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ejercicios</span>
                   </div>
-                  <div className="w-px bg-slate-700" />
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-emerald-400">
-                      {routines.reduce((sum, r) => sum + (r.days?.length || 0), 0)}
-                    </p>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">Días</p>
+                  <div className="flex items-center gap-2 bg-[#12141F]/80 backdrop-blur-md border border-white/[0.08] px-3.5 py-1.5 rounded-xl">
+                    <span className="text-base sm:text-lg font-black text-emerald-400">{totalDays}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Días</span>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Action buttons */}
-            <div data-tour="routines-actions" className="flex gap-3 animate-fadeInUp" style={{ animationDelay: '0.1s' }}>
+            {/* Action Buttons (Tour preserved: routines-actions) */}
+            <div data-tour="routines-actions" className="flex items-center gap-3 animate-fadeInUp">
               <button
-                onClick={() => { setShowPdf(!showPdf); setShowForm(false); }}
-                className="group bg-slate-800/80 backdrop-blur-sm hover:bg-slate-700 border border-slate-600/50 hover:border-primary/50 px-5 py-3 rounded-2xl text-sm font-semibold transition-all flex items-center gap-2 shadow-lg"
+                onClick={() => {
+                  setShowPdf(!showPdf);
+                  setShowForm(false);
+                }}
+                className={`min-h-[44px] px-4 sm:px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 flex items-center gap-2 border active:scale-95 ${
+                  showPdf
+                    ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-lg shadow-cyan-500/10'
+                    : 'bg-[#12141F]/90 backdrop-blur-md hover:bg-white/[0.08] border-white/[0.1] text-zinc-200'
+                }`}
               >
-                <LuFileUp className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" /> Subir PDF
+                <LuFileUp className="w-4 h-4 text-cyan-400" />
+                <span>{showPdf ? 'Cerrar PDF' : 'Subir PDF'}</span>
               </button>
+
               <button
-                onClick={() => { setShowForm(!showForm); setShowPdf(false); }}
-                className="group bg-gradient-to-r from-primary to-indigo-600 hover:from-indigo-600 hover:to-primary px-6 py-3 rounded-2xl text-sm font-bold transition-all flex items-center gap-2 shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02]"
+                onClick={() => {
+                  setShowForm(!showForm);
+                  setShowPdf(false);
+                }}
+                className={`min-h-[44px] px-5 sm:px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 shadow-lg active:scale-95 ${
+                  showForm
+                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                    : 'bg-lime-400 hover:bg-lime-300 text-slate-950 shadow-lime-400/25'
+                }`}
               >
                 {showForm ? (
-                  'Cancelar'
+                  <>
+                    <LuX className="w-4 h-4" />
+                    <span>Cancelar</span>
+                  </>
                 ) : (
                   <>
-                    <LuPlus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" /> Nueva Rutina
+                    <LuPlus className="w-4 h-4 stroke-[3]" />
+                    <span>Nueva Rutina</span>
                   </>
                 )}
               </button>
             </div>
+
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-6xl mx-auto px-4 -mt-4 space-y-6 pb-12">
-        {/* PDF upload */}
+      {/* ══════════════ 2. MAIN WORKSPACE CONTAINER ══════════════ */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 mt-8 space-y-7">
+
+        {/* ── A. PDF IMPORT DRAWER / MODAL ── */}
         {showPdf && (
-          <div className="animate-slideUp bg-slate-800/90 backdrop-blur-sm border border-slate-700/50 p-6 rounded-2xl space-y-4 shadow-xl">
-            <h2 className="font-bold text-lg flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary/20 rounded-xl flex items-center justify-center">
-                <LuFileUp className="w-4 h-4 text-primary" />
+          <div className="animate-slideUp bg-[#0E1018]/95 backdrop-blur-xl border border-white/[0.1] p-6 sm:p-8 rounded-3xl space-y-5 shadow-2xl shadow-black/80">
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-cyan-400/10 border border-cyan-400/25 flex items-center justify-center text-cyan-400">
+                  <LuFileUp className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="font-black text-lg text-white uppercase tracking-tight">
+                    Importar Rutina desde PDF
+                  </h2>
+                  <p className="text-xs text-zinc-400 font-medium">Sube tu archivo para autogenerar los días y ejercicios</p>
+                </div>
               </div>
-              Importar Rutina desde PDF
-            </h2>
+              <button
+                onClick={() => setShowPdf(false)}
+                className="w-8 h-8 rounded-lg bg-white/[0.05] hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white"
+              >
+                <LuX className="w-4 h-4" />
+              </button>
+            </div>
 
-            <div className="bg-slate-700/40 border border-slate-600/50 rounded-xl p-4 space-y-2">
-              <h3 className="text-sm font-semibold text-primary flex items-center gap-1.5"><LuLightbulb className="w-4 h-4" /> ¿Qué debe contener el PDF?</h3>
-              <p className="text-xs text-gray-300">Para que el sistema pueda leer correctamente tu rutina, el PDF debe tener este formato:</p>
-              <div className="bg-slate-900/80 rounded-lg p-3 text-xs text-gray-300 font-mono whitespace-pre-line border border-slate-700/50">
-                {`Nombre: Mi Rutina Personalizada
-Descripción: Rutina de fuerza 4 días
+            <div className="bg-[#131622] border border-white/[0.06] rounded-2xl p-4 sm:p-5 space-y-3">
+              <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-2">
+                <LuLightbulb className="w-4 h-4" /> Formato Compatible del Documento
+              </h3>
+              <p className="text-xs text-zinc-300">
+                El analizador detecta bloques diarios y esquemas de series x repeticiones:
+              </p>
+              <div className="bg-[#090A0F] rounded-xl p-3.5 text-xs text-zinc-300 font-mono whitespace-pre-line border border-white/[0.06] overflow-x-auto">
+{`Nombre: Torso Fuerza
+Descripción: Rutina de hipertrofia y fuerza
 
 Lunes - Pecho y Tríceps
   Press de Banca: 4x10 @90s
@@ -226,69 +335,93 @@ Lunes - Pecho y Tríceps
 
 Martes - Espalda y Bíceps
   Peso Muerto: 4x8 @120s
-  Curl con Barra: 3x12 @60s
-
-Jueves - Piernas
-  Sentadilla: 4x10 @120s
-  Prensa de Piernas: 3x12 @90s`}
+  Dominadas: 3x10 @90s`}
               </div>
-              <ul className="text-xs text-gray-400 space-y-1 list-disc list-inside">
-                <li><strong>Día:</strong> Usa el nombre del día (Lunes, Martes, etc.) seguido de un guión y la descripción</li>
-                <li><strong>Ejercicio:</strong> Nombre del ejercicio: series x repeticiones @descanso en segundos</li>
-                <li><strong>Nombre:</strong> (Opcional) Primera línea con "Nombre: ..." para el nombre de la rutina</li>
-                <li><strong>Descripción:</strong> (Opcional) "Descripción: ..." para la descripción</li>
-                <li>Los nombres de ejercicios deben coincidir con los de la base de datos</li>
-                <li>Formatos aceptados: "4x10", "3x12-15" (rango de reps), "@90s" (descanso opcional)</li>
-              </ul>
             </div>
 
-            <form onSubmit={handlePdfUpload} className="flex items-end gap-3">
+            <form onSubmit={handlePdfUpload} className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 pt-2">
               <div className="flex-1">
-                <label className="text-xs text-gray-400 mb-1 block">Selecciona un archivo PDF</label>
+                <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5 block">
+                  Selecciona tu PDF
+                </label>
                 <input
                   type="file"
                   accept="application/pdf"
                   onChange={(e) => setPdfFile(e.target.files[0])}
-                  className="w-full bg-slate-700/60 rounded-xl px-4 py-2.5 text-sm file:mr-3 file:py-1.5 file:px-4 file:rounded-xl file:border-0 file:bg-primary file:text-white file:text-sm file:cursor-pointer file:font-semibold hover:bg-slate-700 transition"
+                  className="w-full bg-[#131622] border border-white/[0.08] rounded-xl px-4 py-2.5 text-xs text-zinc-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-cyan-500/20 file:text-cyan-300 file:text-xs file:font-bold file:cursor-pointer hover:border-cyan-500/40 transition cursor-pointer"
                 />
               </div>
               <button
                 type="submit"
                 disabled={!pdfFile || pdfUploading}
-                className="bg-gradient-to-r from-primary to-indigo-600 disabled:opacity-50 px-6 py-2.5 rounded-xl text-sm font-semibold transition shadow-lg shadow-primary/20"
+                className="min-h-[44px] bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 shadow-lg shadow-cyan-500/20 active:scale-95"
               >
-                {pdfUploading ? 'Procesando…' : 'Importar'}
+                {pdfUploading ? 'Analizando Documento...' : 'Importar Rutina'}
               </button>
             </form>
           </div>
         )}
 
-        {/* Create form */}
+        {/* ── B. CREATE NEW ROUTINE FORM ── */}
         {showForm && (
-          <form onSubmit={handleCreate} className="animate-slideUp bg-slate-800/90 backdrop-blur-sm border border-slate-700/50 p-6 rounded-2xl space-y-5 shadow-xl">
-            <h2 className="font-bold text-lg flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary/20 rounded-xl flex items-center justify-center">
-                <LuPlus className="w-4 h-4 text-primary" />
+          <form
+            onSubmit={handleCreate}
+            className="animate-slideUp bg-[#0E1018]/95 backdrop-blur-xl border border-white/[0.1] p-6 sm:p-8 rounded-3xl space-y-6 shadow-2xl shadow-black/80"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-lime-400/10 border border-lime-400/25 flex items-center justify-center text-lime-400">
+                  <LuPlus className="w-5 h-5 stroke-[2.5]" />
+                </div>
+                <div>
+                  <h2 className="font-black text-lg text-white uppercase tracking-tight">
+                    Crear Nueva Rutina
+                  </h2>
+                  <p className="text-xs text-zinc-400 font-medium">Configura el esquema semanal y el objetivo atlético</p>
+                </div>
               </div>
-              Crear nueva rutina
-            </h2>
-            <input
-              placeholder="Nombre de la rutina (ej: Push Day, Tren Superior…)"
-              required
-              className="w-full bg-slate-700/60 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50 border border-slate-600/50 focus:border-primary transition"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <textarea
-              placeholder="Descripción (opcional)"
-              rows={2}
-              className="w-full bg-slate-700/60 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50 border border-slate-600/50 focus:border-primary transition resize-none"
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-            />
-            <div className="flex flex-wrap gap-4">
-              <div className="flex-1 min-w-[200px]">
-                <label className="text-xs text-gray-400 mb-2 block font-medium uppercase tracking-wide">Días de entrenamiento</label>
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="w-8 h-8 rounded-lg bg-white/[0.05] hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white"
+              >
+                <LuX className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1.5 block">
+                  Nombre de la Rutina
+                </label>
+                <input
+                  placeholder="Ej: Push Day, Pierna Potencia, Torso Hipertrofia..."
+                  required
+                  className="w-full bg-[#131622] rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-500 outline-none border border-white/[0.08] focus:border-lime-400 focus:ring-1 focus:ring-lime-400/40 transition-all duration-150"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1.5 block">
+                  Descripción u Objetivo Específico
+                </label>
+                <textarea
+                  placeholder="Ej: Enfoque en press con mancuernas pesadas y aislamiento de tríceps."
+                  rows={2}
+                  className="w-full bg-[#131622] rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-500 outline-none border border-white/[0.08] focus:border-lime-400 focus:ring-1 focus:ring-lime-400/40 transition-all duration-150 resize-none"
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2 block">
+                  Días Asignados
+                </label>
                 <div className="flex flex-wrap gap-2">
                   {WEEKDAYS.map((wd) => {
                     const selected = form.selectedDays.includes(wd.v);
@@ -304,10 +437,11 @@ Jueves - Piernas
                               : [...f.selectedDays, wd.v],
                           }));
                         }}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${selected
-                          ? 'bg-gradient-to-r from-primary/30 to-indigo-500/30 border-primary text-white shadow-md shadow-primary/10'
-                          : 'bg-slate-700/60 border-slate-600/50 text-gray-400 hover:border-primary/50 hover:text-gray-200'
-                          }`}
+                        className={`min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 border active:scale-95 ${
+                          selected
+                            ? 'bg-lime-400 text-black border-lime-400 shadow-md shadow-lime-400/20 font-black'
+                            : 'bg-[#131622] border-white/[0.08] text-zinc-400 hover:text-white hover:border-white/20'
+                        }`}
                       >
                         {wd.l}
                       </button>
@@ -315,178 +449,315 @@ Jueves - Piernas
                   })}
                 </div>
               </div>
-              <div className="flex-1 min-w-[140px]">
-                <label className="text-xs text-gray-400 mb-2 block font-medium uppercase tracking-wide">Objetivo</label>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2 block">
+                  Objetivo de Entrenamiento
+                </label>
                 <select
-                  className="w-full bg-slate-700/60 rounded-xl px-4 py-3 border border-slate-600/50 focus:border-primary focus:ring-2 focus:ring-primary/50 transition outline-none"
+                  className="w-full bg-[#131622] rounded-xl px-4 py-3 text-sm text-white outline-none border border-white/[0.08] focus:border-lime-400 focus:ring-1 focus:ring-lime-400/40 transition-all"
                   value={form.goal}
                   onChange={(e) => setForm({ ...form, goal: e.target.value })}
                 >
                   {GOALS.map((g) => (
-                    <option key={g.v} value={g.v}>{g.l}</option>
+                    <option key={g.v} value={g.v} className="bg-[#0C0E15] text-white">
+                      {g.l}
+                    </option>
                   ))}
                 </select>
               </div>
             </div>
-            <button className="bg-gradient-to-r from-primary to-indigo-600 hover:from-indigo-600 hover:to-primary px-8 py-3 rounded-xl text-sm font-bold transition-all shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02] flex items-center gap-2">
-              Crear y agregar ejercicios <LuArrowRight className="w-4 h-4" />
-            </button>
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                className="w-full sm:w-auto min-h-[46px] bg-lime-400 hover:bg-lime-300 text-slate-950 px-8 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 shadow-lg shadow-lime-400/25 active:scale-95 flex items-center justify-center gap-2"
+              >
+                <span>Guardar y Agregar Ejercicios</span>
+                <LuArrowRight className="w-4 h-4 stroke-[2.5]" />
+              </button>
+            </div>
           </form>
         )}
 
-        {/* Empty state */}
-        {routines.length === 0 && !showForm && (
-          <div className="animate-fadeInUp text-center py-20 space-y-5">
-            <div className="relative inline-block">
-              <div className="w-24 h-24 bg-gradient-to-br from-primary/20 to-indigo-500/20 rounded-3xl flex items-center justify-center mx-auto border border-primary/20">
-                <LuDumbbell className="w-12 h-12 text-primary animate-float" />
+        {/* ── C. CONTROL BAR (Búsqueda Rápida y Filtros Deslizables) ── */}
+        {routines.length > 0 && (
+          <div className="space-y-3.5">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              {/* Search Bar */}
+              <div className="relative flex-1 max-w-md">
+                <LuSearch className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Buscar rutina por nombre o descripción..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-[#0E1018] border border-white/[0.08] focus:border-lime-400/60 rounded-xl pl-10 pr-9 py-2.5 text-xs text-white placeholder:text-zinc-500 outline-none transition-all duration-150 focus:ring-1 focus:ring-lime-400/30"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                  >
+                    <LuX className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
-              <div className="absolute -top-2 -right-2 w-8 h-8 bg-accent/20 rounded-full flex items-center justify-center border border-accent/30">
-                <LuPlus className="w-4 h-4 text-accent" />
+
+              {/* Counter Pill */}
+              <div className="flex items-center gap-2 text-xs font-medium text-zinc-400 px-1">
+                <span>Mostrando</span>
+                <span className="px-2 py-0.5 rounded-lg bg-lime-400/10 text-lime-400 font-bold border border-lime-400/20 font-mono">
+                  {filteredRoutines.length}
+                </span>
+                <span>de {routines.length}</span>
+              </div>
+            </div>
+
+            {/* Goal Filter Pills Strip */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-500 mr-1.5 shrink-0 flex items-center gap-1">
+                <LuLayers className="w-3.5 h-3.5" />
+                Filtro:
+              </span>
+              {FILTER_GOALS.map((fg) => {
+                const active = selectedGoalFilter === fg.v;
+                return (
+                  <button
+                    key={fg.v}
+                    onClick={() => setSelectedGoalFilter(fg.v)}
+                    className={`min-h-[34px] px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-150 active:scale-95 shrink-0 border ${
+                      active
+                        ? 'bg-lime-400 text-black border-lime-400 shadow-sm shadow-lime-400/20 font-black'
+                        : 'bg-[#0E1018] text-zinc-400 hover:text-white border-white/[0.08] hover:border-white/20'
+                    }`}
+                  >
+                    {fg.l}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── D. SKELETON LOADING STATE ── */}
+        {loading && (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((n) => (
+              <div
+                key={n}
+                className="bg-[#0E1018] border border-white/[0.06] rounded-3xl overflow-hidden h-[360px] animate-pulse space-y-4 p-4"
+              >
+                <div className="h-36 bg-white/[0.04] rounded-2xl" />
+                <div className="h-5 w-2/3 bg-white/[0.04] rounded-lg" />
+                <div className="h-4 w-full bg-white/[0.04] rounded-lg" />
+                <div className="h-9 w-full bg-white/[0.04] rounded-xl mt-6" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── E. EMPTY STATE (Sin Rutinas o Sin Resultados) ── */}
+        {!loading && routines.length === 0 && !showForm && (
+          <div className="animate-fadeInUp text-center py-20 bg-[#0E1018]/60 border border-white/[0.06] rounded-3xl space-y-5 px-6">
+            <div className="relative inline-block">
+              <div className="w-20 h-20 rounded-3xl bg-lime-400/10 border border-lime-400/25 flex items-center justify-center mx-auto text-lime-400 shadow-lg shadow-lime-400/5">
+                <LuDumbbell className="w-10 h-10 animate-pulse" />
               </div>
             </div>
             <div>
-              <p className="text-gray-300 text-xl font-semibold">Aún no tienes rutinas</p>
-              <p className="text-gray-500 mt-1">Crea tu primera rutina y comienza a transformar tu entrenamiento</p>
+              <h2 className="text-xl font-black text-white uppercase tracking-tight">
+                Aún no tienes rutinas registradas
+              </h2>
+              <p className="text-xs sm:text-sm text-zinc-400 max-w-sm mx-auto mt-1 font-medium">
+                Crea tu primera rutina manual o importa un plan desde PDF para comenzar a registrar sesiones.
+              </p>
             </div>
             <button
               onClick={() => setShowForm(true)}
-              className="bg-gradient-to-r from-primary to-indigo-600 hover:from-indigo-600 hover:to-primary px-8 py-3 rounded-2xl text-sm font-bold transition-all shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-[1.02] inline-flex items-center gap-2"
+              className="min-h-[46px] bg-lime-400 hover:bg-lime-300 text-slate-950 px-7 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 shadow-lg shadow-lime-400/25 active:scale-95 inline-flex items-center gap-2"
             >
-              <LuPlus className="w-5 h-5" /> Crear mi primera rutina
+              <LuPlus className="w-4 h-4 stroke-[3]" />
+              <span>Crear mi primera rutina</span>
             </button>
           </div>
         )}
 
-        {/* Routine cards */}
-        {routines.length > 0 && (
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {routines.map((r, idx) => {
+        {/* ── F. NO RESULTS WITH ACTIVE FILTERS ── */}
+        {!loading && routines.length > 0 && filteredRoutines.length === 0 && (
+          <div className="text-center py-16 bg-[#0E1018]/60 border border-white/[0.06] rounded-3xl space-y-4 px-6">
+            <p className="text-sm font-bold text-zinc-300">
+              No se encontraron rutinas con el filtro o término actual
+            </p>
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedGoalFilter('all');
+              }}
+              className="text-xs font-bold text-lime-400 hover:underline uppercase tracking-wider"
+            >
+              Restablecer filtros
+            </button>
+          </div>
+        )}
+
+        {/* ── G. ROUTINES HIGH-PERFORMANCE CARDS GRID ── */}
+        {!loading && filteredRoutines.length > 0 && (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {filteredRoutines.map((r, idx) => {
               const goal = getGoal(r.goal);
-              const dayCount = r.days?.length || 0;
               const allExs = (r.days || []).flatMap((d) => d.exercises || []);
               const legacyExs = r.exercises || [];
               const allExercises = allExs.length > 0 ? allExs : legacyExs;
               const exCount = allExercises.length;
               const duration = estimateDuration(allExercises);
-              const muscleGroups = [...new Set(
-                allExercises
-                  .map((e) => e.exercise?.muscleGroup)
-                  .filter(Boolean)
-              )];
+              const muscleGroups = [
+                ...new Set(
+                  allExercises
+                    .map((e) => e.exercise?.muscleGroup)
+                    .filter(Boolean)
+                ),
+              ];
               const cardImage = CARD_IMAGES[idx % CARD_IMAGES.length];
 
               return (
                 <Link
                   to={`/routines/${r._id}`}
                   key={r._id}
-                  className="animate-fadeInUp group relative bg-slate-800/80 backdrop-blur-sm rounded-2xl overflow-hidden hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 block border border-slate-700/50 hover:border-primary/40 hover:-translate-y-1"
-                  style={{ animationDelay: `${idx * 0.05}s` }}
+                  className="group relative bg-[#0E1018] rounded-3xl overflow-hidden border border-white/[0.08] hover:border-lime-400/40 hover:shadow-2xl hover:shadow-lime-400/5 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between"
                 >
-                  {/* Card image header */}
-                  <div className="relative h-36 overflow-hidden">
-                    <img
-                      src={cardImage}
-                      alt=""
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent" />
+                  <div>
+                    {/* Cover Photography with Athletic Vignette */}
+                    <div className="relative h-44 overflow-hidden">
+                      <img
+                        src={cardImage}
+                        alt=""
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#0E1018] via-[#0E1018]/60 to-transparent" />
 
-                    {/* Goal badge */}
-                    <div className={`absolute top-3 left-3 bg-gradient-to-r ${goal.color} px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 shadow-lg`}>
-                      <goal.Icon className="w-3.5 h-3.5" /> {goal.l}
-                    </div>
-
-                    {/* AI badge */}
-                    {r.isAIGenerated && (
-                      <div className="absolute top-3 right-3 bg-gradient-to-r from-violet-600/90 to-purple-600/90 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-lg border border-white/10">
-                        <LuSparkles className="w-3 h-3" /> IA
+                      {/* Goal Badge */}
+                      <div
+                        className={`absolute top-3 left-3 bg-gradient-to-r ${goal.color} px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-white flex items-center gap-1.5 shadow-lg shadow-black/40`}
+                      >
+                        <goal.Icon className="w-3.5 h-3.5" />
+                        <span>{goal.l}</span>
                       </div>
-                    )}
 
-                    {/* Delete button */}
-                    <button
-                      onClick={(e) => { e.preventDefault(); handleDelete(r._id); }}
-                      className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 bg-red-500/80 backdrop-blur-sm hover:bg-red-500 text-white p-1.5 rounded-full transition-all shadow-lg"
-                      title="Eliminar"
-                      style={{ right: r.isAIGenerated ? '5rem' : '0.75rem' }}
-                    >
-                      <LuTrash2 className="w-3.5 h-3.5" />
-                    </button>
-
-                    {/* Title overlay */}
-                    <div className="absolute bottom-3 left-4 right-4">
-                      <h3 className="font-bold text-lg text-white drop-shadow-lg truncate group-hover:text-primary transition-colors">
-                        {r.name}
-                      </h3>
-                    </div>
-                  </div>
-
-                  {/* Card body */}
-                  <div className="p-4 space-y-3">
-                    {r.description && (
-                      <p className="text-sm text-gray-400 line-clamp-2">{r.description}</p>
-                    )}
-
-                    {/* Day pills */}
-                    <div className="flex flex-wrap gap-1.5">
-                      {(r.days || []).map((d) => (
-                        <span key={d.dayLabel} className="bg-slate-700/60 text-xs px-2.5 py-1 rounded-lg flex items-center gap-1 border border-slate-600/30 font-medium">
-                          <LuCalendar className="w-3 h-3 text-primary" /> {d.dayLabel}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Stats */}
-                    <div className="flex items-center gap-3 pt-2 border-t border-slate-700/50">
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <div className="w-6 h-6 bg-primary/15 rounded-lg flex items-center justify-center">
-                          <LuTarget className="w-3.5 h-3.5 text-primary" />
-                        </div>
-                        <span className="text-primary font-bold">{exCount}</span>
-                        <span className="text-gray-500 text-xs">{exCount === 1 ? 'ejercicio' : 'ejercicios'}</span>
-                      </div>
-                      {exCount > 0 && (
-                        <div className="flex items-center gap-1.5 text-sm">
-                          <div className="w-6 h-6 bg-accent/15 rounded-lg flex items-center justify-center">
-                            <LuTimer className="w-3.5 h-3.5 text-accent" />
-                          </div>
-                          <span className="text-gray-400">~{formatDuration(duration)}</span>
+                      {/* AI Generated Badge */}
+                      {r.isAIGenerated && (
+                        <div className="absolute top-3 right-11 bg-gradient-to-r from-violet-600 to-purple-600 text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1 shadow-md border border-white/20">
+                          <LuSparkles className="w-3 h-3 text-amber-300" />
+                          <span>IA Coach</span>
                         </div>
                       )}
-                      <LuArrowRight className="w-4 h-4 text-gray-600 ml-auto group-hover:text-primary group-hover:translate-x-1 transition-all" />
+
+                      {/* Delete Button */}
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleDelete(r._id);
+                        }}
+                        className="absolute top-3 right-3 w-8 h-8 rounded-xl bg-black/60 hover:bg-rose-600 text-zinc-300 hover:text-white flex items-center justify-center transition-all duration-150 backdrop-blur-md border border-white/10 active:scale-90"
+                        title="Eliminar rutina"
+                      >
+                        <LuTrash2 className="w-4 h-4" />
+                      </button>
+
+                      {/* Card Title on Image */}
+                      <div className="absolute bottom-3 left-4 right-4">
+                        <h3 className="font-black text-xl text-white tracking-tight drop-shadow-md truncate group-hover:text-lime-400 transition-colors duration-200">
+                          {r.name}
+                        </h3>
+                      </div>
                     </div>
 
-                    {/* Muscle groups */}
-                    {muscleGroups.length > 0 && (
+                    {/* Card Content Body */}
+                    <div className="p-5 space-y-4">
+                      {r.description && (
+                        <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">
+                          {r.description}
+                        </p>
+                      )}
+
+                      {/* Scheduled Training Days */}
                       <div className="flex flex-wrap gap-1.5">
-                        {muscleGroups.slice(0, 4).map((mg) => (
-                          <span key={mg} className="bg-gradient-to-r from-primary/10 to-indigo-500/10 text-primary text-[10px] px-2.5 py-0.5 rounded-full capitalize font-semibold border border-primary/20">
-                            {mg}
+                        {(r.days || []).map((d) => (
+                          <span
+                            key={d.dayLabel}
+                            className="bg-white/[0.04] text-[11px] px-2.5 py-1 rounded-lg flex items-center gap-1 border border-white/[0.06] text-zinc-300 font-semibold"
+                          >
+                            <LuCalendar className="w-3 h-3 text-lime-400" />
+                            <span>{d.dayLabel}</span>
                           </span>
                         ))}
-                        {muscleGroups.length > 4 && (
-                          <span className="text-[10px] text-gray-500 px-1 py-0.5">
-                            +{muscleGroups.length - 4} más
-                          </span>
-                        )}
                       </div>
-                    )}
 
-                    {/* Empty routine hint */}
-                    {exCount === 0 && (
-                      <p className="text-xs text-amber-400/80 mt-1 flex items-center gap-1.5 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20">
-                        <LuTriangleAlert className="w-3.5 h-3.5" /> Sin ejercicios — toca para agregar
-                      </p>
-                    )}
+                      {/* Muscle Groups Covered */}
+                      {muscleGroups.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {muscleGroups.slice(0, 4).map((mg) => (
+                            <span
+                              key={mg}
+                              className="bg-lime-400/10 text-lime-400 text-[10px] px-2 py-0.5 rounded-md capitalize font-bold border border-lime-400/20"
+                            >
+                              {mg}
+                            </span>
+                          ))}
+                          {muscleGroups.length > 4 && (
+                            <span className="text-[10px] font-bold text-zinc-500 self-center">
+                              +{muscleGroups.length - 4} más
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Empty Routine Warning */}
+                      {exCount === 0 && (
+                        <p className="text-xs text-amber-400/90 flex items-center gap-1.5 bg-amber-500/10 px-3 py-2 rounded-xl border border-amber-500/20 font-medium">
+                          <LuTriangleAlert className="w-4 h-4 shrink-0" />
+                          <span>Sin ejercicios — toca para agregar</span>
+                        </p>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Card Bottom Telemetry & Primary Action Footer */}
+                  <div className="px-5 pb-5 pt-3 border-t border-white/[0.06] space-y-3">
+                    <div className="flex items-center justify-between text-xs">
+                      {/* Exercises Count */}
+                      <div className="flex items-center gap-1.5">
+                        <LuTarget className="w-3.5 h-3.5 text-lime-400" />
+                        <span className="font-black text-white">{exCount}</span>
+                        <span className="text-zinc-500 text-[11px] font-semibold">
+                          {exCount === 1 ? 'ejercicio' : 'ejercicios'}
+                        </span>
+                      </div>
+
+                      {/* Estimated Duration */}
+                      {exCount > 0 && (
+                        <div className="flex items-center gap-1.5 text-zinc-400 font-medium">
+                          <LuTimer className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>~{formatDuration(duration)}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Touch-Friendly Primary CTA (>= 44px) */}
+                    <div className="min-h-[44px] px-4 rounded-xl bg-white/[0.04] group-hover:bg-lime-400 border border-white/[0.08] group-hover:border-lime-400 flex items-center justify-between text-xs font-black uppercase tracking-wider text-zinc-300 group-hover:text-black transition-all duration-200">
+                      <span>Ver Rutina & Entrenar</span>
+                      <LuArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+
                 </Link>
               );
             })}
           </div>
         )}
-      </div>
+
+      </main>
     </div>
   );
 }

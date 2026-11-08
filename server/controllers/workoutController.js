@@ -21,14 +21,26 @@ async function estimateCalories(userId, exercises, durationMinutes) {
   return Math.round(avgMet * weightKg * (durationMinutes / 60));
 }
 
-// GET /api/workouts?from=2026-01-01&to=2026-01-31
+// A date-only bound (YYYY-MM-DD) for 'to' means the whole day is included.
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+// GET /api/workouts?from=2026-01-01&to=2026-01-31   (dates validated in the route)
 exports.list = async (req, res, next) => {
   try {
     const filter = { user: req.user._id };
-    if (req.query.from || req.query.to) {
+    const { from, to } = req.query;
+    if (from || to) {
       filter.date = {};
-      if (req.query.from) filter.date.$gte = new Date(req.query.from);
-      if (req.query.to) filter.date.$lte = new Date(req.query.to);
+      if (from) filter.date.$gte = new Date(from);
+      if (to) {
+        if (DATE_ONLY.test(to)) {
+          const end = new Date(to);
+          end.setUTCDate(end.getUTCDate() + 1);
+          filter.date.$lt = end;
+        } else {
+          filter.date.$lte = new Date(to);
+        }
+      }
     }
     const logs = await WorkoutLog.find(filter)
       .populate('exercises.exercise', 'name muscleGroup')
@@ -53,16 +65,58 @@ exports.getById = async (req, res, next) => {
   }
 };
 
+/*
+ * Whitelist of what a client may set on a workout. Anything else in the body
+ * (caloriesBurned, user, createdAt, unknown fields...) is ignored: calories are
+ * always computed here. Types and ranges are validated in routes/workouts.js.
+ */
+const toNumber = (v) => (v === '' || v === null || v === undefined ? 0 : Number(v));
+
+function pickWorkoutFields(body) {
+  const data = {};
+  if (body.date !== undefined) data.date = body.date;
+  if (body.routine) data.routine = body.routine;
+  if (body.durationMinutes !== undefined) data.durationMinutes = toNumber(body.durationMinutes);
+  if (body.notes !== undefined) data.notes = body.notes;
+  if (body.feeling !== undefined) data.feeling = body.feeling;
+  if (Array.isArray(body.exercises)) {
+    data.exercises = body.exercises.map((e) => ({
+      exercise: e.exercise,
+      sets: (Array.isArray(e.sets) ? e.sets : []).map((s, i) => ({
+        setNumber: toNumber(s.setNumber) || i + 1,
+        reps: toNumber(s.reps),
+        weight: toNumber(s.weight),
+        ...(s.rpe ? { rpe: toNumber(s.rpe) } : {}),
+      })),
+    }));
+  }
+  return data;
+}
+
 // POST /api/workouts
+// Idempotent when the client sends a clientId: repeating the same request
+// returns the workout already saved (200) instead of creating a duplicate.
 exports.create = async (req, res, next) => {
+  const userId = req.user._id;
+  const { clientId } = req.body;
   try {
-    const data = { ...req.body, user: req.user._id };
-    if (data.exercises?.length && data.durationMinutes) {
-      data.caloriesBurned = await estimateCalories(req.user._id, data.exercises, data.durationMinutes);
+    if (clientId) {
+      const existing = await WorkoutLog.findOne({ user: userId, clientId });
+      if (existing) return res.status(200).json(existing);
     }
+    const data = { ...pickWorkoutFields(req.body), user: userId };
+    if (clientId) data.clientId = clientId;
+    data.caloriesBurned = data.exercises?.length
+      ? await estimateCalories(userId, data.exercises, data.durationMinutes)
+      : 0;
     const log = await WorkoutLog.create(data);
     res.status(201).json(log);
   } catch (err) {
+    // Two identical requests raced past the lookup: return the one that won.
+    if (err.code === 11000 && clientId) {
+      const existing = await WorkoutLog.findOne({ user: userId, clientId }).catch(() => null);
+      if (existing) return res.status(200).json(existing);
+    }
     next(err);
   }
 };
@@ -70,16 +124,18 @@ exports.create = async (req, res, next) => {
 // PUT /api/workouts/:id
 exports.update = async (req, res, next) => {
   try {
-    const data = { ...req.body };
-    if (data.exercises?.length && data.durationMinutes) {
-      data.caloriesBurned = await estimateCalories(req.user._id, data.exercises, data.durationMinutes);
-    }
-    const log = await WorkoutLog.findOneAndUpdate(
-      { _id: req.params.id, user: req.user._id },
-      data,
-      { new: true, runValidators: true }
-    );
+    const log = await WorkoutLog.findOne({ _id: req.params.id, user: req.user._id });
     if (!log) return res.status(404).json({ message: 'Workout not found' });
+
+    const data = pickWorkoutFields(req.body);
+    log.set(data);
+    // Recompute calories from the merged result whenever what they depend on changed.
+    if ('exercises' in data || 'durationMinutes' in data) {
+      log.caloriesBurned = log.exercises.length
+        ? await estimateCalories(req.user._id, log.exercises, log.durationMinutes)
+        : 0;
+    }
+    await log.save();
     res.json(log);
   } catch (err) {
     next(err);

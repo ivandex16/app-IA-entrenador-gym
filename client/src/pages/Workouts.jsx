@@ -18,7 +18,9 @@ import useRestDefaults, { normalizeRest } from '../components/workouts/useRestDe
 import RestConfigPanel from '../components/workouts/RestConfigPanel';
 import RestDoneFlash from '../components/workouts/RestDoneFlash';
 import { primeRestAudio } from '../components/workouts/restAlert';
-import { fmtTime, fmtPreset, secondsSince, FEELINGS } from '../components/workouts/workoutUtils';
+import {
+  fmtTime, fmtPreset, secondsSince, FEELINGS, todayLocalISO, localDayToInstant,
+} from '../components/workouts/workoutUtils';
 import { loadWorkoutDraft, saveWorkoutDraft, clearWorkoutDraft } from '../components/workouts/workoutDraft';
 import { useAuth } from '../context/AuthContext';
 
@@ -30,7 +32,7 @@ const newClientId = () =>
 
 const emptyForm = () => ({
   clientId: newClientId(),
-  date: new Date().toISOString().slice(0, 10),
+  date: todayLocalISO(),
   notes: '',
   feeling: 'good',
   exercises: [],
@@ -118,6 +120,9 @@ export default function Workouts() {
 
   /* ── Completed sets tracking: completedSets[exerciseIdx-setIdx] = true ── */
   const [completedSets, setCompletedSets] = useState(() => draft?.completedSets || {});
+  // Latest value, readable synchronously by event handlers (see completeSet).
+  const completedSetsRef = useRef(completedSets);
+  completedSetsRef.current = completedSets;
 
   /* ── Exercise preview modal ── */
   const [previewExercise, setPreviewExercise] = useState(null);
@@ -215,24 +220,27 @@ export default function Workouts() {
     // Checking a set before pressing INICIAR starts the session clock automatically.
     if (!isActive) beginSession();
 
+    // Work from the ref, not the `completedSets` of this render: two quick taps
+    // run before React re-renders, and the second one must see the first.
+    const current = completedSetsRef.current;
+
     // Toggle off if already done
-    if (completedSets[key]) {
-      setCompletedSets((prev) => {
-        const next = { ...prev };
-        delete next[key];
-        return next;
-      });
+    if (current[key]) {
+      const next = { ...current };
+      delete next[key];
+      completedSetsRef.current = next;
+      setCompletedSets(next);
       return;
     }
 
     // Mark as completed
-    setCompletedSets((prev) => ({ ...prev, [key]: true }));
+    const next = { ...current, [key]: true };
+    completedSetsRef.current = next;
+    setCompletedSets(next);
 
-    // Determine if this was the last set of this exercise
+    // Was this the last pending set of this exercise?
     const exerciseSets = form.exercises[exIdx]?.sets || [];
-    const allDone = exerciseSets.every((_, si) =>
-      si === setIdx || completedSets[`${exIdx}-${si}`]
-    );
+    const allDone = exerciseSets.every((_, si) => next[`${exIdx}-${si}`]);
 
     lastExIdxRef.current = exIdx;
     startRestTimer(allDone ? 'exercise' : 'set', exIdx);
@@ -283,7 +291,8 @@ export default function Workouts() {
     savingRef.current = true;
     setSaving(true);
     try {
-      return await api.post('/workouts', payload);
+      // The picker holds a local day; send the instant it represents (see localDayToInstant).
+      return await api.post('/workouts', { ...payload, date: localDayToInstant(payload.date) });
     } finally {
       savingRef.current = false;
       setSaving(false);

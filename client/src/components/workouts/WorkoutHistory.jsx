@@ -2,7 +2,7 @@ import { memo } from 'react';
 import {
   LuActivity, LuPlus, LuHistory, LuClock, LuDumbbell, LuTarget, LuTrendingUp,
 } from 'react-icons/lu';
-import { FEELINGS } from './workoutUtils';
+import { FEELINGS, workoutDisplayDate } from './workoutUtils';
 
 /* Per-session metrics shown on a history card. */
 function summarize(log) {
@@ -33,7 +33,7 @@ const WorkoutCard = memo(function WorkoutCard({ log }) {
   const feeling = FEELINGS.find((f) => f.v === log.feeling) || FEELINGS[1];
   const FeelingIcon = feeling.Icon;
   const { exerciseNames, totalSets, maxWeight } = summarize(log);
-  const date = new Date(log.date);
+  const date = workoutDisplayDate(log.date);
 
   return (
     <div className="group bg-zinc-900 border border-white/10 hover:border-lime-400/40 rounded-2xl p-5 transition-all duration-200 shadow-md space-y-4">

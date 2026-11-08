@@ -2,6 +2,9 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
+import RestConfigPanel from '../components/workouts/RestConfigPanel';
+import useRestDefaults from '../components/workouts/useRestDefaults';
+import { fmtPreset } from '../components/workouts/workoutUtils';
 import {
   LuActivity,
   LuDumbbell,
@@ -120,6 +123,10 @@ export default function RoutineDetail() {
   const [editingDayLabel, setEditingDayLabel] = useState(null);
   const [dayLabelValue, setDayLabelValue] = useState('');
   const [showAddDay, setShowAddDay] = useState(false);
+
+  // — Rest times chosen before starting (saved as the user's defaults) —
+  const [restDefaults, setRestDefaults] = useRestDefaults();
+  const [showRestSetup, setShowRestSetup] = useState(false);
 
   // — Days horizontal scroll & drag system —
   const daysScrollRef = useRef(null);
@@ -439,6 +446,8 @@ export default function RoutineDetail() {
     const exercises = getCurrentDayExercises();
     const preloaded = exercises.map((e) => ({
       exercise: e.exercise?._id || e.exercise,
+      // Rest between this exercise's sets, as set up in the routine (overrides the global value).
+      restSeconds: Number(e.restSeconds) > 0 ? Number(e.restSeconds) : undefined,
       sets: Array.from({ length: e.sets }, (_, si) => ({
         setNumber: si + 1,
         reps: e.repsMin,
@@ -446,7 +455,12 @@ export default function RoutineDetail() {
       })),
     }));
     navigate('/workouts', {
-      state: { preloaded, routineName: `${routine.name} — ${getCurrentDayLabel()}` },
+      state: {
+        preloaded,
+        routineName: `${routine.name} — ${getCurrentDayLabel()}`,
+        // Pre-configured rest times: the workout screen uses them as its initial plan.
+        restConfig: restDefaults,
+      },
     });
   };
 
@@ -863,6 +877,37 @@ export default function RoutineDetail() {
               </div>
 
               {/* Integrated Dominant Action Button */}
+              {/* Rest times set up before starting */}
+              {exercises.length > 0 && (
+                <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+                  <button
+                    type="button"
+                    onClick={() => setShowRestSetup((v) => !v)}
+                    aria-expanded={showRestSetup}
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+                  >
+                    <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-300">
+                      <LuTimer className="w-4 h-4 text-lime-400" />
+                      Descansos
+                    </span>
+                    <span className="flex items-center gap-2 text-xs font-mono font-bold">
+                      <span className="text-lime-400">{fmtPreset(restDefaults.betweenSets)}</span>
+                      <span className="text-zinc-600">/</span>
+                      <span className="text-cyan-400">{fmtPreset(restDefaults.betweenExercises)}</span>
+                      <LuChevronDown className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${showRestSetup ? 'rotate-180' : ''}`} />
+                    </span>
+                  </button>
+                  {showRestSetup && (
+                    <div className="px-3 pb-3 space-y-2 animate-fadeIn">
+                      <RestConfigPanel value={restDefaults} onChange={setRestDefaults} />
+                      <p className="text-[11px] text-zinc-500 px-1">
+                        Se usarán al iniciar y quedan guardados como tus predeterminados. Podrás ajustarlos durante el entreno.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {exercises.length > 0 && (
                 <button
                   onClick={startDay}

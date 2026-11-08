@@ -6,7 +6,7 @@ import { fmtTime, secondsSince } from './workoutUtils';
  * every second: the parent stores just the start timestamp, so its tree
  * (form, set rows, history) no longer re-renders on each tick.
  */
-export default function ElapsedTime({ startTime, isActive }) {
+export default function ElapsedTime({ startTime, isActive, withHours = false }) {
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -15,5 +15,5 @@ export default function ElapsedTime({ startTime, isActive }) {
     return () => clearInterval(id);
   }, [isActive, startTime]);
 
-  return fmtTime(isActive ? secondsSince(startTime) : 0);
+  return fmtTime(isActive ? secondsSince(startTime) : 0, withHours);
 }

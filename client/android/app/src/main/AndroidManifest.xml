@@ -38,4 +38,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Vibration when a rest timer ends (navigator.vibrate) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>

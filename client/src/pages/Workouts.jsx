@@ -1,30 +1,49 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import {
   LuDumbbell, LuFlame, LuCalendar, LuTrophy, LuBrain, LuZap, LuDroplets,
   LuMedal, LuTrendingUp, LuSunrise, LuGem, LuBot, LuBrickWall,
-  LuRefreshCw, LuHourglass, LuTimer, LuPlay, LuSquare,
-  LuEye, LuClipboardList, LuLightbulb, LuClock, LuPlus,
-  LuTarget, LuCheck, LuTrash2, LuMinus,
+  LuTimer, LuSquare, LuHourglass,
+  LuEye, LuClipboardList, LuLightbulb, LuPlus,
+  LuCheck, LuTrash2, LuMinus,
   LuChevronDown
 } from 'react-icons/lu';
 import WorkoutHistory from '../components/workouts/WorkoutHistory';
 import HistoryStats from '../components/workouts/HistoryStats';
 import ElapsedTime from '../components/workouts/ElapsedTime';
-import RestOverlay from '../components/workouts/RestOverlay';
-import { fmtTime, secondsSince, FEELINGS } from '../components/workouts/workoutUtils';
+import SessionBar from '../components/workouts/SessionBar';
+import useRestDefaults, { normalizeRest } from '../components/workouts/useRestDefaults';
+import RestConfigPanel from '../components/workouts/RestConfigPanel';
+import RestDoneFlash from '../components/workouts/RestDoneFlash';
+import { primeRestAudio } from '../components/workouts/restAlert';
+import { fmtTime, fmtPreset, secondsSince, FEELINGS } from '../components/workouts/workoutUtils';
+import { loadWorkoutDraft, saveWorkoutDraft, clearWorkoutDraft } from '../components/workouts/workoutDraft';
+import { useAuth } from '../context/AuthContext';
 
-/* ───── helpers ───── */
-function fmtPreset(sec) {
-  if (sec >= 60 && sec % 60 === 0) {
-    return `${sec / 60}m`;
+/* Id for one workout session; sent on save so the server can ignore repeats. */
+const newClientId = () =>
+  (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+
+const emptyForm = () => ({
+  clientId: newClientId(),
+  date: new Date().toISOString().slice(0, 10),
+  notes: '',
+  feeling: 'good',
+  exercises: [],
+});
+
+/* Readable message from a failed save (express-validator returns { errors: [...] }). */
+function saveErrorMessage(err) {
+  const data = err.response?.data;
+  if (Array.isArray(data?.errors) && data.errors.length) {
+    return `Revisa los datos: ${data.errors.map((e) => e.msg).slice(0, 2).join(', ')}`;
   }
-  if (sec >= 60) {
-    return `${Math.floor(sec / 60)}m ${sec % 60}s`;
-  }
-  return `${sec}s`;
+  if (!err.response) return 'Sin conexión. Tu entreno sigue guardado aquí; vuelve a intentarlo.';
+  return data?.message || 'Error al guardar';
 }
 
 const MOTIVATIONAL_MESSAGES = [
@@ -45,37 +64,60 @@ const MOTIVATIONAL_MESSAGES = [
   { text: "Roma no se construyó en un día, pero pusieron ladrillos cada día.", Icon: LuBrickWall },
 ];
 
-const REST_SET_PRESETS = [45, 60, 90, 120, 180];
-const REST_EX_PRESETS = [60, 120, 180, 240, 300];
-
 export default function Workouts() {
   const location = useLocation();
+  const { user } = useAuth();
+  const draftUserId = user?._id || user?.id;
+
+  /* ── Saved draft ──
+     If the user left this page (or the app) with a workout open, pick it up
+     again: every piece of session state below starts from it. */
+  const [draft] = useState(() => loadWorkoutDraft(draftUserId));
+
   const [logs, setLogs] = useState([]);
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(Boolean(draft));
   const [exercises, setExercises] = useState([]);
   const [showRestConfig, setShowRestConfig] = useState(false);
-  const [form, setForm] = useState({
-    date: new Date().toISOString().slice(0, 10),
-    notes: '',
-    feeling: 'good',
-    exercises: [],
-  });
+  const [form, setForm] = useState(() =>
+    draft?.form ? { clientId: newClientId(), ...draft.form } : emptyForm()
+  );
 
   /* ── Timer state ──
      Only the start timestamp lives here; <ElapsedTime> derives and renders the
      running seconds itself, so the chronometer tick doesn't re-render this page. */
-  const [isActive, setIsActive] = useState(false);        // workout in progress
-  const [startTime, setStartTime] = useState(null);
+  const [isActive, setIsActive] = useState(Boolean(draft?.isActive)); // workout in progress
+  const [startTime, setStartTime] = useState(draft?.startTime ?? null);
 
-  /* ── Rest timer state ── */
-  const [restBetweenSets, setRestBetweenSets] = useState(90);      // seconds
-  const [restBetweenExercises, setRestBetweenExercises] = useState(180); // seconds
+  /* ── Rest durations: three layers ──
+     1. restDefaults – saved on the device; edited before starting (here or on the routine screen).
+     2. plannedRest  – what this workout will start with. Seeded from the routine screen
+                       (navigation state) or from the defaults.
+     3. sessionRest  – snapshot of plannedRest taken when the session starts. Edits made
+                       while training change only this one (temporary override).
+     restConfig is the value in effect right now. */
+  const [restDefaults, setRestDefaults] = useRestDefaults();
+  const [plannedRest, setPlannedRest] = useState(
+    () => normalizeRest(location.state?.restConfig) || normalizeRest(draft?.plannedRest) || restDefaults
+  );
+  const [sessionRest, setSessionRest] = useState(() => normalizeRest(draft?.sessionRest));
+  const restConfig = isActive && sessionRest ? sessionRest : plannedRest;
+
+  const updateRestConfig = useCallback((next) => {
+    if (isActive) {
+      setSessionRest(next); // live tweak: this session only
+    } else {
+      setPlannedRest(next); // pre-start: becomes the plan…
+      setRestDefaults(next); // …and the saved default
+    }
+  }, [isActive, setRestDefaults]);
   // Active rest: { type: 'set' | 'exercise', endsAt: ms timestamp, total: seconds } or null.
-  // Only the end time is stored; <RestOverlay> renders the countdown itself.
-  const [rest, setRest] = useState(null);
+  // Only the end time is stored; <RestTimer> (inside <SessionBar>) renders the countdown itself.
+  const [rest, setRest] = useState(draft?.rest ?? null);
+  // Last natural end of a rest ({ type, at }), used to play the screen-edge glow once.
+  const [restDone, setRestDone] = useState(null);
 
   /* ── Completed sets tracking: completedSets[exerciseIdx-setIdx] = true ── */
-  const [completedSets, setCompletedSets] = useState({});
+  const [completedSets, setCompletedSets] = useState(() => draft?.completedSets || {});
 
   /* ── Exercise preview modal ── */
   const [previewExercise, setPreviewExercise] = useState(null);
@@ -94,31 +136,85 @@ export default function Workouts() {
     api.get('/exercises').then((r) => setExercises(r.data));
   }, []);
 
-  // Pre-load exercises from a routine via navigation state
+  /* ── Keep the draft in sync ──
+     While the form is open everything is saved on each change; closing it
+     (finish, save, discard or close) removes the draft. */
   useEffect(() => {
-    if (location.state?.preloaded) {
+    if (!showForm) {
+      clearWorkoutDraft(draftUserId);
+      return;
+    }
+    saveWorkoutDraft(draftUserId, { form, isActive, startTime, completedSets, rest, sessionRest, plannedRest });
+  }, [draftUserId, showForm, form, isActive, startTime, completedSets, rest, sessionRest, plannedRest]);
+
+  // Tell the user once when a running workout was recovered.
+  useEffect(() => {
+    if (draft?.isActive) toast('Recuperamos tu entrenamiento en curso', { icon: '⏱️', id: 'draft-restored' });
+  }, [draft]);
+
+  // Pre-load exercises (and pre-configured rest times) from a routine via navigation state
+  const handledNavStateRef = useRef(null);
+  useEffect(() => {
+    if (!location.state?.preloaded && !location.state?.restConfig) return;
+    // Handle each navigation only once (StrictMode runs effects twice in development).
+    if (handledNavStateRef.current === location.state) return;
+    handledNavStateRef.current = location.state;
+    window.history.replaceState({}, '');
+
+    // Never silently replace a workout that is already running.
+    if (draft?.isActive && !window.confirm(
+      'Tienes un entrenamiento en curso. ¿Descartarlo y empezar esta rutina?'
+    )) return;
+
+    const routineRest = normalizeRest(location.state.restConfig);
+    if (routineRest) setPlannedRest(routineRest);
+    if (location.state.preloaded) {
+      if (draft) {
+        // Starting fresh from the routine: drop the recovered session.
+        setIsActive(false);
+        setStartTime(null);
+        setSessionRest(null);
+        setRest(null);
+        setCompletedSets({});
+      }
       setForm((prev) => ({
-        ...prev,
+        ...(draft ? emptyForm() : prev),
         notes: location.state.routineName ? `Rutina: ${location.state.routineName}` : '',
         exercises: location.state.preloaded,
       }));
       setShowForm(true);
-      window.history.replaceState({}, '');
     }
-  }, [location.state]);
+  }, [location.state, draft]);
 
-  /* ── Start workout session ── */
-  const startWorkout = () => {
+  /* ── Start workout session ──
+     The pre-configured plan becomes the session's initial rest state. */
+  const beginSession = useCallback(() => {
     setIsActive(true);
     setStartTime(Date.now());
+    setSessionRest(plannedRest);
+  }, [plannedRest]);
+
+  const startWorkout = useCallback(() => {
+    beginSession();
     setCompletedSets({});
     setRest(null);
+  }, [beginSession]);
+
+  const endSession = () => {
+    setIsActive(false);
+    setStartTime(null);
+    setSessionRest(null); // drop live tweaks; the next session starts from the plan again
+    setRest(null);
+    lastExIdxRef.current = null;
   };
 
   /* ── Complete / Toggle a set ── */
   const completeSet = (exIdx, setIdx) => {
     const key = `${exIdx}-${setIdx}`;
-    
+
+    // Checking a set before pressing INICIAR starts the session clock automatically.
+    if (!isActive) beginSession();
+
     // Toggle off if already done
     if (completedSets[key]) {
       setCompletedSets((prev) => {
@@ -138,32 +234,69 @@ export default function Workouts() {
       si === setIdx || completedSets[`${exIdx}-${si}`]
     );
 
-    if (allDone) {
-      startRestTimer('exercise');
-    } else {
-      startRestTimer('set');
-    }
+    lastExIdxRef.current = exIdx;
+    startRestTimer(allDone ? 'exercise' : 'set', exIdx);
 
     toast.success(`Serie ${setIdx + 1} completada ✓`);
   };
 
-  const startRestTimer = (type) => {
-    const seconds = type === 'exercise' ? restBetweenExercises : restBetweenSets;
-    setRest({ type, endsAt: Date.now() + seconds * 1000, total: seconds });
-  };
+  // Read through refs so startRestTimer stays stable for the memoized <SessionBar>
+  // even though the form changes on every keystroke.
+  const formExercisesRef = useRef(form.exercises);
+  formExercisesRef.current = form.exercises;
+  const lastExIdxRef = useRef(null); // exercise of the last checked set (for the manual "Serie" button)
 
-  // Stable callbacks for <RestOverlay> so its interval isn't restarted on every render.
+  /* Rest length:
+     - between sets: the exercise's own rest from the routine (restSeconds) if it has one,
+       otherwise the session's "entre series" value;
+     - between exercises: always the session's "entre ejercicios" value. */
+  const startRestTimer = useCallback((type, exIdx = lastExIdxRef.current) => {
+    // Always called from a tap: unlock audio now so the end beep can play on mobile.
+    primeRestAudio();
+    const exerciseRest = Number(formExercisesRef.current[exIdx]?.restSeconds);
+    const seconds = type === 'exercise'
+      ? restConfig.betweenExercises
+      : exerciseRest > 0 ? exerciseRest : restConfig.betweenSets;
+    setRest({ type, endsAt: Date.now() + seconds * 1000, total: seconds });
+  }, [restConfig.betweenSets, restConfig.betweenExercises]);
+
+  // Stable callbacks for <RestTimer> so its interval isn't restarted on every render.
   const clearRest = useCallback(() => setRest(null), []);
+  // Natural end (not skipped): <RestTimer> already played sound, vibration and
+  // the notification; here we just trigger the edge glow.
+  const handleRestDone = useCallback((type) => {
+    setRest(null);
+    setRestDone({ type, at: Date.now() });
+  }, []);
   const addRestTime = useCallback((sec) => {
     setRest((r) => r && { ...r, endsAt: r.endsAt + sec * 1000, total: r.total + sec });
   }, []);
+
+  /* ── Saving ──
+     savingRef blocks a second submit synchronously (a double tap fires before
+     React re-renders); `saving` only drives the disabled/loading UI. The form's
+     clientId makes the server return the same workout if a request repeats anyway. */
+  const savingRef = useRef(false);
+  const [saving, setSaving] = useState(false);
+  const saveWorkout = async (payload) => {
+    if (savingRef.current) return null;
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      return await api.post('/workouts', payload);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  };
 
   /* ── Finish workout ── */
   const finishWorkout = async () => {
     const elapsedSec = secondsSince(startTime);
     const durationMinutes = Math.round(elapsedSec / 60);
     try {
-      const res = await api.post('/workouts', { ...form, durationMinutes });
+      const res = await saveWorkout({ ...form, durationMinutes });
+      if (!res) return; // a save is already in progress
       const msg = MOTIVATIONAL_MESSAGES[Math.floor(Math.random() * MOTIVATIONAL_MESSAGES.length)];
       setWorkoutSummary({
         duration: fmtTime(elapsedSec),
@@ -173,16 +306,20 @@ export default function Workouts() {
       });
       setMotivationalMsg(msg);
       setShowForm(false);
-      setIsActive(false);
-      setStartTime(null);
-      setRest(null);
+      endSession();
       setCompletedSets({});
-      setForm({ date: new Date().toISOString().slice(0, 10), notes: '', feeling: 'good', exercises: [] });
+      setForm(emptyForm());
       load();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Error al guardar');
+      toast.error(saveErrorMessage(err));
     }
   };
+
+  // finishWorkout changes whenever the form does; the memoized <SessionBar> gets a
+  // stable wrapper that always calls the latest version through a ref.
+  const finishWorkoutRef = useRef(finishWorkout);
+  finishWorkoutRef.current = finishWorkout;
+  const handleFinish = useCallback(() => finishWorkoutRef.current(), []);
 
   const addExercise = () => {
     setForm({
@@ -200,35 +337,42 @@ export default function Workouts() {
       finishWorkout();
     } else {
       try {
-        await api.post('/workouts', form);
+        const res = await saveWorkout(form);
+        if (!res) return; // a save is already in progress
         toast.success('¡Entrenamiento registrado!');
         setShowForm(false);
-        setForm({ date: new Date().toISOString().slice(0, 10), notes: '', feeling: 'good', exercises: [] });
+        setForm(emptyForm());
         load();
       } catch (err) {
-        toast.error(err.response?.data?.message || 'Error');
+        toast.error(saveErrorMessage(err));
       }
     }
   };
 
-  /* ── Historical Reference Helper ── */
-  const getPreviousSetReference = useCallback((exerciseId, setIdx) => {
-    if (!logs || logs.length === 0 || !exerciseId) return '—';
+  /* ── Historical Reference Helper ──
+     Index built once per `logs` change: exerciseId → that exercise's set lists,
+     newest session first. Each set row then looks up only its own exercise
+     instead of scanning every past session on every render. */
+  const setsByExercise = useMemo(() => {
+    const index = new Map();
     for (const log of logs) {
-      if (!log.exercises) continue;
-      const foundEx = log.exercises.find((e) => {
+      for (const e of log.exercises || []) {
         const id = typeof e.exercise === 'object' ? e.exercise?._id : e.exercise;
-        return id === exerciseId;
-      });
-      if (foundEx && foundEx.sets && foundEx.sets[setIdx]) {
-        const s = foundEx.sets[setIdx];
-        if (s.weight > 0 || s.reps > 0) {
-          return `${s.weight}kg × ${s.reps}`;
-        }
+        if (!id || !e.sets) continue;
+        if (!index.has(id)) index.set(id, []);
+        index.get(id).push(e.sets);
       }
     }
-    return '—';
+    return index;
   }, [logs]);
+
+  const getPreviousSetReference = useCallback((exerciseId, setIdx) => {
+    for (const sets of setsByExercise.get(exerciseId) || []) {
+      const s = sets[setIdx];
+      if (s && (s.weight > 0 || s.reps > 0)) return `${s.weight}kg × ${s.reps}`;
+    }
+    return '—';
+  }, [setsByExercise]);
 
   /* ── Telemetry calculations ── */
   const totalSetsCount = useMemo(() => {
@@ -254,6 +398,7 @@ export default function Workouts() {
 
   return (
     <div className="min-h-screen bg-[#08090D] text-zinc-100 pb-28 selection:bg-lime-400 selection:text-black">
+      {restDone && <RestDoneFlash key={restDone.at} type={restDone.type} />}
       {/* ══════════════════════════════════════════════════════════════════════
           HERO BANNER CON IMAGEN DE FONDO ORIGINAL (Siempre visible en la parte superior)
           ══════════════════════════════════════════════════════════════════════ */}
@@ -308,23 +453,6 @@ export default function Workouts() {
               {/* Estadísticas de cabecera en modo vista previa */}
               {logs.length > 0 && !showForm && <HistoryStats logs={logs} />}
 
-              {/* Telemetría activa en cabecera en modo entrenamiento */}
-              {showForm && (
-                <div className="flex items-center gap-2.5 mt-4 flex-wrap">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/15 text-xs font-mono font-bold text-white shadow-lg">
-                    <LuClock className="w-3.5 h-3.5 text-lime-400" />
-                    <ElapsedTime startTime={startTime} isActive={isActive} />
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/15 text-xs font-mono font-bold text-cyan-400 shadow-lg">
-                    <LuTarget className="w-3.5 h-3.5" />
-                    {completedSetsCount}/{totalSetsCount} series
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/15 text-xs font-mono font-bold text-amber-400 shadow-lg">
-                    <LuDumbbell className="w-3.5 h-3.5" />
-                    {totalVolumeKg.toLocaleString()} kg
-                  </span>
-                </div>
-              )}
             </div>
 
             {/* Acciones principales en el banner */}
@@ -336,34 +464,13 @@ export default function Workouts() {
                     onClick={() => {
                       if (isActive && !window.confirm('¿Deseas descartar este entrenamiento en curso?')) return;
                       setShowForm(false);
-                      setIsActive(false);
-                      setStartTime(null);
-                      setRest(null);
+                      endSession();
                     }}
                     className="px-4 sm:px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-white/15 text-xs sm:text-sm font-bold transition-all shadow-md"
                   >
                     {isActive ? 'Descartar' : 'Cerrar'}
                   </button>
 
-                  {isActive ? (
-                    <button
-                      type="button"
-                      onClick={finishWorkout}
-                      className="px-5 sm:px-6 py-3 rounded-xl bg-lime-400 hover:bg-lime-300 text-zinc-950 font-black text-xs sm:text-sm tracking-wide shadow-xl shadow-lime-400/25 active:scale-95 transition-all flex items-center gap-2"
-                    >
-                      <LuSquare className="w-4 h-4 fill-zinc-950" /> TERMINAR
-                    </button>
-                  ) : (
-                    form.exercises.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={startWorkout}
-                        className="px-5 sm:px-6 py-3 rounded-xl bg-lime-400 hover:bg-lime-300 text-zinc-950 font-black text-xs sm:text-sm tracking-wide shadow-xl shadow-lime-400/25 active:scale-95 transition-all flex items-center gap-2"
-                      >
-                        <LuPlay className="w-4 h-4 fill-zinc-950" /> INICIAR
-                      </button>
-                    )
-                  )}
                 </>
               ) : (
                 <button
@@ -386,10 +493,26 @@ export default function Workouts() {
       <div className="max-w-5xl mx-auto px-4 mt-6 space-y-4">
         {showForm ? (
           <div className="space-y-4">
-            {/* ── Overlay flotante de descanso cuando está activo ── */}
-            {isActive && rest && (
-              <RestOverlay rest={rest} onAddTime={addRestTime} onSkip={clearRest} onDone={clearRest} />
-            )}
+            {/* ── Barra fija bajo la navbar: cronómetro de sesión + descanso compacto ──
+                Una sola fila que se mantiene visible al hacer scroll sin tapar los ejercicios. */}
+            <div className="sticky top-[74px] z-40">
+              <SessionBar
+                isActive={isActive}
+                startTime={startTime}
+                completedSets={completedSetsCount}
+                totalSets={totalSetsCount}
+                volumeKg={totalVolumeKg}
+                canStart={form.exercises.length > 0}
+                rest={isActive ? rest : null}
+                saving={saving}
+                onStart={startWorkout}
+                onFinish={handleFinish}
+                onStartRest={startRestTimer}
+                onAddRestTime={addRestTime}
+                onSkipRest={clearRest}
+                onRestDone={handleRestDone}
+              />
+            </div>
 
             {/* ── Barra táctica de sesión (Fecha, Ánimo y Descansos) ── */}
             <div className="bg-zinc-900 border border-white/10 rounded-2xl p-4 space-y-3 shadow-xl">
@@ -434,100 +557,46 @@ export default function Workouts() {
                 <button
                   type="button"
                   onClick={() => setShowRestConfig(!showRestConfig)}
+                  aria-expanded={showRestConfig}
                   className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-white/10 text-xs font-bold text-zinc-200 hover:text-white flex items-center gap-1.5 transition-colors"
                 >
                   <LuTimer className="w-4 h-4 text-lime-400" />
                   <span>Descansos</span>
+                  <span className="font-mono text-zinc-400">
+                    {fmtPreset(restConfig.betweenSets)} / {fmtPreset(restConfig.betweenExercises)}
+                  </span>
                   <LuChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showRestConfig ? 'rotate-180' : ''}`} />
                 </button>
               </div>
 
-              {/* Pestaña expandible de configuración de descansos */}
+              {/* Configuración de descansos: antes de iniciar edita el plan (y el predeterminado);
+                  con la sesión en marcha solo ajusta esta sesión. */}
               {showRestConfig && (
-                <div className="pt-3 border-t border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fadeIn">
-                  {/* Entre series */}
-                  <div className="bg-zinc-950 border border-white/10 rounded-xl p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                        <LuHourglass className="w-3.5 h-3.5 text-lime-400" /> Entre series:
-                      </span>
-                      <span className="text-xs font-mono font-bold text-lime-400">
-                        {fmtPreset(restBetweenSets)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => setRestBetweenSets((prev) => Math.max(15, prev - 15))}
-                        className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold"
-                      >
-                        -15s
-                      </button>
-                      {REST_SET_PRESETS.map((sec) => (
-                        <button
-                          key={sec}
-                          type="button"
-                          onClick={() => setRestBetweenSets(sec)}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
-                            restBetweenSets === sec
-                              ? 'bg-lime-400 text-zinc-950'
-                              : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-                          }`}
-                        >
-                          {fmtPreset(sec)}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => setRestBetweenSets((prev) => Math.min(600, prev + 15))}
-                        className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold"
-                      >
-                        +15s
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Entre ejercicios */}
-                  <div className="bg-zinc-950 border border-white/10 rounded-xl p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                        <LuRefreshCw className="w-3.5 h-3.5 text-cyan-400" /> Entre ejercicios:
-                      </span>
-                      <span className="text-xs font-mono font-bold text-cyan-400">
-                        {fmtPreset(restBetweenExercises)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => setRestBetweenExercises((prev) => Math.max(30, prev - 30))}
-                        className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold"
-                      >
-                        -30s
-                      </button>
-                      {REST_EX_PRESETS.map((sec) => (
-                        <button
-                          key={sec}
-                          type="button"
-                          onClick={() => setRestBetweenExercises(sec)}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
-                            restBetweenExercises === sec
-                              ? 'bg-cyan-400 text-zinc-950'
-                              : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-                          }`}
-                        >
-                          {fmtPreset(sec)}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => setRestBetweenExercises((prev) => Math.min(900, prev + 30))}
-                        className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold"
-                      >
-                        +30s
-                      </button>
-                    </div>
-                  </div>
+                <div className="pt-3 border-t border-white/10 space-y-3 animate-fadeIn">
+                  <p className="text-[11px] text-zinc-400">
+                    {isActive
+                      ? 'Ajuste solo para esta sesión: tus tiempos predeterminados no cambian.'
+                      : 'Se aplicarán al iniciar y quedan guardados como predeterminados. El descanso empieza solo al marcar una serie ✓.'}
+                  </p>
+                  {form.exercises.some((e) => e.restSeconds > 0) && (
+                    <p className="text-[11px] text-lime-400/90 flex items-center gap-1.5">
+                      <LuHourglass className="w-3.5 h-3.5 shrink-0" />
+                      Los ejercicios con descanso propio de la rutina (⏳ en su tarjeta) usan ese tiempo entre series.
+                    </p>
+                  )}
+                  <RestConfigPanel value={restConfig} onChange={updateRestConfig} />
+                  {isActive && (restConfig.betweenSets !== restDefaults.betweenSets || restConfig.betweenExercises !== restDefaults.betweenExercises) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRestDefaults(restConfig);
+                        setPlannedRest(restConfig); // the next session starts from these too
+                      }}
+                      className="text-[11px] font-bold text-lime-400 hover:text-lime-300 underline underline-offset-2"
+                    >
+                      Guardar estos tiempos como predeterminados
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -570,6 +639,15 @@ export default function Workouts() {
 
                       {/* Botones de acción del ejercicio */}
                       <div className="flex items-center gap-2 shrink-0">
+                        {ex.restSeconds > 0 && (
+                          <span
+                            className="h-10 px-2.5 rounded-xl bg-lime-400/10 border border-lime-400/20 text-lime-400 text-xs font-mono font-bold flex items-center gap-1"
+                            title="Descanso entre series de este ejercicio (definido en la rutina)"
+                          >
+                            <LuHourglass className="w-3.5 h-3.5" />
+                            {fmtPreset(ex.restSeconds)}
+                          </span>
+                        )}
                         {exFound && (
                           <button
                             type="button"
@@ -793,16 +871,24 @@ export default function Workouts() {
                 <button
                   type="button"
                   onClick={finishWorkout}
-                  className="w-full py-4 rounded-2xl bg-lime-400 hover:bg-lime-300 text-zinc-950 font-black text-sm tracking-wide shadow-xl shadow-lime-400/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+                  disabled={saving}
+                  className="w-full py-4 rounded-2xl bg-lime-400 hover:bg-lime-300 disabled:opacity-60 disabled:cursor-wait text-zinc-950 font-black text-sm tracking-wide shadow-xl shadow-lime-400/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
                 >
-                  <LuSquare className="w-4 h-4 fill-zinc-950" /> TERMINAR ENTRENAMIENTO (<ElapsedTime startTime={startTime} isActive={isActive} />)
+                  {saving ? (
+                    'GUARDANDO…'
+                  ) : (
+                    <>
+                      <LuSquare className="w-4 h-4 fill-zinc-950" /> TERMINAR ENTRENAMIENTO (<ElapsedTime startTime={startTime} isActive={isActive} />)
+                    </>
+                  )}
                 </button>
               ) : (
                 <button
                   type="submit"
-                  className="w-full py-4 rounded-2xl bg-lime-400 hover:bg-lime-300 text-zinc-950 font-black text-sm tracking-wide shadow-xl shadow-lime-400/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+                  disabled={saving}
+                  className="w-full py-4 rounded-2xl bg-lime-400 hover:bg-lime-300 disabled:opacity-60 disabled:cursor-wait text-zinc-950 font-black text-sm tracking-wide shadow-xl shadow-lime-400/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
                 >
-                  <LuCheck className="w-4 h-4 stroke-[3]" /> GUARDAR ENTRENAMIENTO
+                  {saving ? 'GUARDANDO…' : <><LuCheck className="w-4 h-4 stroke-[3]" /> GUARDAR ENTRENAMIENTO</>}
                 </button>
               )}
             </form>

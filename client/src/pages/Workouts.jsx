@@ -276,8 +276,15 @@ export default function Workouts() {
     setRest(null);
     setRestDone({ type, at: Date.now() });
   }, []);
+  // Adjust the running rest (sec can be negative). Removing more time than is left
+  // ends the rest in about a second, with the normal end-of-rest alert.
   const addRestTime = useCallback((sec) => {
-    setRest((r) => r && { ...r, endsAt: r.endsAt + sec * 1000, total: r.total + sec });
+    setRest((r) => {
+      if (!r) return r;
+      const endsAt = Math.max(Date.now() + 1000, r.endsAt + sec * 1000);
+      const applied = (endsAt - r.endsAt) / 1000;
+      return { ...r, endsAt, total: Math.max(1, r.total + applied) };
+    });
   }, []);
 
   /* ── Saving ──

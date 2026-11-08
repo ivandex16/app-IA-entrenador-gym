@@ -10,6 +10,7 @@ function secondsUntil(endsAt) {
 const RING_R = 15;
 const RING_C = 2 * Math.PI * RING_R;
 const FINAL_SECONDS = 5;
+const ADJUST_STEP = 15; // seconds added/removed by the −/+ buttons
 
 /*
  * Compact rest countdown that lives inside the sticky session bar: a progress
@@ -72,18 +73,32 @@ export default function RestTimer({ rest, onAddTime, onSkip, onDone }) {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onAddTime(15)}
-          className="ml-1 h-7 px-2 rounded-full bg-white/5 hover:bg-white/10 text-[11px] font-bold text-zinc-200 transition active:scale-95"
-          title="Añadir 15 segundos"
-        >
-          +15
-        </button>
+        {/* Adjust the running rest: −15 s / +15 s */}
+        <div className="ml-1 flex items-center rounded-full bg-white/5 overflow-hidden" role="group" aria-label="Ajustar descanso">
+          <button
+            type="button"
+            onClick={() => onAddTime(-ADJUST_STEP)}
+            className="h-8 min-w-9 px-2 hover:bg-white/10 text-xs font-black text-zinc-200 transition active:scale-95"
+            title={`Quitar ${ADJUST_STEP} segundos`}
+            aria-label={`Quitar ${ADJUST_STEP} segundos`}
+          >
+            −{ADJUST_STEP}
+          </button>
+          <span className="w-px h-4 bg-white/10" aria-hidden="true" />
+          <button
+            type="button"
+            onClick={() => onAddTime(ADJUST_STEP)}
+            className="h-8 min-w-9 px-2 hover:bg-white/10 text-xs font-black text-zinc-200 transition active:scale-95"
+            title={`Añadir ${ADJUST_STEP} segundos`}
+            aria-label={`Añadir ${ADJUST_STEP} segundos`}
+          >
+            +{ADJUST_STEP}
+          </button>
+        </div>
         <button
           type="button"
           onClick={onSkip}
-          className="h-7 w-7 rounded-full bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white flex items-center justify-center transition active:scale-95"
+          className="h-8 w-8 rounded-full bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white flex items-center justify-center transition active:scale-95"
           title="Saltar descanso"
           aria-label="Saltar descanso"
         >

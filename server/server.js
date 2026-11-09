@@ -12,6 +12,10 @@ connectDB();
 
 const app = express();
 
+// Render (and most hosts) sit behind one reverse proxy: trust it so req.ip is the
+// real client IP and the rate limiters count per user, not per proxy.
+app.set("trust proxy", 1);
+
 // ── Global middleware ──
 app.use(helmet());
 app.use(cors());

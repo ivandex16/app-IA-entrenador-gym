@@ -3,7 +3,70 @@ import { describe, expect, it } from 'vitest';
 import {
   indexLogs, summarizeMonth, weeklyStreak, monthGrid, shiftMonth, sessionTitle,
   totalSets, totalVolume, maxWeight, weekKeyOf, formatMinutes,
+  muscleGroupsOf, sessionType, matchesQuery, filterEntries, sortEntries, groupByMonth, topSet, previousTopSets,
 } from './historyUtils';
+
+const ex = (id, name, muscleGroup, sets) => ({ exercise: { _id: id, name, muscleGroup }, sets });
+const push = (date, w, extra = {}) => ({
+  _id: date,
+  date,
+  durationMinutes: 50,
+  exercises: [
+    ex('e1', 'Press banca', 'chest', [{ weight: w, reps: 8 }, { weight: w - 10, reps: 10 }]),
+    ex('e2', 'Fondos', 'triceps', [{ weight: 0, reps: 12 }]),
+  ],
+  ...extra,
+});
+
+describe('search, filters and sort', () => {
+  const entries = indexLogs([
+    push('2026-11-09T18:00:00Z', 80, { notes: 'Rutina: Torso', favorite: true }),
+    push('2026-11-03T18:00:00Z', 77.5),
+    { _id: 'leg', date: '2026-08-01T18:00:00Z', durationMinutes: 90, exercises: [ex('e3', 'Sentadilla', 'legs', [{ weight: 100, reps: 5 }])] },
+  ]);
+  const today = new Date(2026, 10, 9);
+
+  it('muscle groups and type', () => {
+    expect(muscleGroupsOf(entries[0].log)).toEqual(['chest', 'triceps']);
+    expect(sessionType(entries[0].log)).toBe('routine');
+    expect(sessionType(entries[1].log)).toBe('free');
+  });
+  it('search ignores accents and case; matches exercise, routine and muscle (in Spanish)', () => {
+    expect(matchesQuery(entries[2].log, 'SENTADÍLLA')).toBe(true);
+    expect(matchesQuery(entries[0].log, 'torso')).toBe(true);
+    expect(matchesQuery(entries[0].log, 'pecho')).toBe(true);
+    expect(matchesQuery(entries[0].log, 'pierna')).toBe(false);
+  });
+  it('filters by period, day, muscle, type and favorites', () => {
+    expect(filterEntries(entries, { period: 'month' }, today)).toHaveLength(2);
+    expect(filterEntries(entries, { period: 'week' }, today)).toHaveLength(1);
+    expect(filterEntries(entries, { period: '3months' }, today)).toHaveLength(2);
+    expect(filterEntries(entries, { day: '2026-11-03' }, today)).toHaveLength(1);
+    expect(filterEntries(entries, { muscle: 'legs' }, today)).toHaveLength(1);
+    expect(filterEntries(entries, { type: 'routine' }, today)).toHaveLength(1);
+    expect(filterEntries(entries, { favorites: true }, today)).toHaveLength(1);
+  });
+  it('sorts', () => {
+    expect(sortEntries(entries, 'oldest')[0].log._id).toBe('leg');
+    expect(sortEntries(entries, 'duration')[0].log._id).toBe('leg');
+    expect(sortEntries(entries, 'exercises')[0].log.exercises).toHaveLength(2);
+    expect(sortEntries(entries, 'favorites')[0].log.favorite).toBe(true);
+  });
+  it('groups consecutive entries by month', () => {
+    expect(groupByMonth(entries).map((g) => [g.monthKey, g.items.length])).toEqual([['2026-11', 2], ['2026-08', 1]]);
+  });
+});
+
+describe('progress vs previous session', () => {
+  it('top set and previous top set per exercise', () => {
+    expect(topSet([{ weight: 80, reps: 6 }, { weight: 80, reps: 8 }, { weight: 70, reps: 12 }])).toEqual({ weight: 80, reps: 8 });
+    const entries = indexLogs([push('2026-11-09T18:00:00Z', 80), push('2026-11-03T18:00:00Z', 77.5), push('2026-10-20T18:00:00Z', 75)]);
+    const prev = previousTopSets(entries, entries[0]);
+    expect(prev.get('e1').weight).toBe(77.5);
+    expect(prev.get('e2').reps).toBe(12);
+    expect(previousTopSets(entries, entries[2]).size).toBe(0);
+  });
+});
 
 const log = (date, extra = {}) => ({
   date,

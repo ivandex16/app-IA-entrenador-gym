@@ -79,6 +79,7 @@ function pickWorkoutFields(body) {
   if (body.durationMinutes !== undefined) data.durationMinutes = toNumber(body.durationMinutes);
   if (body.notes !== undefined) data.notes = body.notes;
   if (body.feeling !== undefined) data.feeling = body.feeling;
+  if (body.favorite !== undefined) data.favorite = body.favorite === true;
   if (Array.isArray(body.exercises)) {
     data.exercises = body.exercises.map((e) => ({
       exercise: e.exercise,

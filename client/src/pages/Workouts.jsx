@@ -19,9 +19,10 @@ import RestConfigPanel from '../components/workouts/RestConfigPanel';
 import RestDoneFlash from '../components/workouts/RestDoneFlash';
 import { primeRestAudio } from '../components/workouts/restAlert';
 import {
-  fmtTime, fmtPreset, secondsSince, FEELINGS, todayLocalISO, localDayToInstant,
+  fmtTime, fmtPreset, secondsSince, FEELINGS, todayLocalISO, localDayToInstant, workoutDisplayDate,
 } from '../components/workouts/workoutUtils';
 import { loadWorkoutDraft, saveWorkoutDraft, clearWorkoutDraft } from '../components/workouts/workoutDraft';
+import { dayKeyOf } from '../components/workouts/historyUtils';
 import { useAuth } from '../context/AuthContext';
 
 /* Id for one workout session; sent on save so the server can ignore repeats. */
@@ -131,7 +132,18 @@ export default function Workouts() {
   const [motivationalMsg, setMotivationalMsg] = useState(null);
   const [workoutSummary, setWorkoutSummary] = useState(null);
 
-  const load = () => api.get('/workouts').then((r) => setLogs(r.data));
+  // 'loading' | 'ready' | 'error' — drives the history's skeleton and error states.
+  const [logsStatus, setLogsStatus] = useState('loading');
+  const load = useCallback(() => {
+    setLogsStatus((s) => (s === 'error' ? 'loading' : s));
+    return api
+      .get('/workouts')
+      .then((r) => {
+        setLogs(r.data);
+        setLogsStatus('ready');
+      })
+      .catch(() => setLogsStatus('error'));
+  }, []);
 
   // Stable reference so the memoized <WorkoutHistory> isn't re-rendered by unrelated state.
   const openForm = useCallback(() => setShowForm(true), []);
@@ -217,8 +229,11 @@ export default function Workouts() {
   const completeSet = (exIdx, setIdx) => {
     const key = `${exIdx}-${setIdx}`;
 
+    // Editing a saved session has no live clock: checks are only visual.
+    const editing = Boolean(form._editing);
+
     // Checking a set before pressing INICIAR starts the session clock automatically.
-    if (!isActive) beginSession();
+    if (!isActive && !editing) beginSession();
 
     // Work from the ref, not the `completedSets` of this render: two quick taps
     // run before React re-renders, and the second one must see the first.
@@ -242,6 +257,7 @@ export default function Workouts() {
     const exerciseSets = form.exercises[exIdx]?.sets || [];
     const allDone = exerciseSets.every((_, si) => next[`${exIdx}-${si}`]);
 
+    if (editing) return;
     lastExIdxRef.current = exIdx;
     startRestTimer(allDone ? 'exercise' : 'set', exIdx);
 
@@ -298,8 +314,14 @@ export default function Workouts() {
     savingRef.current = true;
     setSaving(true);
     try {
+      const { _editing: editing, clientId, ...body } = payload;
+      if (editing) {
+        // Editing a saved session: keep its original instant unless the day changed.
+        const date = body.date === editing.day ? editing.date : localDayToInstant(body.date);
+        return await api.put(`/workouts/${editing.id}`, { ...body, date });
+      }
       // The picker holds a local day; send the instant it represents (see localDayToInstant).
-      return await api.post('/workouts', { ...payload, date: localDayToInstant(payload.date) });
+      return await api.post('/workouts', { ...body, clientId, date: localDayToInstant(body.date) });
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -355,7 +377,7 @@ export default function Workouts() {
       try {
         const res = await saveWorkout(form);
         if (!res) return; // a save is already in progress
-        toast.success('¡Entrenamiento registrado!');
+        toast.success(form._editing ? 'Cambios guardados' : '¡Entrenamiento registrado!');
         setShowForm(false);
         setForm(emptyForm());
         load();
@@ -364,6 +386,96 @@ export default function Workouts() {
       }
     }
   };
+
+  /* ── History actions ──
+     A saved session (exercises populated by the API) → the form's shape. */
+  const toFormExercises = (log) =>
+    (log.exercises || []).map((e) => ({
+      exercise: e.exercise?._id || e.exercise,
+      sets: (e.sets || []).map((s, i) => ({
+        setNumber: i + 1,
+        reps: s.reps,
+        weight: s.weight,
+        ...(s.rpe ? { rpe: s.rpe } : {}),
+      })),
+    }));
+  const routineLine = (log) => (/^Rutina:.*$/m.exec(log.notes || '') || [''])[0];
+
+  // Repeat: same exercises and loads, as a new session that starts right away.
+  const repeatSession = useCallback((log) => {
+    setForm({ ...emptyForm(), notes: routineLine(log), exercises: toFormExercises(log) });
+    setShowForm(true);
+    startWorkout();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast.success('Sesión iniciada con los mismos ejercicios');
+  }, [startWorkout]);
+
+  // Duplicate: a pre-filled copy for today, to adjust and save (no timer).
+  const duplicateSession = useCallback((log) => {
+    setForm({ ...emptyForm(), notes: log.notes || '', feeling: log.feeling || 'good', exercises: toFormExercises(log) });
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast('Copia lista: ajusta lo que quieras y guarda', { icon: '📋' });
+  }, []);
+
+  // Edit: the same form, saving with PUT over the original session.
+  const editSession = useCallback((log) => {
+    const day = dayKeyOf(workoutDisplayDate(log.date));
+    setForm({
+      ...emptyForm(),
+      _editing: { id: log._id, date: log.date, day },
+      date: day,
+      notes: log.notes || '',
+      feeling: log.feeling || 'good',
+      exercises: toFormExercises(log),
+    });
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  // Favorite: optimistic, reverted if the server rejects it.
+  const toggleFavorite = useCallback((log) => {
+    const favorite = !log.favorite;
+    setLogs((all) => all.map((l) => (l._id === log._id ? { ...l, favorite } : l)));
+    api.put(`/workouts/${log._id}`, { favorite }).catch(() => {
+      setLogs((all) => all.map((l) => (l._id === log._id ? { ...l, favorite: !favorite } : l)));
+      toast.error('No se pudo actualizar la favorita');
+    });
+  }, []);
+
+  // Delete: disappears at once with 5 s to undo; only then is it deleted on the server.
+  const deleteSession = useCallback((log) => {
+    setLogs((all) => all.filter((l) => l._id !== log._id));
+    const restore = () => setLogs((all) => (all.some((l) => l._id === log._id) ? all : [...all, log]));
+    let undone = false;
+    const timer = setTimeout(() => {
+      if (undone) return;
+      api.delete(`/workouts/${log._id}`).catch(() => {
+        restore();
+        toast.error('No se pudo eliminar la sesión');
+      });
+    }, 5000);
+    toast(
+      (t) => (
+        <span className="flex items-center gap-3">
+          Sesión eliminada
+          <button
+            type="button"
+            onClick={() => {
+              undone = true;
+              clearTimeout(timer);
+              restore();
+              toast.dismiss(t.id);
+            }}
+            className="font-bold text-lime-500 hover:underline"
+          >
+            Deshacer
+          </button>
+        </span>
+      ),
+      { duration: 5000, icon: '🗑️' }
+    );
+  }, []);
 
   /* ── Historical Reference Helper ──
      Index built once per `logs` change: exerciseId → that exercise's set lists,
@@ -446,7 +558,9 @@ export default function Workouts() {
 
               <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
                 {showForm ? (
-                  location.state?.routineName ? (
+                  form._editing ? (
+                    'Editar Entrenamiento'
+                  ) : location.state?.routineName ? (
                     location.state.routineName
                   ) : form.notes.startsWith('Rutina:') ? (
                     form.notes.replace('Rutina: ', '')
@@ -481,6 +595,8 @@ export default function Workouts() {
                       if (isActive && !window.confirm('¿Deseas descartar este entrenamiento en curso?')) return;
                       setShowForm(false);
                       endSession();
+                      // Leaving an edit or a copy must not leave that form behind for "Registrar".
+                      if (form._editing) setForm(emptyForm());
                     }}
                     className="px-4 sm:px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-white/15 text-xs sm:text-sm font-bold transition-all shadow-md"
                   >
@@ -506,12 +622,13 @@ export default function Workouts() {
       {/* ══════════════════════════════════════════════════════════════════════
           CONTENIDO PRINCIPAL
           ══════════════════════════════════════════════════════════════════════ */}
-      <div className="max-w-5xl mx-auto px-4 mt-6 space-y-4">
+      <div className={`${showForm ? 'max-w-5xl' : 'max-w-7xl'} mx-auto px-4 mt-6 space-y-4`}>
         {showForm ? (
           <div className="space-y-4">
             {/* ── Barra fija bajo la navbar: cronómetro de sesión + descanso compacto ──
-                Una sola fila que se mantiene visible al hacer scroll sin tapar los ejercicios. */}
-            <div className="sticky top-[74px] z-40">
+                Una sola fila que se mantiene visible al hacer scroll sin tapar los ejercicios.
+                Al editar una sesión ya guardada no hay cronómetro. */}
+            <div className={`sticky top-[74px] z-40 ${form._editing ? 'hidden' : ''}`}>
               <SessionBar
                 isActive={isActive}
                 startTime={startTime}
@@ -904,14 +1021,24 @@ export default function Workouts() {
                   disabled={saving}
                   className="w-full py-4 rounded-2xl bg-lime-400 hover:bg-lime-300 disabled:opacity-60 disabled:cursor-wait text-zinc-950 font-black text-sm tracking-wide shadow-xl shadow-lime-400/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
                 >
-                  {saving ? 'GUARDANDO…' : <><LuCheck className="w-4 h-4 stroke-[3]" /> GUARDAR ENTRENAMIENTO</>}
+                  {saving ? 'GUARDANDO…' : <><LuCheck className="w-4 h-4 stroke-[3]" /> {form._editing ? 'GUARDAR CAMBIOS' : 'GUARDAR ENTRENAMIENTO'}</>}
                 </button>
               )}
             </form>
           </div>
         ) : (
           /* ── Vista de historial (componente aislado del estado de la sesión en vivo) ── */
-          <WorkoutHistory logs={logs} onStart={openForm} />
+          <WorkoutHistory
+            logs={logs}
+            status={logsStatus}
+            onRetry={load}
+            onStart={openForm}
+            onRepeat={repeatSession}
+            onEdit={editSession}
+            onDuplicate={duplicateSession}
+            onDelete={deleteSession}
+            onToggleFavorite={toggleFavorite}
+          />
         )}
       </div>
 

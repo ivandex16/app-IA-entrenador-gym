@@ -125,6 +125,12 @@ export default function Login() {
                 >
                   Contraseña
                 </label>
+                <Link
+                  to="/forgot-password"
+                  className="text-[11px] font-bold text-zinc-400 hover:text-lime-400 transition-colors"
+                >
+                  ¿Olvidaste tu contraseña?
+                </Link>
               </div>
               <div className="relative flex items-center group">
                 <span className="absolute left-4 text-slate-500 group-focus-within:text-lime-400 transition-colors duration-200 pointer-events-none">

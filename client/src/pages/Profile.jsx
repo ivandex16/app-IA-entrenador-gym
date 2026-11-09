@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import ChangePasswordCard from '../components/profile/ChangePasswordCard';
 import {
   LuUser, LuMail, LuShield, LuRuler, LuScale, LuCalendarDays,
   LuClock, LuSave, LuDumbbell, LuTarget, LuSparkles, LuZap,
@@ -456,6 +457,11 @@ export default function Profile() {
             </span>
           </div>
         </form>
+
+        {/* Separate form: changing the password doesn't depend on saving the profile */}
+        <div className="mt-6">
+          <ChangePasswordCard email={user?.email} />
+        </div>
       </div>
     </div>
   );

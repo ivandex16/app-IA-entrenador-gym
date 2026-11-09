@@ -6,7 +6,7 @@ export default {
       colors: {
         primary: "#6366f1", // indigo-500
         accent: "#22d3ee", // cyan-400
-        dark: "#0f172a", // slate-900
+        dark: "#08090D", // app background (was slate-900 #0f172a, which looked blue next to the dark UI)
         success: "#22c55e",
         warning: "#f59e0b",
         danger: "#ef4444",

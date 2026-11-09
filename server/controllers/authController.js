@@ -63,25 +63,15 @@ exports.getMe = async (req, res) => {
 };
 
 // POST /api/auth/forgot-password
-exports.forgotPassword = async (req, res, next) => {
-  try {
-    const user = await User.findOne({ email: req.body.email });
-    if (!user)
-      return res.status(404).json({ message: "No user with that email" });
-
-    const resetToken = crypto.randomBytes(32).toString("hex");
-    user.resetPasswordToken = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
-    user.resetPasswordExpires = Date.now() + 30 * 60 * 1000; // 30 min
-    await user.save({ validateBeforeSave: false });
-
-    // In production send email with resetToken; here we return it for dev convenience
-    res.json({ message: "Reset token generated", resetToken });
-  } catch (err) {
-    next(err);
-  }
+// Password recovery by email is not available: there is no email delivery, and
+// the reset token must never be returned in the HTTP response (anyone knowing an
+// email could take over that account). Same answer for every email, so it
+// doesn't reveal which ones are registered either.
+exports.forgotPassword = async (_req, res) => {
+  res.status(503).json({
+    message:
+      "La recuperación de contraseña por correo no está disponible. Contacta al administrador.",
+  });
 };
 
 // PUT /api/auth/reset-password/:token

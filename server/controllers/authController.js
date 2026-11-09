@@ -125,11 +125,11 @@ async function sendResetEmail(user) {
   const mail = passwordResetEmail({ name: user.name, link, minutes: RESET_MINUTES });
   const result = await sendEmail({ to: user.email, ...mail });
   if (result.sent) {
-    console.log(`[password-reset] correo enviado al usuario ${user._id}`);
+    console.log(`[password-reset] correo enviado al usuario ${user._id} vía ${result.provider}`);
   } else {
     // Log why (never the token or the link).
     console.error(
-      `[password-reset] no se pudo enviar al usuario ${user._id}: ${result.reason}` +
+      `[password-reset] no se pudo enviar al usuario ${user._id}` + (result.provider ? ` vía ${result.provider}` : "") + `: ${result.reason}` +
         (result.status ? ` (HTTP ${result.status})` : "") +
         (result.details ? ` ${result.details}` : "")
     );

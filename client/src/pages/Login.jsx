@@ -106,7 +106,7 @@ export default function Login() {
                   id="email"
                   name="email"
                   type="email"
-                  placeholder="atleta@appgym.com"
+                  placeholder="tu@correo.com"
                   required
                   autoComplete="email"
                   className="w-full h-13 pl-12 pr-4 bg-[#141724] border border-white/[0.08] rounded-xl text-white placeholder-slate-600 text-sm font-semibold outline-none transition-all duration-200 focus:border-lime-400/70 focus:bg-[#181C2C] focus:ring-4 focus:ring-lime-400/15"

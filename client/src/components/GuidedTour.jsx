@@ -13,7 +13,7 @@ const STEPS = [
     {
         id: 'welcome',
         type: 'modal',
-        title: '¡Bienvenido a APP-GYM! 🏋️',
+        title: '¡Bienvenido a TEMPLE! 🏋️',
         description: 'Tu compañero de entrenamiento inteligente. Te guiaremos por cada vista de la app para que saques el máximo provecho.',
         icon: LuRocket,
         gradient: 'from-primary to-accent',

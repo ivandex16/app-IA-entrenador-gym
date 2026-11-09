@@ -87,7 +87,7 @@ export default function Progress() {
         useCORS: true,
       });
       const link = document.createElement('a');
-      link.download = `app-gym-progreso-${report.period.from}.png`;
+      link.download = `temple-progreso-${report.period.from}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     } catch {
@@ -601,7 +601,7 @@ export default function Progress() {
                       <div className="w-8 h-8 bg-lime-400/20 border border-lime-400/30 rounded-lg flex items-center justify-center text-lime-400 font-black text-sm">
                         ⚡
                       </div>
-                      <span className="text-base font-black text-white tracking-wider">APP-GYM</span>
+                      <span className="text-base font-black text-white tracking-wider">TEMPLE</span>
                     </div>
                     <span className="text-xs text-zinc-400 bg-zinc-900/90 px-3 py-1 rounded-full border border-white/10 font-mono">
                       {fmtDate(report.period.from)} — {fmtDate(report.period.to)}
@@ -689,7 +689,7 @@ export default function Progress() {
 
                   {/* Footer */}
                   <div className="relative flex items-center justify-between text-xs pt-1 border-t border-white/5">
-                    <p className="text-zinc-500 font-medium">Compartido desde APP-GYM</p>
+                    <p className="text-zinc-500 font-medium">Compartido desde TEMPLE</p>
                     <p className="text-lime-400 font-bold">
                       💪 ¡Sigue superándote!
                     </p>

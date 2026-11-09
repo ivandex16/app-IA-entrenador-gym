@@ -158,7 +158,7 @@ export default function Landing() {
             {/* Título Masivo */}
             <h1 className="text-6xl sm:text-8xl font-black mb-4 tracking-tighter text-white">
               <span className="bg-gradient-to-r from-white via-zinc-100 to-lime-400 bg-clip-text text-transparent">
-                APP-GYM
+                TEMPLE
               </span>
             </h1>
 
@@ -265,7 +265,7 @@ export default function Landing() {
         {/* ─── Footer ─── */}
         <footer className="border-t border-white/5 py-8 text-center text-xs text-zinc-500 relative z-10 font-mono">
           <p className="flex items-center justify-center gap-2">
-            <LuDumbbell className="w-4 h-4 text-lime-400" /> APP-GYM — Entrena con ciencia, progresa constante.
+            <LuDumbbell className="w-4 h-4 text-lime-400" /> TEMPLE — Entrena con ciencia, progresa constante.
           </p>
         </footer>
       </div>

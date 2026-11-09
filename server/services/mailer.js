@@ -8,7 +8,7 @@
  *   - Resend  (RESEND_API_KEY): needs a verified domain to send to anyone;
  *             without one it only delivers to the Resend account owner.
  *
- * MAIL_FROM is the sender, e.g. "APP-GYM <stephfit125@gmail.com>". With Brevo it
+ * MAIL_FROM is the sender, e.g. "TEMPLE <gymtemple4@gmail.com>". With Brevo it
  * must be a sender verified in the Brevo account.
  */
 const BREVO_URL = 'https://api.brevo.com/v3/smtp/email';
@@ -82,7 +82,7 @@ function passwordResetEmail({ name, link, minutes }) {
   const text = [
     greeting,
     '',
-    'Recibimos una solicitud para restablecer la contraseña de tu cuenta de APP-GYM.',
+    'Recibimos una solicitud para restablecer la contraseña de tu cuenta de TEMPLE.',
     `Abre este enlace para elegir una nueva (caduca en ${minutes} minutos y solo sirve una vez):`,
     link,
     '',
@@ -92,7 +92,7 @@ function passwordResetEmail({ name, link, minutes }) {
   const html = `<!doctype html>
 <html lang="es"><body style="margin:0;padding:24px;background:#08090D;font-family:Arial,Helvetica,sans-serif;color:#e4e4e7">
   <div style="max-width:480px;margin:0 auto;background:#111216;border:1px solid #27272a;border-radius:16px;padding:28px">
-    <p style="margin:0 0 4px;font-size:12px;font-weight:bold;letter-spacing:2px;color:#a3e635">APP-GYM</p>
+    <p style="margin:0 0 4px;font-size:12px;font-weight:bold;letter-spacing:2px;color:#a3e635">TEMPLE</p>
     <h1 style="margin:0 0 16px;font-size:20px;color:#ffffff">Restablecer contraseña</h1>
     <p style="margin:0 0 12px;font-size:14px;line-height:1.5">${escapeHtml(greeting)}</p>
     <p style="margin:0 0 20px;font-size:14px;line-height:1.5">Recibimos una solicitud para restablecer la contraseña de tu cuenta. Pulsa el botón para elegir una nueva.</p>
@@ -101,7 +101,7 @@ function passwordResetEmail({ name, link, minutes }) {
   </div>
 </body></html>`;
 
-  return { subject: 'Restablece tu contraseña de APP-GYM', html, text };
+  return { subject: 'Restablece tu contraseña de TEMPLE', html, text };
 }
 
 module.exports = { sendEmail, isConfigured, passwordResetEmail, parseFrom };

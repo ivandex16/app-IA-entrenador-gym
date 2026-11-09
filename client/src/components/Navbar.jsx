@@ -96,7 +96,7 @@ export default function Navbar({ onStartTour }) {
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-base sm:text-lg font-black tracking-tight text-white whitespace-nowrap">
-                  APP<span className="text-transparent bg-clip-text bg-gradient-to-r from-lime-400 to-emerald-400">-GYM</span>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-lime-200 to-lime-400">TEMPLE</span>
                 </span>
                 <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-mono font-extrabold uppercase tracking-widest bg-lime-400/10 text-lime-400 border border-lime-400/20">
                   PRO

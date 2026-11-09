@@ -10,6 +10,7 @@
 
 const Exercise = require("../models/Exercise");
 const WorkoutLog = require("../models/WorkoutLog");
+const { LEGACY_COMPLETED_FILTER } = require("../constants/workoutStatus");
 const Goal = require("../models/Goal");
 const AIRecommendation = require("../models/AIRecommendation");
 
@@ -68,6 +69,7 @@ async function scoringRecommend(user) {
   const recentLogs = await WorkoutLog.find({
     user: user._id,
     date: { $gte: fourWeeksAgo },
+    ...LEGACY_COMPLETED_FILTER, // only finished sessions count as history
   }).populate("exercises.exercise", "muscleGroup");
 
   // Count muscle-group frequency

@@ -19,10 +19,13 @@ import RestConfigPanel from '../components/workouts/RestConfigPanel';
 import RestDoneFlash from '../components/workouts/RestDoneFlash';
 import { primeRestAudio } from '../components/workouts/restAlert';
 import {
-  fmtTime, fmtPreset, secondsSince, FEELINGS, todayLocalISO, localDayToInstant, workoutDisplayDate,
+  fmtTime, fmtPreset, FEELINGS, todayLocalISO, localDayToInstant, workoutDisplayDate,
 } from '../components/workouts/workoutUtils';
 import { loadWorkoutDraft, saveWorkoutDraft, clearWorkoutDraft } from '../components/workouts/workoutDraft';
 import { dayKeyOf } from '../components/workouts/historyUtils';
+import { getHistoryCache, useHistorySummary, fetchLastSets, clearLastSetsCache } from '../components/workouts/workoutsApi';
+import { WORKOUT_STATUS, isOpen } from '../components/workouts/workoutStatus';
+import { buildExercises, activeSecondsOf, clampRest } from '../components/workouts/sessionPayload';
 import { useAuth } from '../context/AuthContext';
 
 /* Id for one workout session; sent on save so the server can ignore repeats. */
@@ -77,7 +80,17 @@ export default function Workouts() {
      again: every piece of session state below starts from it. */
   const [draft] = useState(() => loadWorkoutDraft(draftUserId));
 
-  const [logs, setLogs] = useState([]);
+  /* History: month-by-month cache + small whole-history summary (never the full list). */
+  const historyCache = useMemo(() => getHistoryCache(draftUserId), [draftUserId]);
+  const summary = useHistorySummary(draftUserId);
+  const refreshSummary = summary.refresh;
+  // A saved/changed session: update its month in place and the totals.
+  const applySaved = useCallback((log) => {
+    if (log?._id) historyCache.upsert(log);
+    clearLastSetsCache();
+    refreshSummary();
+  }, [historyCache, refreshSummary]);
+
   const [showForm, setShowForm] = useState(Boolean(draft));
   const [exercises, setExercises] = useState([]);
   const [showRestConfig, setShowRestConfig] = useState(false);
@@ -90,6 +103,10 @@ export default function Workouts() {
      running seconds itself, so the chronometer tick doesn't re-render this page. */
   const [isActive, setIsActive] = useState(Boolean(draft?.isActive)); // workout in progress
   const [startTime, setStartTime] = useState(draft?.startTime ?? null);
+  // Set while the session is paused; on resume startTime moves forward by the pause.
+  const [pausedAt, setPausedAt] = useState(draft?.pausedAt ?? null);
+  // Server autosave of the live session: 'idle' | 'saving' | 'saved' | 'error'.
+  const [syncState, setSyncState] = useState('idle');
 
   /* ── Rest durations: three layers ──
      1. restDefaults – saved on the device; edited before starting (here or on the routine screen).
@@ -132,24 +149,10 @@ export default function Workouts() {
   const [motivationalMsg, setMotivationalMsg] = useState(null);
   const [workoutSummary, setWorkoutSummary] = useState(null);
 
-  // 'loading' | 'ready' | 'error' — drives the history's skeleton and error states.
-  const [logsStatus, setLogsStatus] = useState('loading');
-  const load = useCallback(() => {
-    setLogsStatus((s) => (s === 'error' ? 'loading' : s));
-    return api
-      .get('/workouts')
-      .then((r) => {
-        setLogs(r.data);
-        setLogsStatus('ready');
-      })
-      .catch(() => setLogsStatus('error'));
-  }, []);
-
   // Stable reference so the memoized <WorkoutHistory> isn't re-rendered by unrelated state.
   const openForm = useCallback(() => setShowForm(true), []);
 
   useEffect(() => {
-    load();
     api.get('/exercises').then((r) => setExercises(r.data));
   }, []);
 
@@ -161,8 +164,8 @@ export default function Workouts() {
       clearWorkoutDraft(draftUserId);
       return;
     }
-    saveWorkoutDraft(draftUserId, { form, isActive, startTime, completedSets, rest, sessionRest, plannedRest });
-  }, [draftUserId, showForm, form, isActive, startTime, completedSets, rest, sessionRest, plannedRest]);
+    saveWorkoutDraft(draftUserId, { form, isActive, startTime, pausedAt, completedSets, rest, sessionRest, plannedRest });
+  }, [draftUserId, showForm, form, isActive, startTime, pausedAt, completedSets, rest, sessionRest, plannedRest]);
 
   // Tell the user once when a running workout was recovered.
   useEffect(() => {
@@ -187,9 +190,15 @@ export default function Workouts() {
     if (routineRest) setPlannedRest(routineRest);
     if (location.state.preloaded) {
       if (draft) {
-        // Starting fresh from the routine: drop the recovered session.
+        // Starting fresh from the routine: drop the recovered session (kept as cancelled).
+        if (draft.isActive && draft.form?._serverId) {
+          api.put(`/workouts/${draft.form._serverId}`, { status: WORKOUT_STATUS.CANCELLED })
+            .then((r) => applySaved(r.data))
+            .catch(() => {});
+        }
         setIsActive(false);
         setStartTime(null);
+        setPausedAt(null);
         setSessionRest(null);
         setRest(null);
         setCompletedSets({});
@@ -201,14 +210,18 @@ export default function Workouts() {
       }));
       setShowForm(true);
     }
-  }, [location.state, draft]);
+  }, [location.state, draft, applySaved]);
 
   /* ── Start workout session ──
-     The pre-configured plan becomes the session's initial rest state. */
+     The pre-configured plan becomes the session's initial rest state. The real
+     start instant is kept in the form (_startedAt) and sent as startedAt. */
   const beginSession = useCallback(() => {
+    const now = Date.now();
     setIsActive(true);
-    setStartTime(Date.now());
+    setStartTime(now);
+    setPausedAt(null);
     setSessionRest(plannedRest);
+    setForm((f) => (f._startedAt ? f : { ...f, _startedAt: new Date(now).toISOString() }));
   }, [plannedRest]);
 
   const startWorkout = useCallback(() => {
@@ -218,12 +231,114 @@ export default function Workouts() {
   }, [beginSession]);
 
   const endSession = () => {
+    clearTimeout(syncTimerRef.current);
     setIsActive(false);
     setStartTime(null);
+    setPausedAt(null);
     setSessionRest(null); // drop live tweaks; the next session starts from the plan again
     setRest(null);
+    setSyncState('idle');
     lastExIdxRef.current = null;
+    lastSetRef.current = null;
   };
+
+  /* ── Live session persistence ──
+     While a session is open it is saved on the server (status in_progress or
+     paused) a moment after each change, so it survives another device, a lost
+     phone or a cleared browser — not only this device's draft. The first save
+     creates it (POST with clientId, so a retry can't duplicate it); later ones
+     update it (PUT). Saves never overlap: a change during a save queues one more. */
+  const liveRef = useRef(null);
+  liveRef.current = { form, completedSets, startTime, pausedAt, sessionRest, isActive };
+  const syncTimerRef = useRef(null);
+  const syncingRef = useRef(null); // in-flight promise
+  const syncAgainRef = useRef(false);
+
+  const livePayload = useCallback((status) => {
+    const { form: f, completedSets: done, startTime: st, pausedAt: pa, sessionRest: sr } = liveRef.current;
+    const startedAt = f._startedAt || (st ? new Date(st).toISOString() : undefined);
+    const date = startedAt && f.date === dayKeyOf(new Date(startedAt)) ? startedAt : localDayToInstant(f.date);
+    return {
+      date,
+      notes: f.notes,
+      feeling: f.feeling,
+      status,
+      ...(startedAt ? { startedAt } : {}),
+      activeSeconds: activeSecondsOf(st, pa),
+      exercises: buildExercises(f.exercises, { progress: done, defaultRest: sr?.betweenSets }),
+    };
+  }, []);
+
+  const syncSession = useCallback((statusOverride) => {
+    if (syncingRef.current) {
+      syncAgainRef.current = true;
+      return syncingRef.current;
+    }
+    const live = liveRef.current;
+    if (!live.isActive || live.form._editing) return Promise.resolve(null);
+    const status = statusOverride || (live.pausedAt ? WORKOUT_STATUS.PAUSED : WORKOUT_STATUS.IN_PROGRESS);
+    const body = livePayload(status);
+    const id = live.form._serverId;
+    setSyncState('saving');
+    const req = id
+      ? api.put(`/workouts/${id}`, body)
+      : api.post('/workouts', { ...body, clientId: live.form.clientId });
+    syncingRef.current = req
+      .then((r) => {
+        if (!id) setForm((f) => (f.clientId === live.form.clientId ? { ...f, _serverId: r.data._id } : f));
+        liveRef.current.form = { ...liveRef.current.form, _serverId: r.data._id };
+        historyCache.upsert(r.data);
+        setSyncState('saved');
+        return r.data;
+      })
+      .catch((err) => {
+        setSyncState('error');
+        // The session was closed elsewhere (another device): stop autosaving it.
+        if (err.response?.status === 409 || err.response?.status === 404) {
+          setForm((f) => ({ ...f, _serverId: undefined }));
+        }
+        return null;
+      })
+      .finally(() => {
+        syncingRef.current = null;
+        if (syncAgainRef.current) {
+          syncAgainRef.current = false;
+          if (liveRef.current.isActive) syncSession();
+        }
+      });
+    return syncingRef.current;
+  }, [livePayload, historyCache]);
+
+  // Autosave a moment after the last change (the first save — the start — goes out almost at once).
+  useEffect(() => {
+    if (!isActive || form._editing) return undefined;
+    clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => syncSession(), form._serverId ? 1500 : 300);
+    return () => clearTimeout(syncTimerRef.current);
+  }, [isActive, form, completedSets, pausedAt, syncSession]);
+
+  // Waits for any pending autosave, so a final save never races an older one.
+  const flushSync = useCallback(async () => {
+    clearTimeout(syncTimerRef.current);
+    while (syncingRef.current) {
+      syncAgainRef.current = false;
+      // eslint-disable-next-line no-await-in-loop
+      await syncingRef.current;
+    }
+  }, []);
+
+  /* ── Pause / resume ── */
+  const pauseSession = useCallback(() => {
+    setPausedAt((p) => p || Date.now());
+    setRest(null);
+  }, []);
+  const resumeSession = useCallback(() => {
+    const p = liveRef.current.pausedAt;
+    if (!p) return;
+    const pausedFor = Date.now() - p;
+    setStartTime((st) => (st ? st + pausedFor : st)); // paused time doesn't count
+    setPausedAt(null);
+  }, []);
 
   /* ── Complete / Toggle a set ── */
   const completeSet = (exIdx, setIdx) => {
@@ -232,8 +347,10 @@ export default function Workouts() {
     // Editing a saved session has no live clock: checks are only visual.
     const editing = Boolean(form._editing);
 
-    // Checking a set before pressing INICIAR starts the session clock automatically.
+    // Checking a set before pressing INICIAR starts the session clock automatically;
+    // checking one while paused resumes it.
     if (!isActive && !editing) beginSession();
+    if (pausedAt && !editing) resumeSession();
 
     // Work from the ref, not the `completedSets` of this render: two quick taps
     // run before React re-renders, and the second one must see the first.
@@ -259,6 +376,7 @@ export default function Workouts() {
 
     if (editing) return;
     lastExIdxRef.current = exIdx;
+    lastSetRef.current = { exIdx, setIdx };
     startRestTimer(allDone ? 'exercise' : 'set', exIdx);
 
     toast.success(`Serie ${setIdx + 1} completada ✓`);
@@ -269,6 +387,27 @@ export default function Workouts() {
   const formExercisesRef = useRef(form.exercises);
   formExercisesRef.current = form.exercises;
   const lastExIdxRef = useRef(null); // exercise of the last checked set (for the manual "Serie" button)
+  const lastSetRef = useRef(null); // { exIdx, setIdx } of the last checked set: the rest that follows belongs to it
+
+  /* The rest actually taken (until it ended or was skipped) is saved on the set it followed. */
+  const restRef = useRef(rest);
+  restRef.current = rest;
+  const recordRest = useCallback(() => {
+    const r = restRef.current;
+    if (!r?.after || !r.startedAt) return;
+    restRef.current = null; // record each rest once
+    const sec = clampRest((Date.now() - r.startedAt) / 1000);
+    const { exIdx, setIdx } = r.after;
+    setForm((f) => {
+      const ex = f.exercises[exIdx];
+      if (!ex?.sets?.[setIdx]) return f;
+      const exercisesCopy = [...f.exercises];
+      const sets = [...ex.sets];
+      sets[setIdx] = { ...sets[setIdx], restSeconds: sec };
+      exercisesCopy[exIdx] = { ...ex, sets };
+      return { ...f, exercises: exercisesCopy };
+    });
+  }, []);
 
   /* Rest length:
      - between sets: the exercise's own rest from the routine (restSeconds) if it has one,
@@ -281,17 +420,26 @@ export default function Workouts() {
     const seconds = type === 'exercise'
       ? restConfig.betweenExercises
       : exerciseRest > 0 ? exerciseRest : restConfig.betweenSets;
-    setRest({ type, endsAt: Date.now() + seconds * 1000, total: seconds });
-  }, [restConfig.betweenSets, restConfig.betweenExercises]);
+    // A rest still running when a new one starts ends here (and is recorded).
+    recordRest();
+    const now = Date.now();
+    const after = lastSetRef.current;
+    lastSetRef.current = null; // each rest is attributed to one set only
+    setRest({ type, endsAt: now + seconds * 1000, total: seconds, startedAt: now, after });
+  }, [restConfig.betweenSets, restConfig.betweenExercises, recordRest]);
 
   // Stable callbacks for <RestTimer> so its interval isn't restarted on every render.
-  const clearRest = useCallback(() => setRest(null), []);
+  const clearRest = useCallback(() => {
+    recordRest();
+    setRest(null);
+  }, [recordRest]);
   // Natural end (not skipped): <RestTimer> already played sound, vibration and
   // the notification; here we just trigger the edge glow.
   const handleRestDone = useCallback((type) => {
+    recordRest();
     setRest(null);
     setRestDone({ type, at: Date.now() });
-  }, []);
+  }, [recordRest]);
   // Adjust the running rest (sec can be negative). Removing more time than is left
   // ends the rest in about a second, with the normal end-of-rest alert.
   const addRestTime = useCallback((sec) => {
@@ -309,32 +457,46 @@ export default function Workouts() {
      clientId makes the server return the same workout if a request repeats anyway. */
   const savingRef = useRef(false);
   const [saving, setSaving] = useState(false);
-  const saveWorkout = async (payload) => {
+  const saveWorkout = async (payload, { progress = null, defaultRest = 0, extra = {} } = {}) => {
     if (savingRef.current) return null;
     savingRef.current = true;
     setSaving(true);
     try {
-      const { _editing: editing, clientId, ...body } = payload;
+      const { _editing: editing, _serverId: serverId, _startedAt, clientId, ...rest } = payload;
+      const body = { ...rest, ...extra, exercises: buildExercises(rest.exercises, { progress, defaultRest }) };
       if (editing) {
         // Editing a saved session: keep its original instant unless the day changed.
         const date = body.date === editing.day ? editing.date : localDayToInstant(body.date);
         return await api.put(`/workouts/${editing.id}`, { ...body, date });
       }
       // The picker holds a local day; send the instant it represents (see localDayToInstant).
-      return await api.post('/workouts', { ...body, clientId, date: localDayToInstant(body.date) });
+      const date = body.date && body.date.length > 10 ? body.date : localDayToInstant(body.date);
+      if (serverId) return await api.put(`/workouts/${serverId}`, { ...body, date });
+      return await api.post('/workouts', { ...body, clientId, date });
     } finally {
       savingRef.current = false;
       setSaving(false);
     }
   };
 
-  /* ── Finish workout ── */
+  /* ── Finish workout: the open session becomes completed ── */
   const finishWorkout = async () => {
-    const elapsedSec = secondsSince(startTime);
+    if (savingRef.current) return;
+    await flushSync(); // let a pending autosave land first
+    const elapsedSec = activeSecondsOf(startTime, pausedAt);
     const durationMinutes = Math.round(elapsedSec / 60);
+    const live = livePayload(WORKOUT_STATUS.COMPLETED);
     try {
-      const res = await saveWorkout({ ...form, durationMinutes });
+      const res = await saveWorkout(
+        { ...liveRef.current.form, date: live.date },
+        {
+          progress: completedSetsRef.current,
+          defaultRest: sessionRest?.betweenSets,
+          extra: { status: WORKOUT_STATUS.COMPLETED, durationMinutes, activeSeconds: elapsedSec, startedAt: live.startedAt },
+        }
+      );
       if (!res) return; // a save is already in progress
+      applySaved(res.data);
       const msg = MOTIVATIONAL_MESSAGES[Math.floor(Math.random() * MOTIVATIONAL_MESSAGES.length)];
       setWorkoutSummary({
         duration: fmtTime(elapsedSec),
@@ -347,7 +509,6 @@ export default function Workouts() {
       endSession();
       setCompletedSets({});
       setForm(emptyForm());
-      load();
     } catch (err) {
       toast.error(saveErrorMessage(err));
     }
@@ -358,6 +519,25 @@ export default function Workouts() {
   const finishWorkoutRef = useRef(finishWorkout);
   finishWorkoutRef.current = finishWorkout;
   const handleFinish = useCallback(() => finishWorkoutRef.current(), []);
+
+  /* ── Discard an open session: it stays in the history as cancelled ── */
+  const discardSession = async () => {
+    const serverId = liveRef.current.form._serverId;
+    await flushSync();
+    const id = liveRef.current.form._serverId || serverId;
+    setShowForm(false);
+    endSession();
+    setCompletedSets({});
+    setForm(emptyForm());
+    if (!id) return; // never reached the server: nothing to keep
+    try {
+      const r = await api.put(`/workouts/${id}`, { status: WORKOUT_STATUS.CANCELLED, activeSeconds: activeSecondsOf(startTime, pausedAt) });
+      applySaved(r.data);
+      toast('Sesión cancelada. Queda en tu historial.', { icon: '🗂️' });
+    } catch {
+      toast.error('No se pudo marcar como cancelada; sigue abierta en tu historial.');
+    }
+  };
 
   const addExercise = () => {
     setForm({
@@ -375,12 +555,14 @@ export default function Workouts() {
       finishWorkout();
     } else {
       try {
-        const res = await saveWorkout(form);
+        // Edits keep the per-set progress they had; a session typed in afterwards has none.
+        const res = await saveWorkout(form, { progress: form._editing?.tracked ? completedSetsRef.current : null });
         if (!res) return; // a save is already in progress
+        applySaved(res.data);
         toast.success(form._editing ? 'Cambios guardados' : '¡Entrenamiento registrado!');
         setShowForm(false);
+        setCompletedSets({});
         setForm(emptyForm());
-        load();
       } catch (err) {
         toast.error(saveErrorMessage(err));
       }
@@ -388,20 +570,31 @@ export default function Workouts() {
   };
 
   /* ── History actions ──
-     A saved session (exercises populated by the API) → the form's shape. */
-  const toFormExercises = (log) =>
+     A saved session (exercises populated by the API) → the form's shape.
+     The planned rest of each exercise always travels with it (repeat, duplicate,
+     edit); `withProgress` also keeps what was done (edit and resume). */
+  const toFormExercises = (log, { withProgress = false } = {}) =>
     (log.exercises || []).map((e) => ({
       exercise: e.exercise?._id || e.exercise,
+      ...(e.restSeconds > 0 ? { restSeconds: e.restSeconds } : {}),
       sets: (e.sets || []).map((s, i) => ({
         setNumber: i + 1,
         reps: s.reps,
         weight: s.weight,
         ...(s.rpe ? { rpe: s.rpe } : {}),
+        ...(withProgress && Number.isFinite(s.restSeconds) ? { restSeconds: s.restSeconds } : {}),
       })),
     }));
+  // 'ex-set' → true for the sets marked done in a saved session.
+  const progressOf = (log) => {
+    const map = {};
+    (log.exercises || []).forEach((e, ei) => (e.sets || []).forEach((s, si) => { if (s.completed) map[`${ei}-${si}`] = true; }));
+    return map;
+  };
+  const tracksProgress = (log) => (log.exercises || []).some((e) => (e.sets || []).some((s) => typeof s.completed === 'boolean'));
   const routineLine = (log) => (/^Rutina:.*$/m.exec(log.notes || '') || [''])[0];
 
-  // Repeat: same exercises and loads, as a new session that starts right away.
+  // Repeat: same exercises, loads and planned rest, as a new session that starts right away.
   const repeatSession = useCallback((log) => {
     setForm({ ...emptyForm(), notes: routineLine(log), exercises: toFormExercises(log) });
     setShowForm(true);
@@ -413,47 +606,105 @@ export default function Workouts() {
   // Duplicate: a pre-filled copy for today, to adjust and save (no timer).
   const duplicateSession = useCallback((log) => {
     setForm({ ...emptyForm(), notes: log.notes || '', feeling: log.feeling || 'good', exercises: toFormExercises(log) });
+    setCompletedSets({});
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     toast('Copia lista: ajusta lo que quieras y guarda', { icon: '📋' });
   }, []);
 
-  // Edit: the same form, saving with PUT over the original session.
+  // Edit: the same form, saving with PUT over the original session (status unchanged).
   const editSession = useCallback((log) => {
     const day = dayKeyOf(workoutDisplayDate(log.date));
     setForm({
       ...emptyForm(),
-      _editing: { id: log._id, date: log.date, day },
+      _editing: { id: log._id, date: log.date, day, tracked: tracksProgress(log) },
       date: day,
       notes: log.notes || '',
       feeling: log.feeling || 'good',
-      exercises: toFormExercises(log),
+      exercises: toFormExercises(log, { withProgress: true }),
     });
+    setCompletedSets(progressOf(log));
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
+  /* Resume an unfinished session (from the history, on any device): its exercises,
+     checked sets and recorded rests come back, and the clock continues from the
+     time already trained. Another open session on this device is paused first. */
+  const [resumingId, setResumingId] = useState(null);
+  const resumeFromHistory = useCallback(async (logOrRef) => {
+    const live = liveRef.current;
+    if (live.isActive && live.form._serverId === logOrRef._id) {
+      setShowForm(true);
+      if (live.pausedAt) resumeSession();
+      return;
+    }
+    if (live.isActive && !window.confirm('Tienes otro entrenamiento abierto. ¿Pausarlo y reanudar este?')) return;
+    setResumingId(logOrRef._id);
+    try {
+      if (live.isActive) {
+        await flushSync();
+        if (live.form._serverId) await syncSession(WORKOUT_STATUS.PAUSED);
+      }
+      const { data: log } = await api.get(`/workouts/${logOrRef._id}`);
+      if (!isOpen(log)) {
+        applySaved(log);
+        toast('Esa sesión ya terminó', { icon: 'ℹ️' });
+        return;
+      }
+      const now = Date.now();
+      clearTimeout(syncTimerRef.current);
+      setForm({
+        ...emptyForm(),
+        _serverId: log._id,
+        _startedAt: log.startedAt || undefined,
+        date: dayKeyOf(workoutDisplayDate(log.date)),
+        notes: log.notes || '',
+        feeling: log.feeling || 'good',
+        exercises: toFormExercises(log, { withProgress: true }),
+      });
+      setCompletedSets(progressOf(log));
+      setIsActive(true);
+      setStartTime(now - (Number(log.activeSeconds) || 0) * 1000);
+      setPausedAt(null);
+      setSessionRest(plannedRest);
+      setRest(null);
+      lastExIdxRef.current = null;
+      lastSetRef.current = null;
+      setShowForm(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      toast.success('Sesión reanudada');
+      // The autosave effect marks it in_progress again right away.
+    } catch {
+      toast.error('No se pudo abrir la sesión. Inténtalo de nuevo.');
+    } finally {
+      setResumingId(null);
+    }
+  }, [flushSync, syncSession, resumeSession, applySaved, plannedRest]);
+
   // Favorite: optimistic, reverted if the server rejects it.
   const toggleFavorite = useCallback((log) => {
     const favorite = !log.favorite;
-    setLogs((all) => all.map((l) => (l._id === log._id ? { ...l, favorite } : l)));
+    historyCache.patch(log._id, { favorite });
     api.put(`/workouts/${log._id}`, { favorite }).catch(() => {
-      setLogs((all) => all.map((l) => (l._id === log._id ? { ...l, favorite: !favorite } : l)));
+      historyCache.patch(log._id, { favorite: !favorite });
       toast.error('No se pudo actualizar la favorita');
     });
-  }, []);
+  }, [historyCache]);
 
   // Delete: disappears at once with 5 s to undo; only then is it deleted on the server.
   const deleteSession = useCallback((log) => {
-    setLogs((all) => all.filter((l) => l._id !== log._id));
-    const restore = () => setLogs((all) => (all.some((l) => l._id === log._id) ? all : [...all, log]));
+    historyCache.remove(log._id);
+    const restore = () => historyCache.upsert(log);
     let undone = false;
     const timer = setTimeout(() => {
       if (undone) return;
-      api.delete(`/workouts/${log._id}`).catch(() => {
-        restore();
-        toast.error('No se pudo eliminar la sesión');
-      });
+      api.delete(`/workouts/${log._id}`)
+        .then(() => { clearLastSetsCache(); refreshSummary(); })
+        .catch(() => {
+          restore();
+          toast.error('No se pudo eliminar la sesión');
+        });
     }, 5000);
     toast(
       (t) => (
@@ -475,32 +726,32 @@ export default function Workouts() {
       ),
       { duration: 5000, icon: '🗑️' }
     );
-  }, []);
+  }, [historyCache, refreshSummary]);
 
-  /* ── Historical Reference Helper ──
-     Index built once per `logs` change: exerciseId → that exercise's set lists,
-     newest session first. Each set row then looks up only its own exercise
-     instead of scanning every past session on every render. */
-  const setsByExercise = useMemo(() => {
-    const index = new Map();
-    for (const log of logs) {
-      for (const e of log.exercises || []) {
-        const id = typeof e.exercise === 'object' ? e.exercise?._id : e.exercise;
-        if (!id || !e.sets) continue;
-        if (!index.has(id)) index.set(id, []);
-        index.get(id).push(e.sets);
-      }
-    }
-    return index;
-  }, [logs]);
+  /* ── "Anterior" column ──
+     The last finished session's sets for each exercise in the form, asked to the
+     server only for those exercises (cached per set of ids). */
+  const [lastSets, setLastSets] = useState({});
+  const formExerciseIds = useMemo(
+    () => [...new Set(form.exercises.map((e) => e.exercise).filter(Boolean))].sort().join(','),
+    [form.exercises]
+  );
+  const excludeId = form._serverId || form._editing?.id;
+  const beforeDate = form._editing?.date;
+  useEffect(() => {
+    if (!showForm || !formExerciseIds) return undefined;
+    let alive = true;
+    fetchLastSets(formExerciseIds.split(','), { exclude: excludeId, before: beforeDate })
+      .then((data) => alive && setLastSets(data || {}))
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [showForm, formExerciseIds, excludeId, beforeDate]);
 
   const getPreviousSetReference = useCallback((exerciseId, setIdx) => {
-    for (const sets of setsByExercise.get(exerciseId) || []) {
-      const s = sets[setIdx];
-      if (s && (s.weight > 0 || s.reps > 0)) return `${s.weight}kg × ${s.reps}`;
-    }
+    const s = lastSets[exerciseId]?.sets?.[setIdx];
+    if (s && (s.weight > 0 || s.reps > 0)) return `${s.weight}kg × ${s.reps}`;
     return '—';
-  }, [setsByExercise]);
+  }, [lastSets]);
 
   /* ── Telemetry calculations ── */
   const totalSetsCount = useMemo(() => {
@@ -548,7 +799,12 @@ export default function Workouts() {
                 <span className="px-2.5 py-1 rounded-md bg-lime-400/10 border border-lime-400/20 text-lime-400 text-xs font-bold uppercase tracking-wider">
                   Sala de Entrenamiento
                 </span>
-                {isActive && (
+                {isActive && pausedAt && (
+                  <span className="px-2.5 py-1 rounded-md bg-amber-400/15 border border-amber-400/30 text-amber-300 text-xs font-bold uppercase tracking-wider">
+                    En pausa
+                  </span>
+                )}
+                {isActive && !pausedAt && (
                   <span className="px-2.5 py-1 rounded-md bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
                     En vivo
@@ -581,7 +837,7 @@ export default function Workouts() {
               </p>
 
               {/* Estadísticas de cabecera en modo vista previa */}
-              {logs.length > 0 && !showForm && <HistoryStats logs={logs} />}
+              {summary.data?.totals?.sessions > 0 && !showForm && <HistoryStats totals={summary.data.totals} />}
 
             </div>
 
@@ -592,11 +848,18 @@ export default function Workouts() {
                   <button
                     type="button"
                     onClick={() => {
-                      if (isActive && !window.confirm('¿Deseas descartar este entrenamiento en curso?')) return;
+                      if (isActive) {
+                        if (!window.confirm('¿Descartar este entrenamiento? Quedará en tu historial como cancelado.')) return;
+                        discardSession();
+                        return;
+                      }
                       setShowForm(false);
                       endSession();
                       // Leaving an edit or a copy must not leave that form behind for "Registrar".
-                      if (form._editing) setForm(emptyForm());
+                      if (form._editing) {
+                        setForm(emptyForm());
+                        setCompletedSets({});
+                      }
                     }}
                     className="px-4 sm:px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-white/15 text-xs sm:text-sm font-bold transition-all shadow-md"
                   >
@@ -632,13 +895,17 @@ export default function Workouts() {
               <SessionBar
                 isActive={isActive}
                 startTime={startTime}
+                pausedAt={pausedAt}
+                syncState={syncState}
                 completedSets={completedSetsCount}
                 totalSets={totalSetsCount}
                 volumeKg={totalVolumeKg}
                 canStart={form.exercises.length > 0}
-                rest={isActive ? rest : null}
+                rest={isActive && !pausedAt ? rest : null}
                 saving={saving}
                 onStart={startWorkout}
+                onPause={pauseSession}
+                onResume={resumeSession}
                 onFinish={handleFinish}
                 onStartRest={startRestTimer}
                 onAddRestTime={addRestTime}
@@ -1011,7 +1278,7 @@ export default function Workouts() {
                     'GUARDANDO…'
                   ) : (
                     <>
-                      <LuSquare className="w-4 h-4 fill-zinc-950" /> TERMINAR ENTRENAMIENTO (<ElapsedTime startTime={startTime} isActive={isActive} />)
+                      <LuSquare className="w-4 h-4 fill-zinc-950" /> TERMINAR ENTRENAMIENTO (<ElapsedTime startTime={startTime} isActive={isActive} pausedAt={pausedAt} />)
                     </>
                   )}
                 </button>
@@ -1029,11 +1296,12 @@ export default function Workouts() {
         ) : (
           /* ── Vista de historial (componente aislado del estado de la sesión en vivo) ── */
           <WorkoutHistory
-            logs={logs}
-            status={logsStatus}
-            onRetry={load}
+            cache={historyCache}
+            summary={summary}
             onStart={openForm}
             onRepeat={repeatSession}
+            onResume={resumeFromHistory}
+            resumingId={resumingId}
             onEdit={editSession}
             onDuplicate={duplicateSession}
             onDelete={deleteSession}

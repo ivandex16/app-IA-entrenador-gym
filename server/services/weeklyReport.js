@@ -1,4 +1,5 @@
 const WorkoutLog = require("../models/WorkoutLog");
+const { LEGACY_COMPLETED_FILTER } = require("../constants/workoutStatus");
 const WeightLog = require("../models/WeightLog");
 const Goal = require("../models/Goal");
 
@@ -31,10 +32,12 @@ const generateWeeklyReport = async (userId, referenceDate = new Date()) => {
     WorkoutLog.find({
       user: userId,
       date: { $gte: currentMonday, $lte: currentSunday },
+      ...LEGACY_COMPLETED_FILTER,
     }).populate("exercises.exercise", "name muscleGroup"),
     WorkoutLog.find({
       user: userId,
       date: { $gte: previousMonday, $lte: previousSunday },
+      ...LEGACY_COMPLETED_FILTER,
     }).populate("exercises.exercise", "name muscleGroup"),
   ]);
 

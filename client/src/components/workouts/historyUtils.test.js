@@ -4,6 +4,7 @@ import {
   indexLogs, summarizeMonth, weeklyStreak, monthGrid, shiftMonth, sessionTitle,
   totalSets, totalVolume, maxWeight, weekKeyOf, formatMinutes,
   muscleGroupsOf, sessionType, matchesQuery, filterEntries, sortEntries, groupByMonth, topSet, previousTopSets,
+  pendingExercises, restInfo, formatRest, weeklyStreakFromWeeks,
 } from './historyUtils';
 
 const ex = (id, name, muscleGroup, sets) => ({ exercise: { _id: id, name, muscleGroup }, sets });
@@ -54,6 +55,41 @@ describe('search, filters and sort', () => {
   });
   it('groups consecutive entries by month', () => {
     expect(groupByMonth(entries).map((g) => [g.monthKey, g.items.length])).toEqual([['2026-11', 2], ['2026-08', 1]]);
+  });
+});
+
+describe('status, pending exercises and rest', () => {
+  it('filters by status (legacy = completed)', () => {
+    const entries = indexLogs([
+      { _id: 'a', date: '2026-11-08T18:00:00Z', status: 'in_progress', exercises: [] },
+      { _id: 'b', date: '2026-11-07T18:00:00Z', status: 'paused', exercises: [] },
+      { _id: 'c', date: '2026-11-06T18:00:00Z', status: 'cancelled', exercises: [] },
+      { _id: 'd', date: '2026-11-05T18:00:00Z', exercises: [] },
+    ]);
+    expect(filterEntries(entries, { status: 'completed' }).map((e) => e.log._id)).toEqual(['d']);
+    expect(filterEntries(entries, { status: 'paused' }).map((e) => e.log._id)).toEqual(['b']);
+    expect(filterEntries(entries, { status: 'cancelled' })).toHaveLength(1);
+  });
+  it('pending exercises only when per-set progress was tracked', () => {
+    const log = { exercises: [
+      { exercise: { name: 'Press' }, sets: [{ completed: true }, { completed: false }] },
+      { exercise: { name: 'Remo' }, sets: [{ completed: true }] },
+      { exercise: { name: 'Legacy' }, sets: [{}, {}] },
+    ] };
+    expect(pendingExercises(log)).toEqual([{ name: 'Press', done: 1, total: 2 }]);
+  });
+  it('rest: planned per exercise and actual per set; old sessions have none', () => {
+    expect(restInfo({ restSeconds: 90, sets: [{ restSeconds: 95 }, {}] })).toEqual({ planned: 90, actual: [95, null] });
+    expect(restInfo({ sets: [{}] })).toEqual({ planned: null, actual: [null] });
+    expect(formatRest(90)).toBe('1:30 min');
+    expect(formatRest(45)).toBe('45 s');
+    expect(formatRest(120)).toBe('2 min');
+  });
+  it('streak from server week keys', () => {
+    const today = new Date(2026, 10, 9); // Mon
+    expect(weeklyStreakFromWeeks(['2026-11-09', '2026-11-02', '2026-10-26', '2026-10-12'], today)).toBe(3);
+    expect(weeklyStreakFromWeeks(['2026-11-02', '2026-10-26'], today)).toBe(2);
+    expect(weeklyStreakFromWeeks([], today)).toBe(0);
   });
 });
 

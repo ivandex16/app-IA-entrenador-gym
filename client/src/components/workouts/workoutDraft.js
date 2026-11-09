@@ -57,6 +57,7 @@ export function loadWorkoutDraft(userId) {
     form: draft.form,
     isActive: Boolean(draft.isActive),
     startTime: draft.isActive ? Number(draft.startTime) : null,
+    pausedAt: draft.isActive && Number(draft.pausedAt) > 0 ? Number(draft.pausedAt) : null,
     completedSets: draft.completedSets && typeof draft.completedSets === 'object' ? draft.completedSets : {},
     rest: draft.isActive ? rest : null,
     sessionRest: draft.sessionRest || null,

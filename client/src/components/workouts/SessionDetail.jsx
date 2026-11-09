@@ -2,12 +2,41 @@ import { memo, useEffect, useRef, useState } from 'react';
 import {
   LuArrowLeft, LuStar, LuPlay, LuEllipsisVertical, LuPencil, LuCopy, LuTrash2,
   LuClock, LuDumbbell, LuLayers, LuWeight, LuFlame, LuTrendingUp, LuTrendingDown, LuMinus, LuSparkles,
+  LuHourglass, LuCircleDashed,
 } from 'react-icons/lu';
 import { FEELINGS } from './workoutUtils';
 import {
   sessionTitle, sessionType, muscleGroupsOf, MUSCLE_LABELS, totalSets, totalVolume,
-  formatKg, formatMinutes, exerciseKey, topSet,
+  formatKg, formatMinutes, exerciseKey, topSet, pendingExercises, restInfo, formatRest,
 } from './historyUtils';
+import { STATUS_META, statusOf, isOpen, WORKOUT_STATUS } from './workoutStatus';
+
+const fmtClock = (d) => new Date(d).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+
+/* Minutes trained: the saved duration, or the active time of an unfinished session. */
+function durationOf(log) {
+  if (log.durationMinutes > 0) return log.durationMinutes;
+  if (log.activeSeconds > 0) return Math.max(1, Math.round(log.activeSeconds / 60));
+  return 0;
+}
+
+/* "Descanso: 90 s" (planned) and, when recorded, what was actually rested after each set. */
+function RestLine({ exercise }) {
+  const { planned, actual } = restInfo(exercise);
+  const taken = actual.map((sec, i) => (sec == null ? null : { set: i + 1, sec })).filter(Boolean);
+  if (planned == null && taken.length === 0) return null;
+  return (
+    <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-zinc-500">
+      <LuHourglass className="w-3 h-3 text-lime-400/80" aria-hidden="true" />
+      {planned != null && <span>Descanso: {formatRest(planned)}</span>}
+      {taken.length > 0 && (
+        <span title="Descanso real tras cada serie">
+          real {taken.map((t) => `S${t.set} ${formatRest(t.sec)}`).join(' · ')}
+        </span>
+      )}
+    </p>
+  );
+}
 
 const fmtNum = (n) => (Number(n) || 0).toLocaleString('es', { maximumFractionDigits: 2 });
 
@@ -104,8 +133,14 @@ function ActionsMenu({ onEdit, onDuplicate, onDelete }) {
  * (table on wide screens, stacked on mobile) with progress vs the previous
  * session, and notes. `previous` maps exerciseKey → top set of the last time.
  */
-function SessionDetail({ entry, previous, onBack, onRepeat, onEdit, onDuplicate, onDelete, onToggleFavorite }) {
+function SessionDetail({
+  entry, previous, previousReady = true, onBack, onRepeat, onResume, resuming = false, onEdit, onDuplicate, onDelete, onToggleFavorite,
+}) {
   const { log, date } = entry;
+  const status = statusOf(log);
+  const open = isOpen(log);
+  const pending = status === WORKOUT_STATUS.COMPLETED ? [] : pendingExercises(log);
+  const minutes = durationOf(log);
   const feeling = FEELINGS.find((f) => f.v === log.feeling) || FEELINGS[1];
   const FeelingIcon = feeling.Icon;
   const muscles = muscleGroupsOf(log);
@@ -128,14 +163,21 @@ function SessionDetail({ entry, previous, onBack, onRepeat, onEdit, onDuplicate,
               <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-lime-400/10 text-lime-300 border border-lime-400/20">
                 {sessionType(log) === 'routine' ? 'Rutina' : 'Entreno libre'}
               </span>
-              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-400/10 text-emerald-300 border border-emerald-400/20">
-                Completado
+              <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border ${STATUS_META[status].badge}`}>
+                {STATUS_META[status].label}
               </span>
             </div>
             <h2 className="text-2xl font-black text-white tracking-tight leading-tight">{sessionTitle(log)}</h2>
             <p className="mt-1 text-sm text-zinc-400 first-letter:uppercase">
               {dateLabel} · {date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
             </p>
+            {(log.startedAt || log.endedAt) && (
+              <p className="mt-0.5 text-xs text-zinc-500">
+                {log.startedAt && <>Inicio {fmtClock(log.startedAt)}</>}
+                {log.startedAt && log.endedAt && ' · '}
+                {log.endedAt && <>Fin {fmtClock(log.endedAt)}</>}
+              </p>
+            )}
           </div>
           <button
             type="button"
@@ -160,24 +202,51 @@ function SessionDetail({ entry, previous, onBack, onRepeat, onEdit, onDuplicate,
             ))}
           </div>
         )}
-        <button
-          type="button"
-          onClick={() => onRepeat(log)}
-          className="w-full sm:w-auto h-11 px-5 rounded-xl bg-lime-400 hover:bg-lime-300 text-zinc-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-lime-400/20 active:scale-[0.98] transition"
-        >
-          <LuPlay className="w-4 h-4 fill-zinc-950" /> Repetir esta sesión
-        </button>
+        {open ? (
+          <button
+            type="button"
+            onClick={() => onResume(log)}
+            disabled={resuming}
+            className="w-full sm:w-auto h-11 px-5 rounded-xl bg-lime-400 hover:bg-lime-300 disabled:opacity-60 text-zinc-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-lime-400/20 active:scale-[0.98] transition"
+          >
+            <LuPlay className="w-4 h-4 fill-zinc-950" /> {resuming ? 'Abriendo…' : 'Reanudar sesión'}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onRepeat(log)}
+            className="w-full sm:w-auto h-11 px-5 rounded-xl bg-lime-400 hover:bg-lime-300 text-zinc-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-lime-400/20 active:scale-[0.98] transition"
+          >
+            <LuPlay className="w-4 h-4 fill-zinc-950" /> Repetir esta sesión
+          </button>
+        )}
       </header>
 
       {/* Summary */}
       <section aria-label="Resumen" className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 py-4 border-y border-white/5">
-        <Stat Icon={LuClock} label="Duración" value={log.durationMinutes > 0 ? formatMinutes(log.durationMinutes) : '—'} accent="text-cyan-400" />
+        <Stat Icon={LuClock} label="Duración" value={minutes > 0 ? formatMinutes(minutes) : '—'} accent="text-cyan-400" />
         <Stat Icon={LuDumbbell} label="Ejercicios" value={exercises.length} />
         <Stat Icon={LuLayers} label="Series" value={totalSets(log)} accent="text-emerald-400" />
         <Stat Icon={LuWeight} label="Volumen" value={totalVolume(log) > 0 ? formatKg(totalVolume(log)) : '—'} accent="text-amber-400" />
         <Stat Icon={LuFlame} label="Calorías" value={log.caloriesBurned > 0 ? fmtNum(log.caloriesBurned) : '—'} accent="text-orange-400" />
         <Stat Icon={FeelingIcon} label="Sensación" value={feeling.l} />
       </section>
+
+      {/* Unfinished: what was left to do */}
+      {pending.length > 0 && (
+        <section aria-label="Ejercicios pendientes" className="space-y-2 rounded-xl border border-amber-400/20 bg-amber-400/5 p-3">
+          <h3 className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-300">
+            <LuCircleDashed className="w-3.5 h-3.5" aria-hidden="true" /> Pendiente
+          </h3>
+          <ul className="flex flex-wrap gap-1.5">
+            {pending.map((p, i) => (
+              <li key={i} className="text-xs text-zinc-200 bg-zinc-900 border border-white/10 rounded-lg px-2 py-1">
+                {p.name} <span className="font-mono text-zinc-500">{p.done}/{p.total}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Exercises */}
       <section aria-label="Ejercicios" className="space-y-3">
@@ -205,11 +274,16 @@ function SessionDetail({ entry, previous, onBack, onRepeat, onEdit, onDuplicate,
                       {ex.exercise?.muscleGroup && (
                         <p className="text-xs text-zinc-500">{MUSCLE_LABELS[ex.exercise.muscleGroup] || ex.exercise.muscleGroup}</p>
                       )}
+                      <RestLine exercise={ex} />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1.5">
                         {(ex.sets || []).map((s, si) => (
-                          <span key={si} className="font-mono text-xs bg-zinc-800 border border-white/5 text-zinc-200 rounded-md px-2 py-0.5">
+                          <span
+                            key={si}
+                            title={s.completed === false ? 'Serie no completada' : undefined}
+                            className={`font-mono text-xs border rounded-md px-2 py-0.5 ${s.completed === false ? 'border-dashed border-white/15 text-zinc-500' : 'bg-zinc-800 border-white/5 text-zinc-200'}`}
+                          >
                             {fmtNum(s.weight)} × {s.reps}
                           </span>
                         ))}
@@ -219,7 +293,7 @@ function SessionDetail({ entry, previous, onBack, onRepeat, onEdit, onDuplicate,
                       {best ? `${fmtNum(best.weight)} kg × ${best.reps}` : '—'}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <ProgressBadge current={best} previous={prev} />
+                      {previousReady && <ProgressBadge current={best} previous={prev} />}
                       {prev && <p className="text-[11px] text-zinc-500 mt-0.5">antes {fmtNum(prev.weight)} kg × {prev.reps}</p>}
                     </td>
                   </tr>
@@ -242,12 +316,17 @@ function SessionDetail({ entry, previous, onBack, onRepeat, onEdit, onDuplicate,
                     <p className="text-xs text-zinc-500">
                       {(ex.sets || []).length} series{best ? ` · mejor ${fmtNum(best.weight)} kg × ${best.reps}` : ''}
                     </p>
+                    <RestLine exercise={ex} />
                   </div>
-                  <ProgressBadge current={best} previous={prev} />
+                  {previousReady && <ProgressBadge current={best} previous={prev} />}
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {(ex.sets || []).map((s, si) => (
-                    <span key={si} className="font-mono text-xs bg-zinc-800 border border-white/5 text-zinc-200 rounded-md px-2 py-0.5">
+                    <span
+                      key={si}
+                      title={s.completed === false ? 'Serie no completada' : undefined}
+                      className={`font-mono text-xs border rounded-md px-2 py-0.5 ${s.completed === false ? 'border-dashed border-white/15 text-zinc-500' : 'bg-zinc-800 border-white/5 text-zinc-200'}`}
+                    >
                       {fmtNum(s.weight)} × {s.reps}
                     </span>
                   ))}

@@ -5,6 +5,7 @@
  * midnight keep their calendar day.
  */
 import { workoutDisplayDate } from './workoutUtils';
+import { statusOf } from './workoutStatus';
 
 const pad2 = (n) => String(n).padStart(2, '0');
 
@@ -93,6 +94,47 @@ export function weeklyStreak(entries, today = new Date()) {
   return streak;
 }
 
+/* Same streak from the server's list of week keys (Mondays with a finished session). */
+export function weeklyStreakFromWeeks(weekKeys, today = new Date()) {
+  const weeks = new Set(weekKeys || []);
+  const cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  if (!weeks.has(weekKeyOf(cursor))) cursor.setDate(cursor.getDate() - 7);
+  let streak = 0;
+  while (weeks.has(weekKeyOf(cursor))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 7);
+  }
+  return streak;
+}
+
+/* Exercises not finished in an unfinished session: { name, done, total } (only
+   when the session tracked per-set completion). */
+export function pendingExercises(log) {
+  return (log.exercises || [])
+    .map((e) => {
+      const sets = e.sets || [];
+      if (!sets.some((s) => typeof s.completed === 'boolean')) return null;
+      const done = sets.filter((s) => s.completed).length;
+      return done < sets.length ? { name: e.exercise?.name || 'Ejercicio', done, total: sets.length } : null;
+    })
+    .filter(Boolean);
+}
+
+/* Rest of an exercise: planned (exercise.restSeconds) and what was actually taken per set. */
+export function restInfo(exercise) {
+  const actual = (exercise.sets || []).map((s) => (Number.isFinite(s.restSeconds) ? s.restSeconds : null));
+  return { planned: Number.isFinite(exercise.restSeconds) ? exercise.restSeconds : null, actual };
+}
+
+export function formatRest(sec) {
+  if (sec == null) return '';
+  const s = Math.round(sec);
+  if (s < 60) return `${s} s`;
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return r ? `${m}:${String(r).padStart(2, '0')} min` : `${m} min`;
+}
+
 /* Calendar cells for a month: leading blanks (Monday-first) + one per day. */
 export function monthGrid(key) {
   const { year, month } = parseMonthKey(key);
@@ -153,7 +195,7 @@ export function matchesQuery(log, query) {
 /* period: 'all' | 'week' | 'month' | '3months'; day ('YYYY-MM-DD', from the calendar) wins over period. */
 export function filterEntries(
   entries,
-  { query = '', period = 'all', day = null, muscle = 'all', type = 'all', favorites = false } = {},
+  { query = '', period = 'all', day = null, muscle = 'all', type = 'all', favorites = false, status = 'all' } = {},
   today = new Date()
 ) {
   const thisWeek = weekKeyOf(today);
@@ -167,6 +209,7 @@ export function filterEntries(
       if (period === '3months' && date < threeMonthsAgo) return false;
     }
     if (favorites && !log.favorite) return false;
+    if (status !== 'all' && statusOf(log) !== status) return false;
     if (type !== 'all' && sessionType(log) !== type) return false;
     if (muscle !== 'all' && !muscleGroupsOf(log).includes(muscle)) return false;
     return matchesQuery(log, query);

@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const WorkoutLog = require("../models/WorkoutLog");
+const { LEGACY_COMPLETED_FILTER } = require("../constants/workoutStatus");
 const Routine = require("../models/Routine");
 const Goal = require("../models/Goal");
 const Exercise = require("../models/Exercise");
@@ -15,7 +16,7 @@ exports.getStats = async (_req, res, next) => {
       totalExercises,
     ] = await Promise.all([
       User.countDocuments(),
-      WorkoutLog.countDocuments(),
+      WorkoutLog.countDocuments(LEGACY_COMPLETED_FILTER),
       Routine.countDocuments(),
       Goal.countDocuments(),
       Exercise.countDocuments(),
@@ -31,6 +32,7 @@ exports.getStats = async (_req, res, next) => {
     // Workouts last 7 days
     const workoutsWeek = await WorkoutLog.countDocuments({
       date: { $gte: weekAgo },
+      ...LEGACY_COMPLETED_FILTER,
     });
 
     res.json({
@@ -59,7 +61,7 @@ exports.listUsers = async (_req, res, next) => {
     // Enrich with workout count per user
     const userIds = users.map((u) => u._id);
     const workoutCounts = await WorkoutLog.aggregate([
-      { $match: { user: { $in: userIds } } },
+      { $match: { user: { $in: userIds }, ...LEGACY_COMPLETED_FILTER } },
       { $group: { _id: "$user", count: { $sum: 1 } } },
     ]);
     const countMap = {};

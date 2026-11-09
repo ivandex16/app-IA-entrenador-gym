@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { LuStar, LuChevronRight, LuSearchX } from 'react-icons/lu';
 import { sessionTitle, muscleGroupsOf, MUSCLE_LABELS, groupByMonth, monthLabel, formatMinutes } from './historyUtils';
+import { statusOf, STATUS_META, WORKOUT_STATUS } from './workoutStatus';
 
 const PAGE = 30; // rows rendered per step; more appear as the user nears the end
 
@@ -33,6 +34,11 @@ const SessionListItem = memo(function SessionListItem({ entry, selected, onSelec
           <p className="flex items-center gap-1.5 text-sm font-bold text-white">
             <span className="truncate">{sessionTitle(log)}</span>
             {log.favorite && <LuStar className="w-3.5 h-3.5 shrink-0 text-amber-300 fill-amber-300" aria-label="Favorita" />}
+            {statusOf(log) !== WORKOUT_STATUS.COMPLETED && (
+              <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded border ${STATUS_META[statusOf(log)].badge}`}>
+                {STATUS_META[statusOf(log)].label}
+              </span>
+            )}
           </p>
           <p className="text-xs text-zinc-400 truncate">
             {meta}
@@ -66,7 +72,7 @@ function SkeletonRows() {
  * time and adds more when the sentinel at the bottom comes into view, so even
  * hundreds of sessions stay fast.
  */
-function HistoryList({ entries, grouped, selectedId, onSelect, loading, onClearFilters, scrollRoot }) {
+function HistoryList({ entries, grouped, selectedId, onSelect, loading, onClearFilters, scrollRoot, hasMore, loadingMore, onLoadMore }) {
   const [limit, setLimit] = useState(PAGE);
   const sentinel = useRef(null);
 
@@ -79,15 +85,23 @@ function HistoryList({ entries, grouped, selectedId, onSelect, loading, onClearF
     if (i >= limit) setLimit(Math.ceil((i + 1) / PAGE) * PAGE);
   }, [selectedId, entries, limit]);
 
+  // Near the end: first reveal the next rendered chunk; once everything loaded is
+  // shown, ask the server for the next page of this month (cursor).
+  const moreRendered = limit < entries.length;
+  const canGrow = moreRendered || (hasMore && !loadingMore);
   useEffect(() => {
-    if (!sentinel.current || limit >= entries.length) return undefined;
+    if (!sentinel.current || !canGrow) return undefined;
     const io = new IntersectionObserver(
-      ([e]) => e.isIntersecting && setLimit((l) => l + PAGE),
+      ([e]) => {
+        if (!e.isIntersecting) return;
+        if (moreRendered) setLimit((l) => l + PAGE);
+        else onLoadMore?.();
+      },
       { root: scrollRoot?.current || null, rootMargin: '400px' }
     );
     io.observe(sentinel.current);
     return () => io.disconnect();
-  }, [limit, entries.length, scrollRoot]);
+  }, [canGrow, moreRendered, onLoadMore, scrollRoot]);
 
   if (loading) return <SkeletonRows />;
 
@@ -124,11 +138,19 @@ function HistoryList({ entries, grouped, selectedId, onSelect, loading, onClearF
           </ul>
         </section>
       ))}
-      {limit < entries.length && (
+      {(moreRendered || hasMore) && (
         <div ref={sentinel} className="py-3 text-center">
-          <button type="button" onClick={() => setLimit((l) => l + PAGE)} className="text-xs font-bold text-zinc-400 hover:text-white">
-            Mostrar más ({entries.length - limit})
-          </button>
+          {loadingMore ? (
+            <span className="text-xs text-zinc-500">Cargando más sesiones…</span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => (moreRendered ? setLimit((l) => l + PAGE) : onLoadMore?.())}
+              className="text-xs font-bold text-zinc-400 hover:text-white"
+            >
+              {moreRendered ? `Mostrar más (${entries.length - limit})` : 'Cargar más sesiones de este mes'}
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -28,6 +28,24 @@ router.post(
 );
 
 router.get('/me', protect, ctrl.getMe);
+
+router.put(
+  '/change-password',
+  protect,
+  [
+    body('currentPassword')
+      .isString().withMessage('La contraseña actual es obligatoria.')
+      .bail()
+      .notEmpty().withMessage('La contraseña actual es obligatoria.'),
+    body('newPassword')
+      .isString().withMessage('La nueva contraseña es obligatoria.')
+      .bail()
+      // bcrypt only uses the first 72 bytes
+      .isLength({ min: 6, max: 72 }).withMessage('La nueva contraseña debe tener entre 6 y 72 caracteres.'),
+  ],
+  validate,
+  ctrl.changePassword
+);
 router.post('/forgot-password', ctrl.forgotPassword);
 router.put('/reset-password/:token', ctrl.resetPassword);
 

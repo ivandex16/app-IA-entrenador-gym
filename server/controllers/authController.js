@@ -63,6 +63,34 @@ exports.getMe = async (req, res) => {
 };
 
 // POST /api/auth/forgot-password
+// PUT /api/auth/change-password   (logged-in user; body validated in routes/auth.js)
+// A wrong current password answers 400, not 401: the client treats any 401 as an
+// expired session and would log the user out.
+exports.changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.user._id).select("+password");
+    if (!user) return res.status(404).json({ message: "Usuario no encontrado." });
+
+    if (!(await user.comparePassword(currentPassword))) {
+      return res.status(400).json({ message: "La contraseña actual no es correcta." });
+    }
+    if (await user.comparePassword(newPassword)) {
+      return res.status(400).json({ message: "La nueva contraseña debe ser distinta de la actual." });
+    }
+
+    user.password = newPassword; // hashed by the pre-save hook
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    // Validate only what changed, so older accounts with legacy field values can still save.
+    await user.save({ validateModifiedOnly: true });
+
+    res.json({ message: "Contraseña actualizada correctamente." });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // Password recovery by email is not available: there is no email delivery, and
 // the reset token must never be returned in the HTTP response (anyone knowing an
 // email could take over that account). Same answer for every email, so it

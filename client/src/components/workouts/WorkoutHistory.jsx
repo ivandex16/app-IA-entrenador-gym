@@ -1,144 +1,140 @@
-import { memo } from 'react';
-import {
-  LuActivity, LuPlus, LuHistory, LuClock, LuDumbbell, LuTarget, LuTrendingUp,
-} from 'react-icons/lu';
-import { FEELINGS, workoutDisplayDate } from './workoutUtils';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { LuActivity, LuPlus, LuHistory, LuX } from 'react-icons/lu';
+import MonthCalendar from './MonthCalendar';
+import SessionRow from './SessionRow';
+import { indexLogs, summarizeMonth, weeklyStreak, monthKeyOf, dayKeyOf, shiftMonth, monthLabel } from './historyUtils';
 
-/* Per-session metrics shown on a history card. */
-function summarize(log) {
-  const exercises = log.exercises || [];
-  return {
-    exerciseNames: exercises.map((e) => e.exercise?.name || 'Ejercicio'),
-    totalSets: exercises.reduce((sum, e) => sum + (e.sets?.length || 0), 0),
-    maxWeight: exercises.reduce(
-      (max, e) => Math.max(max, ...(e.sets || []).map((s) => s.weight || 0)),
-      0
-    ),
-  };
-}
-
-function StatTile({ Icon, iconClass, value, label }) {
+function EmptyHistory({ onStart }) {
   return (
-    <div className="bg-zinc-950 border border-white/5 rounded-xl px-3 py-2 flex items-center gap-2">
-      <Icon className={`w-4 h-4 shrink-0 ${iconClass}`} />
+    <div className="text-center py-20 space-y-5 animate-fadeInUp">
+      <div className="w-20 h-20 rounded-3xl bg-zinc-900 border border-white/10 flex items-center justify-center mx-auto text-lime-400">
+        <LuActivity className="w-10 h-10" />
+      </div>
       <div>
-        <p className="text-xs font-bold text-white font-mono">{value}</p>
-        <p className="text-[10px] text-zinc-500">{label}</p>
+        <h3 className="text-xl font-bold text-white">Sin entrenamientos aún</h3>
+        <p className="text-zinc-400 text-sm mt-1 max-w-sm mx-auto">
+          Inicia tu primera sesión hoy y lleva el conteo exacto de series, peso y repeticiones.
+        </p>
       </div>
+      <button
+        type="button"
+        onClick={onStart}
+        className="px-6 py-3 rounded-xl bg-lime-400 hover:bg-lime-300 text-zinc-950 font-bold text-sm transition-all inline-flex items-center gap-2"
+      >
+        <LuPlus className="w-4 h-4" /> Comenzar mi primer entreno
+      </button>
     </div>
   );
 }
 
-const WorkoutCard = memo(function WorkoutCard({ log }) {
-  const feeling = FEELINGS.find((f) => f.v === log.feeling) || FEELINGS[1];
-  const FeelingIcon = feeling.Icon;
-  const { exerciseNames, totalSets, maxWeight } = summarize(log);
-  const date = workoutDisplayDate(log.date);
-
-  return (
-    <div className="group bg-zinc-900 border border-white/10 hover:border-lime-400/40 rounded-2xl p-5 transition-all duration-200 shadow-md space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-zinc-800 border border-white/10 flex flex-col items-center justify-center shrink-0">
-            <span className="text-base font-black text-white leading-none font-mono">
-              {date.getDate()}
-            </span>
-            <span className="text-[10px] text-zinc-400 font-bold uppercase mt-0.5">
-              {date.toLocaleDateString('es', { month: 'short' })}
-            </span>
-          </div>
-
-          <div>
-            <p className="text-xs text-zinc-400 capitalize">
-              {date.toLocaleDateString('es', { weekday: 'long' })}
-            </p>
-            <h3 className="font-bold text-white text-base leading-tight mt-0.5">
-              {exerciseNames.length <= 3
-                ? exerciseNames.join(', ')
-                : `${exerciseNames.slice(0, 3).join(', ')} +${exerciseNames.length - 3} más`}
-            </h3>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-800 border border-white/10 text-xs font-semibold text-zinc-200">
-          <FeelingIcon className="w-3.5 h-3.5 text-lime-400" />
-          <span>{feeling.l}</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        {log.durationMinutes > 0 && (
-          <StatTile Icon={LuClock} iconClass="text-cyan-400" value={`${log.durationMinutes} min`} label="Duración" />
-        )}
-        <StatTile Icon={LuDumbbell} iconClass="text-lime-400" value={log.exercises?.length || 0} label="Ejercicios" />
-        {totalSets > 0 && (
-          <StatTile Icon={LuTarget} iconClass="text-emerald-400" value={totalSets} label="Series" />
-        )}
-        {maxWeight > 0 && (
-          <StatTile Icon={LuTrendingUp} iconClass="text-amber-400" value={`${maxWeight} kg`} label="Peso máx." />
-        )}
-      </div>
-
-      <div className="flex flex-wrap gap-1.5">
-        {exerciseNames.map((name, i) => (
-          <span
-            key={i}
-            className="bg-zinc-800 text-zinc-300 text-[11px] px-2.5 py-1 rounded-lg font-medium border border-white/5"
-          >
-            {name}
-          </span>
-        ))}
-      </div>
-
-      {log.notes && (
-        <p className="text-xs text-zinc-400 italic pl-3 border-l-2 border-lime-400/40">
-          {log.notes}
-        </p>
-      )}
-    </div>
-  );
-});
-
-/* List of past sessions, or an empty state that invites starting the first one. */
+/*
+ * History organised by month: a calendar of the selected month (summary,
+ * weekly streak, trained days) and, below, only that month's sessions as
+ * compact rows that expand to show the detail. Picking a day narrows the
+ * list to that day. The list never grows beyond one month.
+ */
 function WorkoutHistory({ logs, onStart }) {
-  if (logs.length === 0) {
-    return (
-      <div className="text-center py-20 space-y-5 animate-fadeInUp">
-        <div className="w-20 h-20 rounded-3xl bg-zinc-900 border border-white/10 flex items-center justify-center mx-auto text-lime-400">
-          <LuActivity className="w-10 h-10" />
-        </div>
-        <div>
-          <h3 className="text-xl font-bold text-white">Sin entrenamientos aún</h3>
-          <p className="text-zinc-400 text-sm mt-1 max-w-sm mx-auto">
-            Inicia tu primera sesión hoy y lleva el conteo exacto de series, peso y repeticiones.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onStart}
-          className="px-6 py-3 rounded-xl bg-lime-400 hover:bg-lime-300 text-zinc-950 font-bold text-sm transition-all inline-flex items-center gap-2"
-        >
-          <LuPlus className="w-4 h-4" /> Comenzar mi primer entreno
-        </button>
-      </div>
-    );
-  }
+  const entries = useMemo(() => indexLogs(logs), [logs]);
+  const todayKey = dayKeyOf(new Date());
+  const currentMonth = monthKeyOf(new Date());
+  const oldestMonth = entries.length ? entries[entries.length - 1].monthKey : currentMonth;
+  const newestMonth = entries.length && entries[0].monthKey > currentMonth ? entries[0].monthKey : currentMonth;
+
+  // Opens on the month of the latest session (or the current one).
+  const [month, setMonth] = useState(() => (entries[0]?.monthKey ?? currentMonth));
+  const [day, setDay] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
+
+  // Logs usually arrive after the first render: jump once to the latest session's month.
+  const positioned = useRef(entries.length > 0);
+  useEffect(() => {
+    if (!positioned.current && entries.length > 0) {
+      positioned.current = true;
+      setMonth(entries[0].monthKey);
+    }
+  }, [entries]);
+
+  const monthEntries = useMemo(() => entries.filter((e) => e.monthKey === month), [entries, month]);
+  const sessionsByDay = useMemo(() => {
+    const map = new Map();
+    for (const e of monthEntries) map.set(e.dayKey, (map.get(e.dayKey) || 0) + 1);
+    return map;
+  }, [monthEntries]);
+  const summary = useMemo(() => summarizeMonth(monthEntries), [monthEntries]);
+  const streak = useMemo(() => weeklyStreak(entries), [entries]);
+  const visible = day ? monthEntries.filter((e) => e.dayKey === day) : monthEntries;
+
+  const goTo = useCallback((delta) => {
+    setMonth((m) => shiftMonth(m, delta));
+    setDay(null);
+    setExpandedId(null);
+  }, []);
+  const goPrev = useCallback(() => goTo(-1), [goTo]);
+  const goNext = useCallback(() => goTo(1), [goTo]);
+  const toggle = useCallback((id) => setExpandedId((cur) => (cur === id ? null : id)), []);
+  const selectDay = useCallback((key) => {
+    setDay(key);
+    setExpandedId(null);
+  }, []);
+
+  if (entries.length === 0) return <EmptyHistory onStart={onStart} />;
+
+  const rawDayLabel = day
+    ? visible[0]?.date.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' }) || ''
+    : '';
+  const dayLabel = rawDayLabel.charAt(0).toUpperCase() + rawDayLabel.slice(1);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3 mb-2">
-        <div className="flex items-center gap-2">
-          <LuHistory className="w-4 h-4 text-lime-400" />
-          <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-300">
-            Historial de Sesiones
-          </h2>
-        </div>
-        <span className="text-xs text-zinc-500 font-mono">{logs.length} registradas</span>
+      <div className="flex items-center gap-2">
+        <LuHistory className="w-4 h-4 text-lime-400" />
+        <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-300">Historial</h2>
+        <span className="ml-auto text-xs text-zinc-500 font-mono">{entries.length} sesiones en total</span>
       </div>
 
-      {logs.map((log) => (
-        <WorkoutCard key={log._id} log={log} />
-      ))}
+      <MonthCalendar
+        monthKey={month}
+        sessionsByDay={sessionsByDay}
+        summary={summary}
+        streak={streak}
+        selectedDay={day}
+        todayKey={todayKey}
+        canGoPrev={month > oldestMonth}
+        canGoNext={month < newestMonth}
+        onPrev={goPrev}
+        onNext={goNext}
+        onSelectDay={selectDay}
+      />
+
+      <section aria-label={`Sesiones de ${monthLabel(month)}`} className="space-y-2">
+        <div className="flex items-center justify-between gap-2 px-1">
+          <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+            {day ? dayLabel : `Sesiones de ${monthLabel(month).toLowerCase()}`}
+          </p>
+          {day && (
+            <button
+              type="button"
+              onClick={() => selectDay(null)}
+              className="text-xs font-bold text-lime-400 hover:text-lime-300 flex items-center gap-1"
+            >
+              <LuX className="w-3.5 h-3.5" /> Ver todo el mes
+            </button>
+          )}
+        </div>
+
+        {visible.length === 0 ? (
+          <div className="text-center py-10 bg-zinc-900/40 border border-dashed border-white/10 rounded-2xl">
+            <p className="text-sm text-zinc-300 font-semibold">Sin entrenamientos en {monthLabel(month).toLowerCase()}</p>
+            <p className="text-xs text-zinc-500 mt-1">Usa las flechas del calendario para ver otros meses.</p>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {visible.map(({ log, date }) => (
+              <SessionRow key={log._id} log={log} date={date} expanded={expandedId === log._id} onToggle={toggle} />
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

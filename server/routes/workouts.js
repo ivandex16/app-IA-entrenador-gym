@@ -23,6 +23,7 @@ const workoutBody = [
   body('durationMinutes').optional().custom(numberInRange(0, 1440)),
   body('notes').optional().isString().isLength({ max: 2000 }),
   body('feeling').optional().isIn(['great', 'good', 'ok', 'tired', 'bad']),
+  body('favorite').optional().isBoolean({ strict: true }).withMessage('favorite must be true or false'),
   body('exercises').optional().isArray({ max: 50 }),
   body('exercises.*.exercise').isMongoId().withMessage('exercise must be a valid id'),
   body('exercises.*.sets').optional().isArray({ max: 100 }),

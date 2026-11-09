@@ -3,6 +3,11 @@ export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
   theme: {
     extend: {
+      // h-13 (52px) is used by the login/register inputs and buttons; Tailwind
+      // has no 13 step by default, so without this they had no height.
+      spacing: {
+        13: "3.25rem",
+      },
       colors: {
         primary: "#6366f1", // indigo-500
         accent: "#22d3ee", // cyan-400

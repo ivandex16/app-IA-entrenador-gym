@@ -126,7 +126,7 @@ function HistoryList({ entries, grouped, selectedId, onSelect, loading, onClearF
       {sections.map((section) => (
         <section key={section.monthKey || 'all'} aria-label={section.monthKey ? monthLabel(section.monthKey) : 'Sesiones'}>
           {section.monthKey && (
-            <h3 className="sticky top-[66px] lg:top-0 z-10 bg-[#0d0e12]/95 backdrop-blur px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-zinc-400 border-b border-white/5">
+            <h3 className="sticky top-[66px] xl:top-0 z-10 bg-[#0d0e12]/95 backdrop-blur px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-zinc-400 border-b border-white/5">
               {monthLabel(section.monthKey)}
               <span className="ml-2 font-mono font-semibold text-zinc-600 normal-case">{section.items.length}</span>
             </h3>

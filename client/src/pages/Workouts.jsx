@@ -776,7 +776,7 @@ export default function Workouts() {
 
 
   return (
-    <div className="min-h-screen bg-[#08090D] text-zinc-100 pb-28 selection:bg-lime-400 selection:text-black">
+    <div className="min-h-screen bg-[#08090D] text-zinc-100 pb-28 xl:pb-6 selection:bg-lime-400 selection:text-black">
       {restDone && <RestDoneFlash key={restDone.at} type={restDone.type} />}
       {/* ══════════════════════════════════════════════════════════════════════
           HERO BANNER CON IMAGEN DE FONDO ORIGINAL (Siempre visible en la parte superior)
@@ -885,7 +885,7 @@ export default function Workouts() {
       {/* ══════════════════════════════════════════════════════════════════════
           CONTENIDO PRINCIPAL
           ══════════════════════════════════════════════════════════════════════ */}
-      <div className={`${showForm ? 'max-w-5xl' : 'max-w-7xl'} mx-auto px-4 mt-6 space-y-4`}>
+      <div className={`${showForm ? 'max-w-5xl' : 'max-w-[1440px]'} mx-auto px-4 mt-6 space-y-4`}>
         {showForm ? (
           <div className="space-y-4">
             {/* ── Barra fija bajo la navbar: cronómetro de sesión + descanso compacto ──

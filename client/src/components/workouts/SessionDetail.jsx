@@ -45,7 +45,7 @@ function ProgressBadge({ current, previous }) {
   if (!current) return null;
   if (!previous) {
     return (
-      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-300">
+      <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-bold text-sky-300">
         <LuSparkles className="w-3 h-3" aria-hidden="true" /> Primera vez
       </span>
     );
@@ -54,7 +54,7 @@ function ProgressBadge({ current, previous }) {
   const dr = current.reps - previous.reps;
   if (dw === 0 && dr === 0) {
     return (
-      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-zinc-400">
+      <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-bold text-zinc-400">
         <LuMinus className="w-3 h-3" aria-hidden="true" /> Igual
       </span>
     );
@@ -63,7 +63,7 @@ function ProgressBadge({ current, previous }) {
   const Icon = up ? LuTrendingUp : LuTrendingDown;
   const text = dw !== 0 ? `${dw > 0 ? '+' : '−'}${fmtNum(Math.abs(dw))} kg` : `${dr > 0 ? '+' : '−'}${Math.abs(dr)} reps`;
   return (
-    <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${up ? 'text-lime-400' : 'text-rose-400'}`}>
+    <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-bold ${up ? 'text-lime-400' : 'text-rose-400'}`}>
       <Icon className="w-3 h-3" aria-hidden="true" /> {text}
       <span className="sr-only">respecto a la sesión anterior</span>
     </span>
@@ -153,7 +153,7 @@ function SessionDetail({
       {/* Header */}
       <header className="space-y-3">
         {onBack && (
-          <button type="button" onClick={onBack} className="flex items-center gap-1.5 text-xs font-bold text-zinc-400 hover:text-white lg:hidden">
+          <button type="button" onClick={onBack} className="flex items-center gap-1.5 text-xs font-bold text-zinc-400 hover:text-white xl:hidden">
             <LuArrowLeft className="w-4 h-4" /> Historial
           </button>
         )}
@@ -223,7 +223,7 @@ function SessionDetail({
       </header>
 
       {/* Summary */}
-      <section aria-label="Resumen" className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 py-4 border-y border-white/5">
+      <section aria-label="Resumen" className="grid grid-cols-2 sm:grid-cols-3 2xl:grid-cols-6 gap-x-4 gap-y-3 py-4 border-y border-white/5">
         <Stat Icon={LuClock} label="Duración" value={minutes > 0 ? formatMinutes(minutes) : '—'} accent="text-cyan-400" />
         <Stat Icon={LuDumbbell} label="Ejercicios" value={exercises.length} />
         <Stat Icon={LuLayers} label="Series" value={totalSets(log)} accent="text-emerald-400" />

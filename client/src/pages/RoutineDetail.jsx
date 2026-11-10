@@ -1161,11 +1161,16 @@ export default function RoutineDetail() {
                                 </span>
                               </>
                             )}
-                            <span className="text-zinc-600 font-bold">·</span>
-                            <span className="text-cyan-400 font-medium flex items-center gap-1">
-                              <LuTimer className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                              <span>{ex.restSeconds}s</span>
-                            </span>
+                            {/* 0 = no own rest (the workout uses the user's default), like weight 0 */}
+                            {ex.restSeconds > 0 && (
+                              <>
+                                <span className="text-zinc-600 font-bold">·</span>
+                                <span className="text-cyan-400 font-medium flex items-center gap-1">
+                                  <LuTimer className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                                  <span>{ex.restSeconds}s</span>
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>

@@ -983,6 +983,17 @@ export default function Exercises() {
             })}
           </div>
         )}
+
+        {/* Credit for the open catalog the exercises were imported from (CC-BY-SA requires it). */}
+        {exercises.some((e) => e.source?.provider === 'wger') && (
+          <p className="text-[11px] text-zinc-500 text-center pt-6">
+            Parte de los ejercicios procede de{' '}
+            <a href="https://wger.de" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-300">wger.de</a>
+            {' '}(licencia{' '}
+            <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.es" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-300">CC BY-SA</a>
+            ); los autores aparecen en cada ejercicio.
+          </p>
+        )}
       </div>
     </div>
   );

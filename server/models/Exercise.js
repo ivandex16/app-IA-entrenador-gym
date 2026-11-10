@@ -51,10 +51,33 @@ const exerciseSchema = new mongoose.Schema(
     youtubeVideoId: { type: String, default: '' }, // e.g. 'dQw4w9WgXcQ'
     instructions: [String],
     tips: [String],
+    // Other names (e.g. English) used to recognise the exercise in imported routines.
+    aliases: { type: [String], default: undefined },
+    // Imported from an open catalog (e.g. wger, CC-BY-SA): credited in the app as the license requires.
+    source: {
+      type: new mongoose.Schema(
+        {
+          provider: String,
+          externalId: String,
+          url: String,
+          license: String,
+          licenseUrl: String,
+          author: String,
+          imageAuthor: String,
+        },
+        { _id: false }
+      ),
+      default: undefined,
+    },
   },
   { timestamps: true }
 );
 
 exerciseSchema.index({ muscleGroup: 1, difficulty: 1, equipment: 1 });
+// One document per imported exercise (re-running an import updates it, never duplicates).
+exerciseSchema.index(
+  { 'source.provider': 1, 'source.externalId': 1 },
+  { unique: true, partialFilterExpression: { 'source.provider': { $exists: true } } }
+);
 
 module.exports = mongoose.model('Exercise', exerciseSchema);

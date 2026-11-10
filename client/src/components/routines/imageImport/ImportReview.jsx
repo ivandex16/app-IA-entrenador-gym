@@ -1,5 +1,6 @@
 import { memo, useMemo, useState } from 'react';
-import { LuTriangleAlert, LuTrash2, LuPlus, LuListPlus, LuCheck, LuChevronDown, LuInfo } from 'react-icons/lu';
+import { LuTriangleAlert, LuTrash2, LuPlus, LuListPlus, LuCheck, LuChevronDown, LuInfo, LuImageUp } from 'react-icons/lu';
+import ImageTips from './ImageTips';
 import ExercisePicker from './ExercisePicker';
 import { emptyRow, newRowId, updateRow, validate } from './reviewModel';
 
@@ -104,7 +105,7 @@ const ExerciseCard = memo(function ExerciseCard({ row, index, errors, showErrors
  * "Revisar rutina importada": everything detected is editable, doubtful fields
  * are marked, and nothing is saved until the user presses "Crear rutina".
  */
-function ImportReview({ state, setState, catalog, previewUrl, saving, onCreateExercise, onSave, onCancel }) {
+function ImportReview({ state, setState, catalog, previewUrl, saving, onCreateExercise, onSave, onCancel, onRetry }) {
   const [showErrors, setShowErrors] = useState(false);
   // The original image sits beside the list on wide screens; on phones it starts folded.
   const [imageOpen, setImageOpen] = useState(() => window.matchMedia('(min-width: 1024px)').matches);
@@ -127,6 +128,18 @@ function ImportReview({ state, setState, catalog, previewUrl, saving, onCreateEx
 
   return (
     <div className="space-y-5">
+      {state.warning && (
+        <div role="alert" className="rounded-xl border border-amber-400/30 bg-amber-400/[0.06] p-3 sm:p-4 space-y-2">
+          <p className="text-sm font-semibold text-amber-200 flex items-start gap-2"><LuTriangleAlert className="w-4 h-4 mt-0.5 shrink-0" /> {state.warning.message}</p>
+          {state.warning.hint && <p className="text-xs text-zinc-300">{state.warning.hint}</p>}
+          <ImageTips />
+          {onRetry && (
+            <button type="button" onClick={onRetry} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-zinc-950 text-xs font-black">
+              <LuImageUp className="w-4 h-4" /> Probar con otra imagen
+            </button>
+          )}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="px-2.5 py-1 rounded-lg bg-zinc-800 text-zinc-200 font-bold">{all.length} {all.length === 1 ? 'ejercicio detectado' : 'ejercicios detectados'}</span>
         {toReview > 0 ? (

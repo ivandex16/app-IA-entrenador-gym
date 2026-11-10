@@ -16,6 +16,7 @@ import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import Routines from './pages/Routines';
 import RoutineDetail from './pages/RoutineDetail';
+import RoutineBuilder from './pages/RoutineBuilder';
 import Workouts from './pages/Workouts';
 import Exercises from './pages/Exercises';
 import ExerciseDetail from './pages/ExerciseDetail';
@@ -60,6 +61,7 @@ export default function App() {
         {/* Protected */}
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/routines" element={<ProtectedRoute><Routines /></ProtectedRoute>} />
+        <Route path="/routines/new" element={<ProtectedRoute><RoutineBuilder /></ProtectedRoute>} />
         <Route path="/routines/:id" element={<ProtectedRoute><RoutineDetail /></ProtectedRoute>} />
         <Route path="/workouts" element={<ProtectedRoute><Workouts /></ProtectedRoute>} />
         <Route path="/goals" element={<ProtectedRoute><Goals /></ProtectedRoute>} />

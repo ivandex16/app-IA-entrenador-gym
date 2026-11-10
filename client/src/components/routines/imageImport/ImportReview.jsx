@@ -20,6 +20,20 @@ const FIELDS = [
   { key: 'tempo', label: 'Tempo', mode: 'text', placeholder: '—' },
 ];
 
+/* How the image was read (helps to understand a sheet that wasn't split into days). */
+const READ_REASONS = {
+  'word-columns': 'por columnas detectadas en el texto',
+  panels: 'panel por panel',
+  'no-panels': 'como una sola página (no se detectaron paneles separados)',
+  'not-days': 'como una sola página (los paneles no parecían días de ejercicios)',
+  'pixel-error': 'como una sola página (falló la detección de paneles)',
+  'panel-error': 'como una sola página (falló la lectura por paneles)',
+};
+export function readModeText(d) {
+  const how = READ_REASONS[d.reason] || 'como una sola página';
+  return `Lectura: ${how}${d.panels ? ` · ${d.panels} paneles` : ''} · imagen ${d.image}${d.error ? ` · ${d.error}` : ''}`;
+}
+
 const ReviewTag = () => (
   <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-300">
     <LuTriangleAlert className="w-3 h-3" aria-hidden="true" /> Revisar
@@ -153,6 +167,7 @@ function ImportReview({ state, setState, catalog, previewUrl, saving, onCreateEx
         )}
         <span className="text-zinc-500 inline-flex items-center gap-1"><LuInfo className="w-3.5 h-3.5" /> Lo que no aparece en la imagen queda vacío: complétalo si quieres.</span>
       </div>
+      {state.diagnostics && <p className="text-[11px] text-zinc-500" data-testid="read-mode">{readModeText(state.diagnostics)}</p>}
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,260px)_minmax(0,1fr)]">
         {previewUrl && (

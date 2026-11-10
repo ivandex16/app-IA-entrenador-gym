@@ -154,15 +154,22 @@ async function readCrop(bitmap, sx, sy, sw, sh, onProgress) {
 export async function recognizeImage(bitmap, prepared, onProgress) {
   const page = await recognizeLines(prepared.canvas, (p) => onProgress?.(p, { page: true }));
   const base = { lines: page.lines, columns: page.columns, mode: page.columns > 1 ? 'words' : 'page', confidence: page.confidence };
-  if (page.columns > 1) return base;
+  // Why this reading was chosen: shown on the review screen and in the console,
+  // so a sheet that wasn't split into days can be explained.
+  const done = (result, reason, extra = {}) => {
+    const diagnostics = { mode: result.mode, reason, image: `${bitmap.width}×${bitmap.height}`, ...extra };
+    console.info('[importar imagen]', diagnostics);
+    return { ...result, diagnostics };
+  };
+  if (page.columns > 1) return done(base, 'word-columns');
 
   let found = null;
   try {
     found = findPixelColumns(grayOf(prepared.canvas), prepared.canvas.width, prepared.canvas.height);
-  } catch {
-    found = null;
+  } catch (err) {
+    return done(base, 'pixel-error', { error: String(err?.message || err) });
   }
-  if (!found) return base;
+  if (!found) return done(base, 'no-panels');
 
   const scale = prepared.info?.scale || 1;
   const pad = 2 / scale;
@@ -176,7 +183,7 @@ export async function recognizeImage(bitmap, prepared, onProgress) {
       cols.push(await readCrop(bitmap, x0 / scale - pad, found.top / scale, (x1 - x0) / scale + 2 * pad, (found.bottom - found.top) / scale, (p) => onProgress?.((i + p) / n, stage)));
     }
     const colLines = cols.map((c) => c.lines.filter((l) => l.text.trim()));
-    if (!looksLikeDayColumns(colLines)) return base;
+    if (!looksLikeDayColumns(colLines)) return done(base, 'not-days', { panels: found.columns.length });
 
     const header = found.top / scale > 20 ? await readCrop(bitmap, 0, 0, bitmap.width, found.top / scale) : { lines: [] };
     const days = inferColumnDays(colLines);
@@ -188,9 +195,10 @@ export async function recognizeImage(bitmap, prepared, onProgress) {
       col.forEach((l, k) => k !== days[i].dayLine && lines.push(l));
     });
     const confidence = Math.round(cols.reduce((s, c) => s + c.confidence, 0) / cols.length);
-    return { lines, columns: cols.length, mode: 'pixels', confidence };
-  } catch {
-    return base; // the first reading is still valid
+    return done({ lines, columns: cols.length, mode: 'pixels', confidence }, 'panels', { panels: cols.length });
+  } catch (err) {
+    // The first reading is still valid.
+    return done(base, 'panel-error', { panels: found.columns.length, error: String(err?.message || err) });
   }
 }
 

@@ -40,6 +40,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/exercises", require("./routes/exercises"));
+app.use("/api/routines/import", require("./routes/routineImport")); // image import (independent from PDF)
 app.use("/api/routines", require("./routes/routines"));
 app.use("/api/workouts", require("./routes/workouts"));
 app.use("/api/goals", require("./routes/goals"));

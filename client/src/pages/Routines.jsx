@@ -22,7 +22,9 @@ import {
   LuSearch,
   LuX,
   LuLayers,
+  LuImageUp,
 } from 'react-icons/lu';
+import ImageImportPanel from '../components/routines/imageImport/ImageImportPanel';
 
 const GOALS = [
   { v: 'general', l: 'General', Icon: LuActivity, color: 'from-blue-500 to-cyan-400' },
@@ -89,6 +91,7 @@ export default function Routines() {
   const [showPdf, setShowPdf] = useState(false);
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfUploading, setPdfUploading] = useState(false);
+  const [showImage, setShowImage] = useState(false); // image import (independent from PDF)
 
   // Quick Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -247,7 +250,7 @@ export default function Routines() {
             </div>
 
             {/* Action Buttons (Tour preserved: routines-actions) */}
-            <div data-tour="routines-actions" className="flex items-center gap-3 animate-fadeInUp">
+            <div data-tour="routines-actions" className="flex flex-wrap items-center gap-3 animate-fadeInUp">
               <button
                 onClick={() => {
                   setShowPdf(!showPdf);
@@ -261,6 +264,22 @@ export default function Routines() {
               >
                 <LuFileUp className="w-4 h-4 text-cyan-400" />
                 <span>{showPdf ? 'Cerrar PDF' : 'Subir PDF'}</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowImage((v) => !(v && !showPdf && !showForm));
+                  setShowPdf(false);
+                  setShowForm(false);
+                }}
+                className={`min-h-[44px] px-4 sm:px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 flex items-center gap-2 border active:scale-95 ${
+                  showImage && !showPdf && !showForm
+                    ? 'bg-lime-400/15 text-lime-300 border-lime-400/40 shadow-lg shadow-lime-400/10'
+                    : 'bg-[#12141F]/90 backdrop-blur-md hover:bg-white/[0.08] border-white/[0.1] text-zinc-200'
+                }`}
+              >
+                <LuImageUp className="w-4 h-4 text-lime-400" />
+                <span>{showImage && !showPdf && !showForm ? 'Cerrar imagen' : 'Subir imagen'}</span>
               </button>
 
               <button
@@ -360,6 +379,18 @@ Martes - Espalda y Bíceps
               </button>
             </form>
           </div>
+        )}
+
+        {/* ── A2. IMAGE IMPORT (OCR + review; separate from the PDF import) ── */}
+        {showImage && !showPdf && !showForm && (
+          <ImageImportPanel
+            onClose={() => setShowImage(false)}
+            onCreated={(routine) => {
+              setShowImage(false);
+              load();
+              if (routine?._id) navigate(`/routines/${routine._id}`);
+            }}
+          />
         )}
 
         {/* ── B. CREATE NEW ROUTINE FORM ── */}

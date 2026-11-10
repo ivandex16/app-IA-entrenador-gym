@@ -48,6 +48,8 @@ const exerciseSchema = new mongoose.Schema(
       default: 'hypertrophy',
     },
     imageUrl: { type: String, default: '' },
+    // Small version of imageUrl for lists and pickers (optional; lists fall back to imageUrl).
+    thumbnailUrl: { type: String, default: undefined },
     youtubeVideoId: { type: String, default: '' }, // e.g. 'dQw4w9WgXcQ'
     instructions: [String],
     tips: [String],
@@ -74,6 +76,7 @@ const exerciseSchema = new mongoose.Schema(
 );
 
 exerciseSchema.index({ muscleGroup: 1, difficulty: 1, equipment: 1 });
+exerciseSchema.index({ 'source.provider': 1, imageUrl: -1, muscleGroup: 1, name: 1 }); // paginated catalog order
 // One document per imported exercise (re-running an import updates it, never duplicates).
 exerciseSchema.index(
   { 'source.provider': 1, 'source.externalId': 1 },

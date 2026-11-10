@@ -17,22 +17,69 @@ exports.aiRecommend = async (req, res, next) => {
   }
 };
 
-// GET /api/exercises?muscleGroup=chest&difficulty=beginner&equipment=barbell
+/* Search text → accent/case-insensitive regex source ("jalon" finds "Jalón"), user input escaped. */
+const ACCENTS = { a: "[aáàä]", e: "[eéèë]", i: "[iíìï]", o: "[oóòö]", u: "[uúùü]", n: "[nñ]", c: "[cç]" };
+function searchRegex(text) {
+  return String(text)
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 6)
+    .map((word) =>
+      word
+        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+        .replace(/[aeiounc]/gi, (ch) => ACCENTS[ch.toLowerCase()] || ch)
+    )
+    // every word, in any order
+    .map((w) => `(?=.*${w})`)
+    .join("");
+}
+
+// Light fields for lists and pickers (no long texts, credits or aliases).
+const LIST_FIELDS = "name muscleGroup secondaryMuscles equipment difficulty category description imageUrl thumbnailUrl youtubeVideoId source.provider";
+
+/*
+ * GET /api/exercises?muscleGroup=chest,back&equipment=barbell&difficulty=…&category=…&search=…
+ *   - without `page`: the full array, as before (Workouts, imports and other callers).
+ *   - with `page` (and optional `limit`, max 60): { items, total, page, limit, totalPages }
+ *     with light fields — the catalog views page through the server instead of
+ *     downloading every exercise.
+ */
 exports.list = async (req, res, next) => {
   try {
     const filter = {};
     if (req.query.muscleGroup) {
-      const groups = req.query.muscleGroup.split(",").filter(Boolean);
+      const groups = String(req.query.muscleGroup).split(",").filter(Boolean);
       filter.muscleGroup = groups.length === 1 ? groups[0] : { $in: groups };
     }
-    if (req.query.difficulty) filter.difficulty = req.query.difficulty;
-    if (req.query.equipment) filter.equipment = req.query.equipment;
-    if (req.query.category) filter.category = req.query.category;
-    if (req.query.search)
-      filter.name = { $regex: req.query.search, $options: "i" };
+    if (req.query.difficulty) filter.difficulty = String(req.query.difficulty);
+    if (req.query.equipment) filter.equipment = String(req.query.equipment);
+    if (req.query.category) filter.category = String(req.query.category);
+    if (req.query.search && String(req.query.search).trim()) {
+      const re = { $regex: searchRegex(req.query.search), $options: "i" };
+      filter.$or = [{ name: re }, { aliases: re }];
+    }
+    if (req.query.exclude) filter._id = { $ne: String(req.query.exclude) };
 
-    const exercises = await Exercise.find(filter).sort("muscleGroup name");
-    res.json(exercises);
+    if (req.query.page === undefined) {
+      const exercises = await Exercise.find(filter).sort("muscleGroup name");
+      return res.json(exercises);
+    }
+
+    const limit = Math.min(60, Math.max(1, parseInt(req.query.limit, 10) || 24));
+    const total = await Exercise.countDocuments(filter);
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const page = Math.min(totalPages, Math.max(1, parseInt(req.query.page, 10) || 1));
+    const items = await Exercise.find(filter)
+      .select(LIST_FIELDS)
+      // Best documented first: the original catalog (curated, with videos), then
+      // imported exercises with a picture, then the rest; alphabetical inside.
+      .sort({ "source.provider": 1, imageUrl: -1, muscleGroup: 1, name: 1, _id: 1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+    res.json({ items, total, page, limit, totalPages });
   } catch (err) {
     next(err);
   }

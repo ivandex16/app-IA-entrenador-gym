@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { LuImageUp, LuX, LuScanText, LuTriangleAlert, LuLoaderCircle, LuCamera, LuInfo } from 'react-icons/lu';
+import { LuImageUp, LuX, LuScanText, LuTriangleAlert, LuLoaderCircle, LuCamera, LuInfo, LuRotateCcw } from 'react-icons/lu';
 import api from '../../../api/axios';
 import ImportReview from './ImportReview';
 import { ACCEPT, ImageImportError, loadImage, preprocess } from './prepareImage';
-import { recognizeLines, terminateOcr, warmUpOcr } from './ocr';
+import { recognizeImage, terminateOcr, warmUpOcr } from './ocr';
+import { assessReading, describeImportError } from './importErrors';
+import ImageTips from './ImageTips';
 import { emptyRow, newRowId, stateFromDraft, toRoutinePayload } from './reviewModel';
 
 const STEPS = { validating: 'Comprobando la imagen…', preparing: 'Preparando la imagen…', reading: 'Leyendo el texto…', parsing: 'Interpretando la rutina…' };
@@ -18,13 +20,15 @@ export default function ImageImportPanel({ onClose, onCreated }) {
   const [phase, setPhase] = useState('pick'); // pick | working | review
   const [step, setStep] = useState('validating');
   const [progress, setProgress] = useState(0);
-  const [error, setError] = useState(null); // { message, hint, unparsed }
+  const [error, setError] = useState(null); // see describeImportError()
+  const [stage, setStage] = useState(null); // { page } | { column, of }
   const [previewUrl, setPreviewUrl] = useState(null);
   const [review, setReview] = useState(null);
   const [catalog, setCatalog] = useState([]);
   const [saving, setSaving] = useState(false);
   const inputRef = useRef(null);
   const runRef = useRef(0);
+  const lastFileRef = useRef(null); // for "Reintentar" after a transient error
 
   useEffect(() => {
     warmUpOcr(); // start downloading the OCR engine while the user picks a file
@@ -38,6 +42,7 @@ export default function ImageImportPanel({ onClose, onCreated }) {
 
   const handleFile = useCallback(async (file) => {
     if (!file) return;
+    lastFileRef.current = file;
     const run = ++runRef.current;
     const alive = () => runRef.current === run;
     setError(null);
@@ -45,6 +50,7 @@ export default function ImageImportPanel({ onClose, onCreated }) {
     setPhase('working');
     setStep('validating');
     setProgress(0);
+    setStage(null);
     let bitmap;
     try {
       const loaded = await loadImage(file);
@@ -52,26 +58,35 @@ export default function ImageImportPanel({ onClose, onCreated }) {
       if (!alive()) return;
       setPreviewUrl(URL.createObjectURL(file));
       setStep('preparing');
-      const { canvas, blank } = preprocess(bitmap);
-      if (blank) throw new ImageImportError('La imagen parece vacía o sin texto.');
+      const prepared = preprocess(bitmap);
+      if (prepared.blank) throw new ImageImportError('La imagen parece vacía o sin texto.', 'blank');
       setStep('reading');
-      const ocr = await recognizeLines(canvas, (p) => alive() && setProgress(p));
+      const ocr = await recognizeImage(bitmap, prepared, (p, st) => {
+        if (!alive()) return;
+        setProgress(p);
+        setStage(st);
+      });
       if (!alive()) return;
       if (!ocr.lines.some((l) => l.text.trim().length >= 2)) {
-        throw new ImageImportError('No se detectó texto en la imagen.');
+        throw new ImageImportError('No se detectó texto en la imagen.', 'no-text');
       }
       setStep('parsing');
-      const { data } = await api.post('/routines/import/image', { lines: ocr.lines.slice(0, 400) });
+      const lines = ocr.lines.slice(0, 400).map((l) => ({ text: l.text, confidence: l.confidence, ...(l.zone ? { zone: l.zone } : {}) }));
+      const { data } = await api.post('/routines/import/image', { lines });
       if (!alive()) return;
-      setReview(stateFromDraft(data));
+      const warning = assessReading({
+        confidence: ocr.confidence,
+        exercises: data.stats?.exercises,
+        matched: data.stats?.matched,
+        imageWidth: bitmap.width,
+        columns: ocr.columns,
+      });
+      setReview({ ...stateFromDraft(data), warning });
       setPhase('review');
     } catch (err) {
       if (!alive()) return;
       setPhase('pick');
-      if (err instanceof ImageImportError) setError({ message: err.message });
-      else if (err.response?.status === 422) setError({ message: err.response.data.message, hint: err.response.data.hint, unparsed: err.response.data.unparsed, canManual: true });
-      else if (!err.response && err.message && /fetch|network|load/i.test(err.message)) setError({ message: 'No se pudo cargar el lector de texto. Revisa tu conexión e inténtalo de nuevo.' });
-      else setError({ message: err.response?.data?.message || 'No se pudo procesar la imagen.' });
+      setError(describeImportError(err));
     } finally {
       bitmap?.close?.();
       if (inputRef.current) inputRef.current.value = '';
@@ -112,11 +127,17 @@ export default function ImageImportPanel({ onClose, onCreated }) {
   };
 
   const discard = () => {
-    if (review && !window.confirm('¿Descartar la rutina detectada? No se guardará nada.')) return;
+    if (review && !window.confirm('¿Descartar la rutina detectada? No se guardará nada.')) return false;
     runRef.current += 1;
     setReview(null);
     setPhase('pick');
     setPreviewUrl(null);
+    return true;
+  };
+
+  const chooseOther = () => inputRef.current?.click();
+  const retryOther = () => {
+    if (discard()) setTimeout(chooseOther, 50);
   };
 
   return (
@@ -150,6 +171,7 @@ export default function ImageImportPanel({ onClose, onCreated }) {
           onCreateExercise={createExercise}
           onSave={save}
           onCancel={discard}
+          onRetry={retryOther}
         />
       ) : (
         <>
@@ -174,7 +196,9 @@ export default function ImageImportPanel({ onClose, onCreated }) {
             {phase === 'working' ? (
               <div className="space-y-3" aria-live="polite">
                 <LuLoaderCircle className="w-8 h-8 text-lime-400 mx-auto animate-spin" aria-hidden="true" />
-                <p className="text-sm font-bold text-white">{STEPS[step]}</p>
+                <p className="text-sm font-bold text-white">
+                  {step === 'reading' && stage?.column ? `Leyendo la columna ${stage.column} de ${stage.of}…` : STEPS[step]}
+                </p>
                 {step === 'reading' && (
                   <div className="max-w-xs mx-auto h-1.5 rounded-full bg-zinc-800 overflow-hidden">
                     <div className="h-full bg-lime-400 transition-[width]" style={{ width: `${Math.round(progress * 100)}%` }} />
@@ -195,14 +219,29 @@ export default function ImageImportPanel({ onClose, onCreated }) {
           </label>
 
           {error && (
-            <div role="alert" className="rounded-xl border border-rose-500/25 bg-rose-500/5 p-3 space-y-2">
-              <p className="text-sm font-semibold text-rose-200 flex items-center gap-2"><LuTriangleAlert className="w-4 h-4 shrink-0" /> {error.message}</p>
-              {error.hint && <p className="text-xs text-zinc-400">{error.hint}</p>}
-              {error.canManual && (
-                <button type="button" onClick={startManual} className="text-xs font-bold text-lime-300 hover:text-lime-200">
-                  Escribirla a mano en la pantalla de revisión
+            <div role="alert" className="rounded-xl border border-rose-500/25 bg-rose-500/5 p-3 sm:p-4 space-y-2.5">
+              <p className="text-sm font-semibold text-rose-200 flex items-start gap-2"><LuTriangleAlert className="w-4 h-4 mt-0.5 shrink-0" /> {error.message}</p>
+              {error.hint && <p className="text-xs text-zinc-300">{error.hint}</p>}
+              {error.tips && <ImageTips open />}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {error.retry === 'same' && lastFileRef.current && (
+                  <button type="button" onClick={() => handleFile(lastFileRef.current)} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-lime-400 hover:bg-lime-300 text-zinc-950 text-xs font-black">
+                    <LuRotateCcw className="w-4 h-4" /> Reintentar
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={chooseOther}
+                  className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-xs font-black ${error.retry === 'same' ? 'border border-white/15 text-zinc-200 hover:text-white' : 'bg-lime-400 hover:bg-lime-300 text-zinc-950'}`}
+                >
+                  <LuImageUp className="w-4 h-4" /> {error.retry === 'same' ? 'Elegir otra imagen' : 'Intentar con otra imagen'}
                 </button>
-              )}
+                {error.canManual && (
+                  <button type="button" onClick={startManual} className="text-xs font-bold text-lime-300 hover:text-lime-200 px-1">
+                    Escribirla a mano
+                  </button>
+                )}
+              </div>
             </div>
           )}
 

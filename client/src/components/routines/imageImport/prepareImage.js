@@ -14,7 +14,13 @@ export const MAX_BYTES = 10 * 1024 * 1024;
 export const ACCEPT = 'image/jpeg,image/png,image/webp';
 const EXTENSIONS = /\.(jpe?g|png|webp)$/i;
 
-export class ImageImportError extends Error {}
+/* code: type | empty | too-big | corrupt | too-small | blank | no-text */
+export class ImageImportError extends Error {
+  constructor(message, code) {
+    super(message);
+    this.code = code;
+  }
+}
 
 async function sniffType(file) {
   const b = new Uint8Array(await file.slice(0, 12).arrayBuffer());
@@ -27,21 +33,21 @@ async function sniffType(file) {
 
 /* Validates the file and returns a decoded, correctly oriented bitmap. */
 export async function loadImage(file) {
-  if (!file) throw new ImageImportError('Selecciona una imagen.');
-  if (!EXTENSIONS.test(file.name || '')) throw new ImageImportError('Formato no admitido. Usa JPG, PNG o WEBP.');
-  if (file.size === 0) throw new ImageImportError('El archivo está vacío.');
-  if (file.size > MAX_BYTES) throw new ImageImportError('La imagen supera 10 MB. Prueba con una captura o reduce su tamaño.');
+  if (!file) throw new ImageImportError('Selecciona una imagen.', 'empty');
+  if (!EXTENSIONS.test(file.name || '')) throw new ImageImportError('Formato no admitido. Usa JPG, PNG o WEBP.', 'type');
+  if (file.size === 0) throw new ImageImportError('El archivo está vacío.', 'empty');
+  if (file.size > MAX_BYTES) throw new ImageImportError('La imagen supera 10 MB.', 'too-big');
   const type = await sniffType(file);
-  if (!type) throw new ImageImportError('El archivo no es una imagen JPG, PNG o WEBP válida.');
+  if (!type) throw new ImageImportError('El archivo no es una imagen JPG, PNG o WEBP válida.', 'type');
   let bitmap;
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
   } catch {
-    throw new ImageImportError('No se pudo abrir la imagen: el archivo parece dañado.');
+    throw new ImageImportError('No se pudo abrir la imagen: el archivo parece dañado.', 'corrupt');
   }
   if (bitmap.width < 200 || bitmap.height < 100) {
     bitmap.close?.();
-    throw new ImageImportError('La imagen es demasiado pequeña para leer el texto.');
+    throw new ImageImportError('La imagen es demasiado pequeña para leer el texto.', 'too-small');
   }
   return { bitmap, type };
 }

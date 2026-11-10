@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import RestConfigPanel from '../components/workouts/RestConfigPanel';
 import useRestDefaults from '../components/workouts/useRestDefaults';
 import { fmtPreset } from '../components/workouts/workoutUtils';
+import ExercisePickerPanel from '../components/exercises/ExercisePickerPanel';
 import {
   LuActivity,
   LuDumbbell,
@@ -111,12 +112,9 @@ export default function RoutineDetail() {
   const navigate = useNavigate();
 
   const [routine, setRoutine] = useState(null);
-  const [catalog, setCatalog] = useState([]);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name: '', description: '', goal: 'general' });
   const [showPicker, setShowPicker] = useState(false);
-  const [pickerSearch, setPickerSearch] = useState('');
-  const [pickerFilter, setPickerFilter] = useState('all');
   const [expandedIdx, setExpandedIdx] = useState(null);
   const [saving, setSaving] = useState(false);
   const [activeDay, setActiveDay] = useState(0);
@@ -156,7 +154,6 @@ export default function RoutineDetail() {
 
   useEffect(() => {
     load();
-    api.get('/exercises').then((r) => setCatalog(r.data));
   }, [id]);
 
   // Check scrollability of days container
@@ -331,13 +328,15 @@ export default function RoutineDetail() {
     }
   };
 
-  const addExercise = async (exerciseId) => {
+  // Receives the exercise picked in the catalog picker (object with _id, name, muscleGroup…).
+  const addExercise = async (picked) => {
+    const exerciseId = picked?._id || picked;
     const existing = getCurrentDayExercises();
     if (existing.some((e) => (e.exercise?._id || e.exercise) === exerciseId)) {
       toast.error('Este ejercicio ya está en este día');
       return;
     }
-    const fullEx = catalog.find((c) => c._id === exerciseId);
+    const fullEx = typeof picked === 'object' ? picked : null;
     const updated = [
       ...existing,
       {
@@ -495,14 +494,6 @@ export default function RoutineDetail() {
     ...new Set(days.flatMap((d) => (d.exercises || []).map((e) => e.exercise?.muscleGroup).filter(Boolean))),
   ];
 
-  const filteredCatalog = catalog.filter((ex) => {
-    const matchSearch =
-      ex.name.toLowerCase().includes(pickerSearch.toLowerCase()) ||
-      ex.muscleGroup.toLowerCase().includes(pickerSearch.toLowerCase());
-    const matchFilter = pickerFilter === 'all' || ex.muscleGroup === pickerFilter;
-    return matchSearch && matchFilter;
-  });
-  const catalogMuscles = [...new Set(catalog.map((e) => e.muscleGroup))];
 
   return (
     <div className="min-h-screen bg-[#08090D] text-slate-100 pb-28 pt-4 px-4 sm:px-6 lg:px-8 selection:bg-lime-400 selection:text-slate-950 font-sans">
@@ -936,8 +927,6 @@ export default function RoutineDetail() {
             <button
               onClick={() => {
                 setShowPicker(!showPicker);
-                setPickerSearch('');
-                setPickerFilter('all');
                 if (!showPicker) setTimeout(() => pickerRef.current?.focus(), 100);
               }}
               className="border border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-lime-400/40 hover:text-lime-400 transition-all font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 active:scale-95"
@@ -956,87 +945,13 @@ export default function RoutineDetail() {
             </button>
           </div>
 
-          {/* Exercise Catalog Picker */}
+          {/* Exercise Catalog Picker: search on the server, pictures to recognise each exercise, preview before adding */}
           {showPicker && (
-            <div className="animate-slideUp bg-[#0E1018] border border-white/10 rounded-2xl p-4 sm:p-5 space-y-4 shadow-2xl">
-              <input
-                ref={pickerRef}
-                placeholder="Buscar por nombre o grupo muscular…"
-                className="w-full bg-[#131622] rounded-xl px-4 py-2.5 outline-none text-xs text-white border border-white/10 focus:border-lime-400 focus:ring-1 focus:ring-lime-400/30 transition-all"
-                value={pickerSearch}
-                onChange={(e) => setPickerSearch(e.target.value)}
-              />
-
-              {/* Muscle Group Filter Chips */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
-                <button
-                  onClick={() => setPickerFilter('all')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 border ${
-                    pickerFilter === 'all'
-                      ? 'bg-lime-400 text-black border-lime-400 font-black'
-                      : 'bg-[#131622] text-zinc-400 hover:text-white border-white/[0.08]'
-                  }`}
-                >
-                  Todos
-                </button>
-                {catalogMuscles.map((mg) => (
-                  <button
-                    key={mg}
-                    onClick={() => setPickerFilter(mg)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all shrink-0 border ${
-                      pickerFilter === mg
-                        ? 'bg-lime-400 text-black border-lime-400 font-black'
-                        : 'bg-[#131622] text-zinc-400 hover:text-white border-white/[0.08]'
-                    }`}
-                  >
-                    {mg}
-                  </button>
-                ))}
-              </div>
-
-              {/* Exercises List in Picker */}
-              <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1">
-                {filteredCatalog.length === 0 ? (
-                  <p className="text-zinc-500 text-xs text-center py-6 font-medium">
-                    No se encontraron ejercicios en el catálogo.
-                  </p>
-                ) : (
-                  filteredCatalog.map((ex) => {
-                    const alreadyAdded = exercises.some(
-                      (e) => (e.exercise?._id || e.exercise) === ex._id
-                    );
-                    return (
-                      <button
-                        key={ex._id}
-                        onClick={() => !alreadyAdded && addExercise(ex._id)}
-                        disabled={alreadyAdded}
-                        className={`w-full text-left rounded-xl p-3.5 flex items-center justify-between transition-all border ${
-                          alreadyAdded
-                            ? 'bg-white/[0.02] border-white/[0.04] opacity-50 cursor-not-allowed'
-                            : 'bg-[#131622] hover:bg-white/[0.06] border-white/[0.06] hover:border-lime-400/40'
-                        }`}
-                      >
-                        <div>
-                          <span className="font-bold text-xs sm:text-sm text-white block">
-                            {ex.name}
-                          </span>
-                          <span className="block text-[11px] text-zinc-400 capitalize mt-0.5">
-                            {ex.muscleGroup} · {ex.difficulty} · {ex.equipment}
-                          </span>
-                        </div>
-                        {alreadyAdded ? (
-                          <span className="text-[11px] font-bold text-zinc-500">✓ En rutina</span>
-                        ) : (
-                          <span className="w-7 h-7 rounded-lg bg-lime-400/10 text-lime-400 border border-lime-400/20 flex items-center justify-center font-bold text-sm">
-                            +
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
+            <ExercisePickerPanel
+              inputRef={pickerRef}
+              addedIds={new Set(exercises.map((e) => e.exercise?._id || e.exercise))}
+              onAdd={addExercise}
+            />
           )}
 
           {/* Empty State for Day */}

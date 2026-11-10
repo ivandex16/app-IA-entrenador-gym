@@ -1,5 +1,8 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { exerciseThumb } from '../components/exercises/exerciseImages';
+import { ExerciseThumb } from '../components/exercises/ExerciseMedia';
+import Pagination from '../components/exercises/Pagination';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import {
@@ -77,123 +80,6 @@ function getEquipmentIcon(eq, className = 'w-6 h-6') {
     default:
       return <LuDumbbell className={`${className} text-zinc-300`} />;
   }
-}
-
-/* ─── Exercise CDN & Fallback Illustrations (free-exercise-db) ─── */
-const FREE_EXERCISE_CDN = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
-const cdn = (id) => `${FREE_EXERCISE_CDN}/${id}/0.jpg`;
-
-/* Ilustraciones anatómicas limpias por grupo muscular (fallbacks de alta precisión) */
-const MUSCLE_FALLBACK_IMAGES = {
-  chest: cdn('Barbell_Bench_Press_-_Medium_Grip'),
-  back: cdn('Pullups'),
-  shoulders: cdn('Side_Lateral_Raise'),
-  biceps: cdn('Barbell_Curl'),
-  triceps: cdn('Triceps_Pushdown'),
-  legs: cdn('Barbell_Full_Squat'),
-  glutes: cdn('Barbell_Hip_Thrust'),
-  abs: cdn('Ab_Crunch_Machine'),
-  forearms: cdn('Palms-Down_Wrist_Curl_Over_A_Bench'),
-  calves: cdn('Standing_Calf_Raises'),
-  full_body: cdn('Clean_and_Press'),
-  cardio: cdn('Freehand_Jump_Squat'),
-};
-
-function normalizeExerciseText(str) {
-  return (str || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-const EXERCISE_PATTERNS = [
-  // Antebrazos (prioritario antes de curl general)
-  { pattern: /curl.*muneca|wrist.*curl/, url: cdn('Palms-Down_Wrist_Curl_Over_A_Bench') },
-  { pattern: /farmer|granjero/, url: cdn('Farmers_Walk') },
-
-  // Pecho / Chest
-  { pattern: /press.*declinado/, url: cdn('Decline_Barbell_Bench_Press') },
-  { pattern: /press.*inclinado/, url: cdn('Incline_Dumbbell_Press') },
-  { pattern: /press.*banca|bench.*press/, url: cdn('Barbell_Bench_Press_-_Medium_Grip') },
-  { pattern: /apertura/, url: cdn('Dumbbell_Flyes') },
-  { pattern: /cruce.*polea|cable.*crossover/, url: cdn('Cable_Crossover') },
-  { pattern: /flexion|pushup/, url: cdn('Pushups') },
-
-  // Espalda / Back
-  { pattern: /dominada|pullup|pull.*up/, url: cdn('Pullups') },
-  { pattern: /jalon.*pecho|lat.*pulldown/, url: cdn('Wide-Grip_Lat_Pulldown') },
-  { pattern: /peso.*muerto.*rumano/, url: cdn('Romanian_Deadlift') },
-  { pattern: /peso.*muerto.*sumo/, url: cdn('Sumo_Deadlift') },
-  { pattern: /peso.*muerto|deadlift/, url: cdn('Barbell_Deadlift') },
-  { pattern: /remo.*barra/, url: cdn('Bent_Over_Barbell_Row') },
-  { pattern: /remo.*mancuerna/, url: cdn('One-Arm_Dumbbell_Row') },
-  { pattern: /remo.*polea|remo.*maquina|seated.*row/, url: cdn('Seated_Cable_Rows') },
-  { pattern: /face.*pull/, url: cdn('Face_Pull') },
-
-  // Hombros / Shoulders
-  { pattern: /press.*arnold/, url: cdn('Arnold_Dumbbell_Press') },
-  { pattern: /press.*militar|military.*press/, url: cdn('Standing_Military_Press') },
-  { pattern: /elevacion.*lateral|lateral.*raise/, url: cdn('Side_Lateral_Raise') },
-  { pattern: /elevacion.*frontal|front.*raise/, url: cdn('Front_Dumbbell_Raise') },
-  { pattern: /pajaro|elevacion.*posterior|rear.*delt/, url: cdn('Seated_Bent-Over_Rear_Delt_Raise') },
-
-  // Piernas / Legs
-  { pattern: /sentadilla.*bulgara|bulgarian/, url: cdn('Split_Squat_with_Dumbbells') },
-  { pattern: /sentadilla.*salto|jump.*squat/, url: cdn('Freehand_Jump_Squat') },
-  { pattern: /sentadilla|squat/, url: cdn('Barbell_Full_Squat') },
-  { pattern: /prensa|leg.*press/, url: cdn('Leg_Press') },
-  { pattern: /extension.*cuadricep|leg.*extension/, url: cdn('Leg_Extensions') },
-  { pattern: /curl.*femoral|leg.*curl/, url: cdn('Lying_Leg_Curls') },
-  { pattern: /zancada|lunge/, url: cdn('Dumbbell_Lunges') },
-  { pattern: /step.*up/, url: cdn('Step-up_with_Knee_Raise') },
-  { pattern: /abductor|abductores/, url: cdn('Thigh_Abductor') },
-  { pattern: /adductor|aductores/, url: cdn('Thigh_Adductor') },
-  { pattern: /pantorrilla.*sentado/, url: cdn('Seated_Calf_Raise') },
-  { pattern: /pantorrilla.*pie|pantorrilla|gemelo|calf/, url: cdn('Standing_Calf_Raises') },
-
-  // Glúteos / Glutes
-  { pattern: /hip.*thrust/, url: cdn('Barbell_Hip_Thrust') },
-  { pattern: /puente.*gluteo|glute.*bridge/, url: cdn('Butt_Lift_Bridge') },
-  { pattern: /patada.*gluteo|glute.*kickback/, url: cdn('Glute_Kickback') },
-
-  // Bíceps
-  { pattern: /curl.*concentrado/, url: cdn('Concentration_Curls') },
-  { pattern: /curl.*martillo|hammer.*curl/, url: cdn('Hammer_Curls') },
-  { pattern: /curl.*polea/, url: cdn('High_Cable_Curls') },
-  { pattern: /curl.*barra|bicep.*curl/, url: cdn('Barbell_Curl') },
-
-  // Tríceps
-  { pattern: /press.*frances|rompe.*craneo/, url: cdn('Lying_Triceps_Press') },
-  { pattern: /patada.*tricep|tricep.*kickback/, url: cdn('Tricep_Dumbbell_Kickback') },
-  { pattern: /extension.*tricep|tricep.*pushdown|polea.*tricep/, url: cdn('Triceps_Pushdown') },
-  { pattern: /fondo.*paralela|fondo|dip/, url: cdn('Dips_-_Chest_Version') },
-
-  // Abdominales / Core
-  { pattern: /crunch/, url: cdn('Ab_Crunch_Machine') },
-  { pattern: /plancha|plank/, url: cdn('Plank') },
-  { pattern: /elevacion.*pierna|hanging.*leg/, url: cdn('Hanging_Leg_Raise') },
-  { pattern: /mountain.*climber/, url: cdn('Mountain_Climbers') },
-  { pattern: /russian.*twist/, url: cdn('Russian_Twist') },
-
-  // Full body / Cardio
-  { pattern: /clean.*press|cargada.*press/, url: cdn('Clean_and_Press') },
-  { pattern: /thruster/, url: cdn('Kettlebell_Thruster') },
-  { pattern: /burpee/, url: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=600&q=80' },
-  { pattern: /cajon|box.*jump/, url: cdn('Front_Box_Jump') },
-  { pattern: /tijera|jumping.*jack/, url: 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=600&q=80' },
-];
-
-function getExerciseImage(name, muscleGroup) {
-  const norm = normalizeExerciseText(name);
-  if (norm) {
-    const match = EXERCISE_PATTERNS.find((item) => item.pattern.test(norm));
-    if (match) return match.url;
-  }
-  const group = muscleGroup || 'full_body';
-  return MUSCLE_FALLBACK_IMAGES[group] || MUSCLE_FALLBACK_IMAGES.full_body;
 }
 
 const QUICK_PROMPTS = [
@@ -389,11 +275,60 @@ function AiAdvisor({ allExercises }) {
   );
 }
 
+const PAGE_SIZE = 24; // 4 columns × 6 rows on desktop
+
 export default function Exercises() {
-  const [exercises, setExercises] = useState([]);
-  const [selectedGroups, setSelectedGroups] = useState([]);   // multi-select
-  const [selectedEquipment, setSelectedEquipment] = useState('all'); // single-select equipment
-  const [search, setSearch] = useState('');
+  /* Filters, search and page live in the URL (?m=chest,back&eq=barbell&q=press&page=2):
+     they survive opening an exercise and coming back, and links can be shared. */
+  const [params, setParams] = useSearchParams();
+  const selectedGroups = useMemo(() => (params.get('m') || '').split(',').filter(Boolean), [params]);
+  const selectedEquipment = params.get('eq') || 'all';
+  const search = params.get('q') || '';
+  const page = Math.max(1, parseInt(params.get('page'), 10) || 1);
+  const [searchInput, setSearchInput] = useState(search);
+
+  // Changing a filter goes back to page 1; changing page keeps the filters.
+  const updateParams = useCallback((patch) => {
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      for (const [k, v] of Object.entries(patch)) {
+        const empty = v == null || v === '' || v === 'all' || (Array.isArray(v) && v.length === 0);
+        if (empty) next.delete(k);
+        else next.set(k, Array.isArray(v) ? v.join(',') : String(v));
+      }
+      next.delete('page');
+      return next;
+    }, { replace: true });
+  }, [setParams]);
+  const setSelectedGroups = useCallback(
+    (v) => updateParams({ m: typeof v === 'function' ? v((params.get('m') || '').split(',').filter(Boolean)) : v }),
+    [updateParams, params]
+  );
+  const setSelectedEquipment = useCallback((v) => updateParams({ eq: v }), [updateParams]);
+
+  // Search is sent to the server a moment after typing stops.
+  useEffect(() => {
+    if (searchInput.trim() === search) return undefined;
+    const t = setTimeout(() => updateParams({ q: searchInput.trim() }), 300);
+    return () => clearTimeout(t);
+  }, [searchInput, search, updateParams]);
+  useEffect(() => { setSearchInput(search); }, [search]);
+
+  const resultsRef = useRef(null);
+  const goToPage = useCallback((p) => {
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (p <= 1) next.delete('page');
+      else next.set('page', String(p));
+      return next;
+    });
+    resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [setParams]);
+
+  // One page of the catalog from the server (never the whole catalog).
+  const [data, setData] = useState({ items: [], total: 0, page: 1, totalPages: 1, limit: PAGE_SIZE });
+  const [status, setStatus] = useState('loading'); // loading | ready | error
+  const exercises = data.items;
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
   const [expandMuscles, setExpandMuscles] = useState(false); // Default to false for fluid horizontal carousel scroll
 
@@ -481,16 +416,25 @@ export default function Exercises() {
     }, 60);
   };
 
+  const [reloadKey, setReloadKey] = useState(0);
   useEffect(() => {
-    const params = {};
-    if (selectedGroups.length > 0) params.muscleGroup = selectedGroups.join(',');
-    if (selectedEquipment && selectedEquipment !== 'all') params.equipment = selectedEquipment;
-    if (search) params.search = search;
-    api.get('/exercises', { params }).then((r) => {
-      setExercises(r.data);
-      setTimeout(checkScroll, 100);
-    });
-  }, [selectedGroups, selectedEquipment, search, checkScroll]);
+    const query = { page, limit: PAGE_SIZE };
+    if (selectedGroups.length > 0) query.muscleGroup = selectedGroups.join(',');
+    if (selectedEquipment && selectedEquipment !== 'all') query.equipment = selectedEquipment;
+    if (search) query.search = search;
+    let alive = true;
+    setStatus('loading');
+    api
+      .get('/exercises', { params: query })
+      .then((r) => {
+        if (!alive) return;
+        setData(r.data);
+        setStatus('ready');
+        setTimeout(checkScroll, 100);
+      })
+      .catch(() => alive && setStatus('error'));
+    return () => { alive = false; };
+  }, [page, selectedGroups, selectedEquipment, search, checkScroll, reloadKey]);
 
   const toggleGroup = useCallback((v) => {
     setSelectedGroups((prev) =>
@@ -499,9 +443,8 @@ export default function Exercises() {
   }, []);
 
   const clearFilters = () => {
-    setSelectedGroups([]);
-    setSelectedEquipment('all');
-    setSearch('');
+    setSearchInput('');
+    setParams({}, { replace: true });
   };
 
   return (
@@ -535,8 +478,8 @@ export default function Exercises() {
           <div className="flex flex-wrap items-center gap-3 mt-5">
             <div className="flex items-center gap-2 bg-zinc-900 border border-white/10 px-4 py-2 rounded-xl shadow-md">
               <LuDumbbell className="w-4 h-4 text-lime-400" />
-              <span className="text-sm font-black text-white font-mono">{exercises.length}</span>
-              <span className="text-xs text-zinc-400">ejercicios disponibles</span>
+              <span className="text-sm font-black text-white font-mono">{status === 'loading' && !data.total ? '…' : data.total}</span>
+              <span className="text-xs text-zinc-400">{selectedGroups.length || selectedEquipment !== 'all' || search ? 'ejercicios encontrados' : 'ejercicios disponibles'}</span>
             </div>
 
             {(selectedGroups.length > 0 || selectedEquipment !== 'all') && (
@@ -574,13 +517,13 @@ export default function Exercises() {
                 type="text"
                 placeholder="Buscar por nombre (ej: Press banca, Sentadilla)..."
                 className="w-full bg-zinc-950 border border-white/10 rounded-xl pl-10 pr-9 py-2.5 text-sm font-semibold text-white placeholder-zinc-500 outline-none focus:border-lime-400 focus:ring-1 focus:ring-lime-400/30 transition-all shadow-inner"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
               />
               {search && (
                 <button
                   type="button"
-                  onClick={() => setSearch('')}
+                  onClick={() => setSearchInput('')}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white p-1 rounded-lg transition"
                   title="Borrar búsqueda"
                 >
@@ -770,7 +713,7 @@ export default function Exercises() {
           <div className="flex items-center justify-between gap-3 pt-2.5 border-t border-white/10">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-mono font-semibold text-zinc-400">
-                Mostrando <strong className="text-white font-bold">{exercises.length}</strong> ejercicios
+                {status === 'loading' ? 'Buscando…' : <>Mostrando <strong className="text-white font-bold">{data.total ? `${(data.page - 1) * data.limit + 1}–${Math.min(data.total, data.page * data.limit)}` : 0}</strong> de <strong className="text-white font-bold">{data.total}</strong> ejercicios</>}
               </span>
               {(selectedGroups.length > 0 || selectedEquipment !== 'all' || search) && (
                 <button
@@ -814,7 +757,22 @@ export default function Exercises() {
         </div>
 
         {/* ══════════ CATÁLOGO: VISTA EN GRID O EN LISTA ══════════ */}
-        {exercises.length === 0 ? (
+        <div ref={resultsRef} className="scroll-mt-24" />
+        {status === 'error' ? (
+          <div className="text-center py-12 space-y-3 bg-zinc-900 border border-rose-500/20 rounded-2xl" role="alert">
+            <p className="text-sm font-semibold text-white">No pudimos cargar los ejercicios</p>
+            <button type="button" onClick={() => setReloadKey((k) => k + 1)} className="text-xs font-bold text-lime-400 hover:text-lime-300">Reintentar</button>
+          </div>
+        ) : status === 'loading' && exercises.length === 0 ? (
+          <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" aria-busy="true" aria-label="Cargando ejercicios">
+            {Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className="bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden">
+                <div className="aspect-[16/10] bg-zinc-800/70 animate-pulse" />
+                <div className="p-4 space-y-2"><div className="h-3 w-2/3 bg-zinc-800 rounded animate-pulse" /><div className="h-2.5 w-1/2 bg-zinc-800/70 rounded animate-pulse" /></div>
+              </div>
+            ))}
+          </div>
+        ) : exercises.length === 0 ? (
           <div className="text-center py-16 space-y-4 bg-zinc-900 border border-white/10 rounded-2xl">
             <div className="w-16 h-16 rounded-3xl bg-zinc-950 border border-white/10 flex items-center justify-center mx-auto text-zinc-500">
               <LuSearch className="w-8 h-8" />
@@ -843,8 +801,7 @@ export default function Exercises() {
               const muscleEmoji = muscleObj?.emoji || '💪';
               const equipLabel = EQUIPMENT_LABELS[ex.equipment] || ex.equipment;
               const cleanName = cleanExerciseName(ex.name);
-              const imgSrc = ex.imageUrl || getExerciseImage(ex.name, ex.muscleGroup);
-              const fallbackImg = MUSCLE_FALLBACK_IMAGES[ex.muscleGroup] || MUSCLE_FALLBACK_IMAGES.full_body;
+              const imgSrc = exerciseThumb(ex);
 
               return (
                 <Link
@@ -854,15 +811,10 @@ export default function Exercises() {
                 >
                   {/* Media Thumbnail con CDN real y fallback consistente */}
                   <div className="relative aspect-[16/10] w-full overflow-hidden bg-zinc-950">
-                    <img
+                    <ExerciseThumb
                       src={imgSrc}
                       alt={cleanName}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 filter brightness-95 group-hover:brightness-105"
-                      loading="lazy"
-                      onError={(e) => {
-                        e.currentTarget.onerror = null;
-                        e.currentTarget.src = fallbackImg;
-                      }}
+                      className="w-full h-full transition-transform duration-500 group-hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent pointer-events-none" />
 
@@ -927,8 +879,7 @@ export default function Exercises() {
               const muscleLabel = muscleObj?.l || ex.muscleGroup;
               const equipLabel = EQUIPMENT_LABELS[ex.equipment] || ex.equipment;
               const cleanName = cleanExerciseName(ex.name);
-              const imgSrc = ex.imageUrl || getExerciseImage(ex.name, ex.muscleGroup);
-              const fallbackImg = MUSCLE_FALLBACK_IMAGES[ex.muscleGroup] || MUSCLE_FALLBACK_IMAGES.full_body;
+              const imgSrc = exerciseThumb(ex);
 
               return (
                 <Link
@@ -939,16 +890,7 @@ export default function Exercises() {
                   <div className="flex items-center gap-3 min-w-0">
                     {/* Thumbnail pequeño de 40px (w-10 h-10) con imagen real/ilustración */}
                     <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-zinc-950 shrink-0 border border-white/10">
-                      <img
-                        src={imgSrc}
-                        alt={cleanName}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                        loading="lazy"
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = fallbackImg;
-                        }}
-                      />
+                      <ExerciseThumb src={imgSrc} alt={cleanName} size="sm" className="w-full h-full" />
                     </div>
 
                     {/* Información: Nombre en blanco + badges de músculo y equipo */}
@@ -981,6 +923,12 @@ export default function Exercises() {
                 </Link>
               );
             })}
+          </div>
+        )}
+
+        {status === 'ready' && (
+          <div className="pt-2">
+            <Pagination page={data.page} totalPages={data.totalPages} total={data.total} limit={data.limit} onChange={goToPage} />
           </div>
         )}
 

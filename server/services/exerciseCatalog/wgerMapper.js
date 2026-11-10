@@ -105,6 +105,7 @@ function mapWgerExercise(ex) {
     difficulty: 'intermediate',
     category: ex.category?.name === 'Cardio' ? 'endurance' : 'hypertrophy',
     imageUrl: image?.image || '',
+    thumbnailUrl: image?.thumbnails?.medium || image?.thumbnails?.small || undefined,
     aliases,
     source: {
       provider: 'wger',

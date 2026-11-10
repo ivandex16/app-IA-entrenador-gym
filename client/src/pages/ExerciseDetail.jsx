@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import {
   LuArrowLeft, LuDumbbell, LuTarget, LuStar, LuZap, LuPlay,
-  LuListOrdered, LuLightbulb, LuActivity, LuChevronRight, LuFlame,
+  LuListOrdered, LuLightbulb, LuActivity, LuChevronRight, LuFlame, LuShieldCheck,
 } from 'react-icons/lu';
+import { exerciseImage, exerciseThumb } from '../components/exercises/exerciseImages';
+import { ExerciseThumb, YouTubeVideo, NoMedia } from '../components/exercises/ExerciseMedia';
 
 const MUSCLE_LABELS = {
   chest: 'Pecho', back: 'Espalda', shoulders: 'Hombros', biceps: 'Bíceps',
@@ -68,6 +70,20 @@ export default function ExerciseDetail() {
       .catch(() => setError('No se pudo cargar el ejercicio.'));
   }, [id]);
 
+  // Variations: same muscle group and same movement word ("Curl …", "Press …"), else same muscle group.
+  const [similar, setSimilar] = useState([]);
+  useEffect(() => {
+    if (!ex) return undefined;
+    let alive = true;
+    const movement = (ex.name || '').split(/\s+/)[0];
+    const base = { page: 1, limit: 6, muscleGroup: ex.muscleGroup, exclude: ex._id };
+    api.get('/exercises', { params: { ...base, search: movement } })
+      .then((r) => (r.data.items.length >= 3 ? r : api.get('/exercises', { params: base })))
+      .then((r) => alive && setSimilar(r.data.items))
+      .catch(() => alive && setSimilar([]));
+    return () => { alive = false; };
+  }, [ex]);
+
   /* ─── Error state ─── */
   if (error)
     return (
@@ -99,7 +115,8 @@ export default function ExerciseDetail() {
 
   const diff = DIFFICULTY_CONFIG[ex.difficulty] || DIFFICULTY_CONFIG.intermediate;
   const gradient = MUSCLE_GRADIENT[ex.muscleGroup] || 'from-slate-600 to-slate-700';
-  const heroImg = ex.imageUrl || MUSCLE_IMAGE[ex.muscleGroup] || MUSCLE_IMAGE.full_body;
+  const heroImg = MUSCLE_IMAGE[ex.muscleGroup] || MUSCLE_IMAGE.full_body; // decorative background only
+  const image = exerciseImage(ex);
 
   return (
     <div className="min-h-screen pb-12">
@@ -151,20 +168,36 @@ export default function ExerciseDetail() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 -mt-10 space-y-6 relative z-10">
-        {/* ══════════ VIDEO ══════════ */}
-        {ex.youtubeVideoId && (
-          <div className="animate-fadeInUp stagger-2 bg-slate-800/80 backdrop-blur-sm rounded-2xl p-2 border border-slate-700/50 shadow-2xl shadow-black/30">
-            <div className="aspect-video rounded-xl overflow-hidden relative group">
-              <iframe
-                className="w-full h-full"
-                src={`https://www.youtube.com/embed/${ex.youtubeVideoId}`}
-                title={ex.name}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+        {/* ══════════ IMAGE + VIDEO ══════════
+            The picture identifies the exercise at a glance; the YouTube video (if any)
+            only loads when the user presses play. */}
+        <div className={`animate-fadeInUp stagger-2 grid gap-3 ${image && ex.youtubeVideoId ? 'md:grid-cols-2' : ''}`}>
+          {image && (
+            <div className="bg-slate-800/80 rounded-2xl p-2 border border-slate-700/50 shadow-2xl shadow-black/30">
+              <ExerciseThumb src={image} alt={ex.name} fit="contain" className="w-full aspect-video rounded-xl" />
             </div>
-          </div>
-        )}
+          )}
+          {ex.youtubeVideoId && (
+            <div className="bg-slate-800/80 rounded-2xl p-2 border border-slate-700/50 shadow-2xl shadow-black/30">
+              <YouTubeVideo id={ex.youtubeVideoId} title={ex.name} />
+            </div>
+          )}
+          {!image && !ex.youtubeVideoId && (
+            <div className="bg-slate-800/80 rounded-2xl p-2 border border-slate-700/50">
+              <NoMedia className="w-full aspect-[21/9] rounded-xl" />
+            </div>
+          )}
+          {!ex.youtubeVideoId && (
+            <a
+              href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${ex.name} técnica ejercicio`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="justify-self-start inline-flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-white"
+            >
+              <LuPlay className="w-3.5 h-3.5" /> Buscar vídeos de este ejercicio en YouTube
+            </a>
+          )}
+        </div>
 
         {/* ══════════ DESCRIPTION ══════════ */}
         {ex.description && (
@@ -202,7 +235,7 @@ export default function ExerciseDetail() {
                 <div className="w-9 h-9 bg-gradient-to-br from-primary to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
                   <LuListOrdered className="w-4.5 h-4.5 text-white" />
                 </div>
-                Instrucciones
+                Cómo hacerlo, paso a paso
               </h2>
               <div className="space-y-3">
                 {ex.instructions.map((step, i) => (
@@ -240,6 +273,25 @@ export default function ExerciseDetail() {
           )}
         </div>
 
+        {!ex.description && !(ex.instructions?.length > 0) && (
+          <div className="bg-slate-800/60 rounded-2xl p-5 border border-slate-700/50 text-sm text-gray-400">
+            Todavía no tenemos la explicación paso a paso de este ejercicio. Mientras tanto, revisa la imagen o busca un vídeo de referencia.
+          </div>
+        )}
+
+        {/* General safety (not exercise-specific claims). */}
+        <div className="animate-fadeInUp bg-slate-800/40 rounded-2xl p-5 border border-slate-700/50">
+          <h2 className="font-bold text-sm uppercase tracking-wide text-gray-400 mb-3 flex items-center gap-2">
+            <LuShieldCheck className="w-4 h-4 text-emerald-400" /> Antes de empezar
+          </h2>
+          <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm text-gray-300 list-disc pl-5">
+            <li>Calienta 5–10 minutos y haz una primera serie ligera.</li>
+            <li>Elige un peso que te permita completar todas las repeticiones con buena técnica.</li>
+            <li>Respira de forma controlada: no aguantes la respiración durante toda la serie.</li>
+            <li>Detente si sientes dolor articular o pinchazos (no confundir con la fatiga muscular).</li>
+          </ul>
+        </div>
+
         {/* ══════════ SECONDARY MUSCLES ══════════ */}
         {ex.secondaryMuscles?.length > 0 && (
           <div className="animate-fadeInUp bg-slate-800/60 backdrop-blur-sm rounded-2xl p-5 border border-slate-700/50">
@@ -255,6 +307,23 @@ export default function ExerciseDetail() {
                   <LuChevronRight className="w-3 h-3" />
                   {MUSCLE_LABELS[m] || m}
                 </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ══════════ SIMILAR EXERCISES (variations) ══════════ */}
+        {similar.length > 0 && (
+          <div className="animate-fadeInUp space-y-3">
+            <h2 className="font-bold text-sm uppercase tracking-wide text-gray-400 flex items-center gap-2">
+              <LuDumbbell className="w-4 h-4 text-primary" /> Variaciones y ejercicios similares
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {similar.map((s) => (
+                <Link key={s._id} to={`/exercises/${s._id}`} className="group bg-slate-800/60 rounded-xl overflow-hidden border border-slate-700/50 hover:border-primary/40 transition">
+                  <ExerciseThumb src={exerciseThumb(s)} alt={s.name} size="sm" label={false} className="w-full aspect-[4/3]" />
+                  <p className="px-3 py-2 text-xs font-semibold text-gray-200 group-hover:text-white line-clamp-2">{s.name}</p>
+                </Link>
               ))}
             </div>
           </div>

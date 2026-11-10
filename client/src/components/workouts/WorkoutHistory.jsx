@@ -13,7 +13,9 @@ import { STATUS_META, statusOf } from './workoutStatus';
 import { workoutDisplayDate } from './workoutUtils';
 
 const DEFAULT_FILTERS = { query: '', day: null, muscle: 'all', type: 'all', favorites: false, status: 'all', sort: 'recent' };
-const DESKTOP_QUERY = '(min-width: 1024px)';
+// Side-by-side only when the detail still gets ~800px+ (xl); below that the
+// list takes the full width and the detail opens as its own screen.
+const DESKTOP_QUERY = '(min-width: 1280px)';
 
 function useIsDesktop() {
   const [is, setIs] = useState(() => typeof window !== 'undefined' && window.matchMedia(DESKTOP_QUERY).matches);
@@ -246,13 +248,13 @@ function WorkoutHistory({
   );
 
   return (
-    <div className="lg:grid lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)] lg:gap-6">
+    <div className="max-w-3xl mx-auto xl:max-w-none xl:grid xl:grid-cols-[minmax(340px,30%)_minmax(0,1fr)] xl:gap-6">
       {/* ── Master: month, filters + compact list ── */}
       <aside
-        className="flex flex-col lg:sticky lg:top-[82px] lg:h-[calc(100vh-100px)] lg:bg-[#0d0e12] lg:border lg:border-white/10 lg:rounded-2xl lg:overflow-hidden"
+        className="flex flex-col min-w-0 xl:sticky xl:top-[82px] xl:h-[calc(100dvh-106px)] xl:bg-[#0d0e12] xl:border xl:border-white/10 xl:rounded-2xl xl:overflow-hidden"
         aria-label="Historial de sesiones"
       >
-        <div className="lg:p-4 space-y-3 pb-3 lg:border-b lg:border-white/5">
+        <div className="shrink-0 xl:p-4 space-y-3 pb-3 xl:border-b xl:border-white/5">
           <div className="flex items-center gap-2">
             <LuHistory className="w-4 h-4 text-lime-400" aria-hidden="true" />
             <h2 className="text-sm font-black uppercase tracking-wider text-zinc-200">Historial</h2>
@@ -281,21 +283,6 @@ function WorkoutHistory({
             onToggleCalendar={() => setCalendarOpen((o) => !o)}
           />
 
-          {calendarOpen && (
-            <MonthCalendar
-              monthKey={activeMonth}
-              sessionsByDay={sessionsByDay}
-              summary={summarizeMonth(entries)}
-              streak={streak}
-              selectedDay={filters.day}
-              todayKey={dayKeyOf(new Date())}
-              canGoPrev={activeMonth > oldestMonth}
-              canGoNext={activeMonth < thisMonth}
-              onPrev={() => goMonth(-1)}
-              onNext={() => goMonth(1)}
-              onSelectDay={(day) => patchFilters({ day })}
-            />
-          )}
 
           {page.status === 'ready' && (
             <p className="text-xs text-zinc-400" aria-live="polite">
@@ -315,9 +302,27 @@ function WorkoutHistory({
           )}
         </div>
 
-        <div ref={listScroll} className="lg:flex-1 lg:overflow-y-auto lg:px-2 lg:pb-2">
+        <div ref={listScroll} className="min-h-0 xl:flex-1 xl:overflow-y-auto xl:px-2 xl:pb-2">
+          {/* Inside the scroll area: on short laptop screens it scrolls instead of being clipped. */}
+          {calendarOpen && (
+            <div className="pb-3 xl:pt-3">
+              <MonthCalendar
+                monthKey={activeMonth}
+                sessionsByDay={sessionsByDay}
+                summary={summarizeMonth(entries)}
+                streak={streak}
+                selectedDay={filters.day}
+                todayKey={dayKeyOf(new Date())}
+                canGoPrev={activeMonth > oldestMonth}
+                canGoNext={activeMonth < thisMonth}
+                onPrev={() => goMonth(-1)}
+                onNext={() => goMonth(1)}
+                onSelectDay={(day) => patchFilters({ day })}
+              />
+            </div>
+          )}
           {page.status === 'error' ? (
-            <div className="lg:pt-2"><LoadError compact onRetry={page.retry} /></div>
+            <div className="xl:pt-2"><LoadError compact onRetry={page.retry} /></div>
           ) : page.status === 'ready' && entries.length === 0 ? (
             <div className="text-center py-12 px-4 text-sm text-zinc-500">No entrenaste este mes.</div>
           ) : (
@@ -339,7 +344,7 @@ function WorkoutHistory({
 
       {/* ── Detail: right panel on desktop ── */}
       {isDesktop && (
-        <section className="lg:sticky lg:top-[82px] lg:h-[calc(100vh-100px)] lg:overflow-y-auto bg-[#0d0e12] border border-white/10 rounded-2xl p-6" aria-label="Detalle de la sesión">
+        <section className="min-w-0 sticky top-[82px] h-[calc(100dvh-106px)] overflow-y-auto overscroll-contain bg-[#0d0e12] border border-white/10 rounded-2xl p-5 2xl:p-6" aria-label="Detalle de la sesión">
           {detail || (
             <div className="h-full flex flex-col items-center justify-center text-center text-zinc-500 gap-3">
               <LuMousePointerClick className="w-8 h-8" aria-hidden="true" />

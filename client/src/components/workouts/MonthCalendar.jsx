@@ -53,7 +53,7 @@ function MonthCalendar({
       </div>
 
       {/* Month summary + streak */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-zinc-950/60 border border-white/5 rounded-xl p-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-2 gap-3 bg-zinc-950/60 border border-white/5 rounded-xl p-3">
         <Stat Icon={LuCalendarCheck} accent="text-lime-400" value={summary.sessions} label={summary.sessions === 1 ? 'sesión' : 'sesiones'} />
         <Stat Icon={LuClock} accent="text-cyan-400" value={formatMinutes(summary.minutes)} label="entrenando" />
         <Stat Icon={LuDumbbell} accent="text-amber-400" value={formatKg(summary.volume)} label="volumen" />

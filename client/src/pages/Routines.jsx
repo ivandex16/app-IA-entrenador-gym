@@ -45,16 +45,6 @@ const FILTER_GOALS = [
   { v: 'general', l: 'General' },
 ];
 
-const WEEKDAYS = [
-  { v: 'lunes', l: 'Lun', full: 'Lunes' },
-  { v: 'martes', l: 'Mar', full: 'Martes' },
-  { v: 'miercoles', l: 'Mié', full: 'Miércoles' },
-  { v: 'jueves', l: 'Jue', full: 'Jueves' },
-  { v: 'viernes', l: 'Vie', full: 'Viernes' },
-  { v: 'sabado', l: 'Sáb', full: 'Sábado' },
-  { v: 'domingo', l: 'Dom', full: 'Domingo' },
-];
-
 // Card background images from Unsplash (gym themed, high performance)
 const CARD_IMAGES = [
   'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&q=80',
@@ -86,8 +76,6 @@ export default function Routines() {
   const navigate = useNavigate();
   const [routines, setRoutines] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', goal: 'general', selectedDays: ['lunes'] });
   const [showPdf, setShowPdf] = useState(false);
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfUploading, setPdfUploading] = useState(false);
@@ -109,28 +97,6 @@ export default function Routines() {
   useEffect(() => {
     load();
   }, []);
-
-  const handleCreate = async (e) => {
-    e.preventDefault();
-    try {
-      const days = form.selectedDays.map((d) => {
-        const wd = WEEKDAYS.find((w) => w.v === d);
-        return { dayLabel: wd?.full || d, exercises: [] };
-      });
-      const { data } = await api.post('/routines', {
-        name: form.name,
-        description: form.description,
-        goal: form.goal,
-        days,
-      });
-      toast.success('Rutina creada — agrega ejercicios');
-      setShowForm(false);
-      setForm({ name: '', description: '', goal: 'general', selectedDays: ['lunes'] });
-      navigate(`/routines/${data._id}`);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Error al crear rutina');
-    }
-  };
 
   const handleDelete = async (id) => {
     if (!confirm('¿Eliminar esta rutina?')) return;
@@ -254,7 +220,6 @@ export default function Routines() {
               <button
                 onClick={() => {
                   setShowPdf(!showPdf);
-                  setShowForm(false);
                 }}
                 className={`min-h-[44px] px-4 sm:px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 flex items-center gap-2 border active:scale-95 ${
                   showPdf
@@ -268,42 +233,25 @@ export default function Routines() {
 
               <button
                 onClick={() => {
-                  setShowImage((v) => !(v && !showPdf && !showForm));
+                  setShowImage((v) => !(v && !showPdf));
                   setShowPdf(false);
-                  setShowForm(false);
                 }}
                 className={`min-h-[44px] px-4 sm:px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200 flex items-center gap-2 border active:scale-95 ${
-                  showImage && !showPdf && !showForm
+                  showImage && !showPdf
                     ? 'bg-lime-400/15 text-lime-300 border-lime-400/40 shadow-lg shadow-lime-400/10'
                     : 'bg-[#12141F]/90 backdrop-blur-md hover:bg-white/[0.08] border-white/[0.1] text-zinc-200'
                 }`}
               >
                 <LuImageUp className="w-4 h-4 text-lime-400" />
-                <span>{showImage && !showPdf && !showForm ? 'Cerrar imagen' : 'Subir imagen'}</span>
+                <span>{showImage && !showPdf ? 'Cerrar imagen' : 'Subir imagen'}</span>
               </button>
 
               <button
-                onClick={() => {
-                  setShowForm(!showForm);
-                  setShowPdf(false);
-                }}
-                className={`min-h-[44px] px-5 sm:px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 shadow-lg active:scale-95 ${
-                  showForm
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                    : 'bg-lime-400 hover:bg-lime-300 text-slate-950 shadow-lime-400/25'
-                }`}
+                onClick={() => navigate('/routines/new')}
+                className="min-h-[44px] px-5 sm:px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 flex items-center gap-2 shadow-lg active:scale-95 bg-lime-400 hover:bg-lime-300 text-slate-950 shadow-lime-400/25"
               >
-                {showForm ? (
-                  <>
-                    <LuX className="w-4 h-4" />
-                    <span>Cancelar</span>
-                  </>
-                ) : (
-                  <>
-                    <LuPlus className="w-4 h-4 stroke-[3]" />
-                    <span>Nueva Rutina</span>
-                  </>
-                )}
+                <LuPlus className="w-4 h-4 stroke-[3]" />
+                <span>Nueva Rutina</span>
               </button>
             </div>
 
@@ -382,7 +330,7 @@ Martes - Espalda y Bíceps
         )}
 
         {/* ── A2. IMAGE IMPORT (OCR + review; separate from the PDF import) ── */}
-        {showImage && !showPdf && !showForm && (
+        {showImage && !showPdf && (
           <ImageImportPanel
             onClose={() => setShowImage(false)}
             onCreated={(routine) => {
@@ -391,124 +339,6 @@ Martes - Espalda y Bíceps
               if (routine?._id) navigate(`/routines/${routine._id}`);
             }}
           />
-        )}
-
-        {/* ── B. CREATE NEW ROUTINE FORM ── */}
-        {showForm && (
-          <form
-            onSubmit={handleCreate}
-            className="animate-slideUp bg-[#0E1018]/95 backdrop-blur-xl border border-white/[0.1] p-6 sm:p-8 rounded-3xl space-y-6 shadow-2xl shadow-black/80"
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-lime-400/10 border border-lime-400/25 flex items-center justify-center text-lime-400">
-                  <LuPlus className="w-5 h-5 stroke-[2.5]" />
-                </div>
-                <div>
-                  <h2 className="font-black text-lg text-white uppercase tracking-tight">
-                    Crear Nueva Rutina
-                  </h2>
-                  <p className="text-xs text-zinc-400 font-medium">Configura el esquema semanal y el objetivo atlético</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="w-8 h-8 rounded-lg bg-white/[0.05] hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white"
-              >
-                <LuX className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1.5 block">
-                  Nombre de la Rutina
-                </label>
-                <input
-                  placeholder="Ej: Push Day, Pierna Potencia, Torso Hipertrofia..."
-                  required
-                  className="w-full bg-[#131622] rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-500 outline-none border border-white/[0.08] focus:border-lime-400 focus:ring-1 focus:ring-lime-400/40 transition-all duration-150"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1.5 block">
-                  Descripción u Objetivo Específico
-                </label>
-                <textarea
-                  placeholder="Ej: Enfoque en press con mancuernas pesadas y aislamiento de tríceps."
-                  rows={2}
-                  className="w-full bg-[#131622] rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-500 outline-none border border-white/[0.08] focus:border-lime-400 focus:ring-1 focus:ring-lime-400/40 transition-all duration-150 resize-none"
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2 block">
-                  Días Asignados
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {WEEKDAYS.map((wd) => {
-                    const selected = form.selectedDays.includes(wd.v);
-                    return (
-                      <button
-                        key={wd.v}
-                        type="button"
-                        onClick={() => {
-                          setForm((f) => ({
-                            ...f,
-                            selectedDays: selected
-                              ? f.selectedDays.filter((d) => d !== wd.v)
-                              : [...f.selectedDays, wd.v],
-                          }));
-                        }}
-                        className={`min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 border active:scale-95 ${
-                          selected
-                            ? 'bg-lime-400 text-black border-lime-400 shadow-md shadow-lime-400/20 font-black'
-                            : 'bg-[#131622] border-white/[0.08] text-zinc-400 hover:text-white hover:border-white/20'
-                        }`}
-                      >
-                        {wd.l}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2 block">
-                  Objetivo de Entrenamiento
-                </label>
-                <select
-                  className="w-full bg-[#131622] rounded-xl px-4 py-3 text-sm text-white outline-none border border-white/[0.08] focus:border-lime-400 focus:ring-1 focus:ring-lime-400/40 transition-all"
-                  value={form.goal}
-                  onChange={(e) => setForm({ ...form, goal: e.target.value })}
-                >
-                  {GOALS.map((g) => (
-                    <option key={g.v} value={g.v} className="bg-[#0C0E15] text-white">
-                      {g.l}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="submit"
-                className="w-full sm:w-auto min-h-[46px] bg-lime-400 hover:bg-lime-300 text-slate-950 px-8 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-150 shadow-lg shadow-lime-400/25 active:scale-95 flex items-center justify-center gap-2"
-              >
-                <span>Guardar y Agregar Ejercicios</span>
-                <LuArrowRight className="w-4 h-4 stroke-[2.5]" />
-              </button>
-            </div>
-          </form>
         )}
 
         {/* ── C. CONTROL BAR (Búsqueda Rápida y Filtros Deslizables) ── */}
@@ -589,7 +419,7 @@ Martes - Espalda y Bíceps
         )}
 
         {/* ── E. EMPTY STATE (Sin Rutinas o Sin Resultados) ── */}
-        {!loading && routines.length === 0 && !showForm && (
+        {!loading && routines.length === 0 && (
           <div className="animate-fadeInUp text-center py-20 bg-[#0E1018]/60 border border-white/[0.06] rounded-3xl space-y-5 px-6">
             <div className="relative inline-block">
               <div className="w-20 h-20 rounded-3xl bg-lime-400/10 border border-lime-400/25 flex items-center justify-center mx-auto text-lime-400 shadow-lg shadow-lime-400/5">
@@ -605,7 +435,7 @@ Martes - Espalda y Bíceps
               </p>
             </div>
             <button
-              onClick={() => setShowForm(true)}
+              onClick={() => navigate('/routines/new')}
               className="min-h-[46px] bg-lime-400 hover:bg-lime-300 text-slate-950 px-7 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 shadow-lg shadow-lime-400/25 active:scale-95 inline-flex items-center gap-2"
             >
               <LuPlus className="w-4 h-4 stroke-[3]" />

@@ -1,4 +1,5 @@
 const Routine = require("../models/Routine");
+const Exercise = require("../models/Exercise");
 
 // GET /api/routines
 exports.list = async (req, res, next) => {
@@ -43,10 +44,49 @@ exports.getById = async (req, res, next) => {
   }
 };
 
-// POST /api/routines
+exports.GOALS = Routine.schema.path("goal").enumValues;
+
+/*
+ * POST /api/routines — creates the whole routine (days + exercises) in a single
+ * insert. MongoDB writes one document atomically, so a failure never leaves a
+ * half-built or empty routine. Only known fields are taken from the body.
+ */
 exports.create = async (req, res, next) => {
   try {
-    const routine = await Routine.create({ ...req.body, user: req.user._id });
+    const days = req.body.days.map((d, i) => ({
+      dayLabel: String(d.dayLabel || `Día ${i + 1}`).trim(),
+      exercises: d.exercises.map((e, order) => {
+        const repsMin = Number(e.repsMin);
+        const repsMax = e.repsMax === undefined || e.repsMax === "" ? repsMin : Number(e.repsMax);
+        return {
+          exercise: e.exercise,
+          order,
+          sets: Number(e.sets),
+          repsMin,
+          repsMax: Math.max(repsMin, repsMax),
+          weight: Number(e.weight) || 0,
+          restSeconds: e.restSeconds === undefined || e.restSeconds === "" ? 0 : Number(e.restSeconds),
+          notes: typeof e.notes === "string" ? e.notes.trim() : "",
+        };
+      }),
+    }));
+
+    // Every exercise must exist in the catalog (no dangling references).
+    const ids = [...new Set(days.flatMap((d) => d.exercises.map((e) => String(e.exercise))))];
+    const found = await Exercise.find({ _id: { $in: ids } }).select("muscleGroup").lean();
+    if (found.length !== ids.length) {
+      return res.status(422).json({ message: "Algún ejercicio de la rutina ya no existe en el catálogo." });
+    }
+
+    const routine = await Routine.create({
+      user: req.user._id,
+      name: req.body.name.trim(),
+      description: typeof req.body.description === "string" ? req.body.description.trim() : "",
+      goal: req.body.goal || "general",
+      targetMuscleGroups: [...new Set(found.map((e) => e.muscleGroup))],
+      days,
+      exercises: [],
+    });
     res.status(201).json(routine);
   } catch (err) {
     next(err);

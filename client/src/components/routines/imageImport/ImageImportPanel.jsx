@@ -81,7 +81,7 @@ export default function ImageImportPanel({ onClose, onCreated }) {
         imageWidth: bitmap.width,
         columns: ocr.columns,
       });
-      setReview({ ...stateFromDraft(data), warning });
+      setReview({ ...stateFromDraft(data), warning, diagnostics: ocr.diagnostics });
       setPhase('review');
     } catch (err) {
       if (!alive()) return;

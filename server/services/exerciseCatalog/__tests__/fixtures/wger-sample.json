@@ -1,0 +1,510 @@
+{
+ "note": "Muestra de wger.de /api/v2/exerciseinfo (datos CC-BY-SA, autores en cada registro)",
+ "results": [
+  {
+   "id": 12,
+   "uuid": "53906cd1-61f1-4d56-ac60-e4fcc5824861",
+   "created": "2023-08-06T10:17:17.422900+02:00",
+   "last_update": "2026-10-31T00:06:27.328057+01:00",
+   "last_update_global": "2026-10-31T00:06:27.328057+01:00",
+   "category": {
+    "id": 9,
+    "name": "Legs"
+   },
+   "muscles": [
+    {
+     "id": 8,
+     "name": "Gluteus maximus",
+     "name_en": "Glutes",
+     "is_front": false,
+     "image_url_main": "https://wger.de/static/images/muscles/main/muscle-8.fbdfb46f3bc0.svg",
+     "image_url_secondary": "https://wger.de/static/images/muscles/secondary/muscle-8.605e4e1a0277.svg"
+    }
+   ],
+   "muscles_secondary": [],
+   "equipment": [],
+   "license": {
+    "id": 1,
+    "full_name": " Creative Commons Attribution Share Alike 3",
+    "short_name": "CC-BY-SA 3",
+    "url": "https://creativecommons.org/licenses/by-sa/3.0/deed.en"
+   },
+   "license_author": "flori",
+   "images": [
+    {
+     "id": 570,
+     "uuid": "4a42cc6f-648d-40cc-a72a-c49dd47e1667",
+     "exercise": 12,
+     "exercise_uuid": "53906cd1-61f1-4d56-ac60-e4fcc5824861",
+     "image": "https://wger.de/media/exercise-images/12/4a42cc6f-648d-40cc-a72a-c49dd47e1667.webp",
+     "thumbnails": {
+      "small": "https://wger.de/media/exercise-images/12/4a42cc6f-648d-40cc-a72a-c49dd47e1667.webp.200x200_q85.png",
+      "medium": "https://wger.de/media/exercise-images/12/4a42cc6f-648d-40cc-a72a-c49dd47e1667.webp.400x400_q85.png"
+     },
+     "is_main": true,
+     "style": "4",
+     "license": 2,
+     "license_title": "",
+     "license_object_url": "",
+     "license_author": "",
+     "license_author_url": "",
+     "license_derivative_source_url": "",
+     "author_history": [],
+     "is_ai_generated": false
+    }
+   ],
+   "translations": [
+    {
+     "id": 2565,
+     "uuid": "431d53bf-fd32-42f3-af1d-658f3ed1219f",
+     "name": "Aducción de Cadera en Máquina",
+     "exercise": 12,
+     "description": "<p>Este es un ejercicio de aislamiento que se realiza en una máquina específica para fortalecer los músculos aductores, es decir, la musculatura de la parte interna de los muslos. Ayuda a mejorar la estabilidad de la cadera y a equilibrar la fuerza de las piernas.</p>\n<p><strong>Cómo realizarlo:</strong></p>\n<ol>\n<li><strong>Preparación:</strong> Siéntate en la máquina con la espalda y la cadera completamente apoyadas en el respaldo. Coloca la parte interna de tus muslos o rodillas contra las almohadillas acolchadas. Ajusta la palanca de la máquina para establecer un rango de movimiento inicial que te resulte cómodo pero que genere un ligero estiramiento.</li>\n<li><strong>Ejecución:</strong> Usando la fuerza de la parte interna de tus muslos, junta las piernas de manera lenta y controlada. Haz una breve pausa en el punto de máxima contracción (cuando las almohadillas casi se tocan), apretando fuertemente los aductores.</li>\n<li><strong>Regreso:</strong> Vuelve a la posición inicial de forma igualmente controlada, resistiendo el peso a medida que tus piernas se separan. Evita que las placas de peso choquen bruscamente.</li>\n</ol>\n",
+     "description_source": "Este es un ejercicio de aislamiento que se realiza en una máquina específica para fortalecer los músculos aductores, es decir, la musculatura de la parte interna de los muslos. Ayuda a mejorar la estabilidad de la cadera y a equilibrar la fuerza de las piernas.\n\n**Cómo realizarlo:**\n\n1. **Preparación:** Siéntate en la máquina con la espalda y la cadera completamente apoyadas en el respaldo. Coloca la parte interna de tus muslos o rodillas contra las almohadillas acolchadas. Ajusta la palanca de la máquina para establecer un rango de movimiento inicial que te resulte cómodo pero que genere un ligero estiramiento.\n2. **Ejecución:** Usando la fuerza de la parte interna de tus muslos, junta las piernas de manera lenta y controlada. Haz una breve pausa en el punto de máxima contracción (cuando las almohadillas casi se tocan), apretando fuertemente los aductores.\n3. **Regreso:** Vuelve a la posición inicial de forma igualmente controlada, resistiendo el peso a medida que tus piernas se separan. Evita que las placas de peso choquen bruscamente.",
+     "created": "2025-08-18T07:50:47.608177+02:00",
+     "language": 4,
+     "aliases": [],
+     "notes": [],
+     "license": 2,
+     "license_title": "",
+     "license_object_url": "",
+     "license_author": "wgerjhn",
+     "license_author_url": "",
+     "license_derivative_source_url": "",
+     "author_history": [
+      "wgerjhn"
+     ]
+    },
+    {
+     "id": 377,
+     "uuid": "4b3025a9-b717-4577-9e92-b1c200fe5f1c",
+     "name": "Seated Hip Adduction",
+     "exercise": 12,
+     "description": "<p>Starting Position: Sit on the machine with your knees inward and against the pads. Pull the pin to release the pads. Grab the handles on the sides.b</p>\n",
+     "description_source": "Starting Position: Sit on the machine with your knees inward and against the pads. Pull the pin to release the pads. Grab the handles on the sides.b",
+     "created": "2023-08-06T10:17:17.349574+02:00",
+     "language": 2,
+     "aliases": [],
+     "notes": [],
+     "license": 1,
+     "license_title": "",
+     "license_object_url": "",
+     "license_author": "flori",
+     "license_author_url": "",
+     "license_derivative_source_url": "",
+     "author_history": [
+      "Araaosf",
+      "flori"
+     ]
+    }
+   ],
+   "variation_group": "0b2e6216-ddb3-48a7-8650-7856df0faa30",
+   "videos": [
+    {
+     "id": 74,
+     "uuid": "5148c579-5df2-4618-9a7b-a2e29ac4dd7d",
+     "exercise": 12,
+     "video": "https://wger.de/media/exercise-video/12/5148c579-5df2-4618-9a7b-a2e29ac4dd7d.MOV",
+     "is_main": false,
+     "size": 60138928,
+     "duration": "20.86",
+     "width": 1920,
+     "height": 1080,
+     "codec": "hevc",
+     "codec_long": "H.265 / HEVC (High Efficiency Video Coding)",
+     "license": 2,
+     "license_title": "",
+     "license_object_url": "",
+     "license_author": "Goulart",
+     "license_author_url": "",
+     "license_derivative_source_url": "",
+     "author_history": [
+      "Goulart"
+     ]
+    }
+   ],
+   "author_history": [
+    "flori"
+   ],
+   "total_authors_history": [
+    "wgerjhn",
+    "Goulart",
+    "Araaosf",
+    "wger.de",
+    "aom44ja6w@mozmail.com",
+    "flori"
+   ]
+  },
+  {
+   "id": 92,
+   "uuid": "1ae6a28d-10e7-4ecf-af4f-905f8193e2c6",
+   "created": "2023-08-06T10:17:17.422900+02:00",
+   "last_update": "2024-01-17T11:21:59.622804+01:00",
+   "last_update_global": "2026-10-24T15:57:27.756232+02:00",
+   "category": {
+    "id": 8,
+    "name": "Arms"
+   },
+   "muscles": [
+    {
+     "id": 1,
+     "name": "Biceps brachii",
+     "name_en": "Biceps",
+     "is_front": true,
+     "image_url_main": "https://wger.de/static/images/muscles/main/muscle-1.8790f8a0b3b9.svg",
+     "image_url_secondary": "https://wger.de/static/images/muscles/secondary/muscle-1.e08c58a194b9.svg"
+    }
+   ],
+   "muscles_secondary": [
+    {
+     "id": 13,
+     "name": "Brachialis",
+     "name_en": "",
+     "is_front": true,
+     "image_url_main": "https://wger.de/static/images/muscles/main/muscle-13.3fd85231b089.svg",
+     "image_url_secondary": "https://wger.de/static/images/muscles/secondary/muscle-13.0a7e5d52821b.svg"
+    }
+   ],
+   "equipment": [
+    {
+     "id": 3,
+     "name": "Dumbbell"
+    }
+   ],
+   "license": {
+    "id": 1,
+    "full_name": " Creative Commons Attribution Share Alike 3",
+    "short_name": "CC-BY-SA 3",
+    "url": "https://creativecommons.org/licenses/by-sa/3.0/deed.en"
+   },
+   "license_author": "wger.de",
+   "images": [
+    {
+     "id": 23,
+     "uuid": "ca71df8e-a6d6-453f-a25a-f4cebae3b970",
+     "exercise": 92,
+     "exercise_uuid": "1ae6a28d-10e7-4ecf-af4f-905f8193e2c6",
+     "image": "https://wger.de/media/exercise-images/81/Biceps-curl-1.png",
+     "thumbnails": {
+      "small": "https://wger.de/media/exercise-images/81/Biceps-curl-1.png.200x200_q85.png",
+      "medium": "https://wger.de/media/exercise-images/81/Biceps-curl-1.png.400x400_q85.png"
+     },
+     "is_main": true,
+     "style": "1",
+     "license": 1,
+     "license_title": "",
+     "license_object_url": "",
+     "license_author": "Everkinetic",
+     "license_author_url": "",
+     "license_derivative_source_url": "",
+     "author_history": [],
+     "is_ai_generated": false
+    },
+    {
+     "id": 24,
+     "uuid": "13fbda16-5ef6-4f48-b58c-954c3078001c",
+     "exercise": 92,
+     "exercise_uuid": "1ae6a28d-10e7-4ecf-af4f-905f8193e2c6",
+     "image": "https://wger.de/media/exercise-images/81/Biceps-curl-2.png",
+     "thumbnails": {
+      "small": "https://wger.de/media/exercise-images/81/Biceps-curl-2.png.200x200_q85.png",
+      "medium": "https://wger.de/media/exercise-images/81/Biceps-curl-2.png.400x400_q85.png"
+     },
+     "is_main": false,
+     "style": "1",
+     "license": 1,
+     "license_title": "",
+     "license_object_url": "",
+     "license_author": "Everkinetic",
+     "license_author_url": "",
+     "license_derivative_source_url": "",
+     "author_history": [],
+     "is_ai_generated": false
+    }
+   ],
+   "translations": [
+    {
+     "id": 81,
+     "uuid": "48a59aa8-4568-409c-8afe-f8cb99c558ea",
+     "name": "Biceps Curls With Dumbbell",
+     "exercise": 92,
+     "description": "<p>Hold two dumbbells, the arms are streched, the hands are on your side, the palms face inwards. Bend the arms and bring the weight with a fast movement up. At the same time, rotate your arms by 90 degrees at the very beginning of the movement. At the highest point, rotate a little the weights further outwards. Without a pause, bring them down, slowly.</p>\n<p>Don't allow your body to swing during the exercise, all work is done by the biceps, which are the only mucles that should move (pay attention to the elbows).</p>\n",
+     "description_source": "Hold two dumbbells, the arms are streched, the hands are on your side, the palms face inwards. Bend the arms and bring the weight with a fast movement up. At the same time, rotate your arms by 90 degrees at the very beginning of the movement. At the highest point, rotate a little the weights further outwards. Without a pause, bring them down, slowly.\n\nDon't allow your body to swing during the exercise, all work is done by the biceps, which are the only mucles that should move (pay attention to the elbows).",
+     "created": "2023-08-06T10:17:17.349574+02:00",
+     "language": 2,
+     "aliases": [],
+     "notes": [
+      {
+       "id": 302,
+       "uuid": "17e2f36d-49f7-402e-a1d7-3fdcd4ce9d04",
+       "translation": 81,
+       "comment": "Fluid movements with no pauses at the top or the bottom"
+      }
+     ],
+     "license": 1,
+     "license_title": "",
+     "license_object_url": "",
+     "license_author": "wger.de",
+     "license_author_url": "",
+     "license_derivative_source_url": "",
+     "author_history": [
+      "wger.de"
+     ]
+    },
+    {
+     "id": 2051,
+     "uuid": "a3ed40fb-83d3-4901-889f-6bba313e8c80",
+     "name": "Curl de bíceps con mancuerna",
+     "exercise": 92,
+     "description": "<p>Sujeta dos pesas, los brazos estirados, las manos a los lados, las palmas hacia dentro. Flexiona los brazos y sube el peso con un movimiento rápido. Al mismo tiempo, gira los brazos 90 grados al principio del movimiento. En el punto más alto, gira un poco las pesas hacia fuera. Sin pausa, bájalas lentamente.No permitas que tu cuerpo se balancee durante el ejercicio, todo el trabajo lo realizan los bíceps, que son los únicos músculos que deben moverse (presta atención a los codos).</p>\n",
+     "description_source": "Sujeta dos pesas, los brazos estirados, las manos a los lados, las palmas hacia dentro. Flexiona los brazos y sube el peso con un movimiento rápido. Al mismo tiempo, gira los brazos 90 grados al principio del movimiento. En el punto más alto, gira un poco las pesas hacia fuera. Sin pausa, bájalas lentamente.No permitas que tu cuerpo se balancee durante el ejercicio, todo el trabajo lo realizan los bíceps, que son los únicos músculos que deben moverse (presta atención a los codos).",
+     "created": "2023-08-06T10:17:17.349574+02:00",
+     "language": 4,
+     "aliases": [],
+     "notes": [],
+     "license": 1,
+     "license_title": "",
+     "license_object_url": "",
+     "license_author": "wger.de",
+     "license_author_url": "",
+     "license_derivative_source_url": "",
+     "author_history": [
+      "colundrum",
+      "wger.de"
+     ]
+    }
+   ],
+   "variation_group": "674f258e-60c5-4c94-8495-cd918aabea77",
+   "videos": [
+    {
+     "id": 48,
+     "uuid": "8bfb917c-3d0d-49b9-8073-5d7e01c1b894",
+     "exercise": 92,
+     "video": "https://wger.de/media/exercise-video/92/8bfb917c-3d0d-49b9-8073-5d7e01c1b894.MOV",
+     "is_main": false,
+     "size": 31753930,
+     "duration": "10.94",
+     "width": 1920,
+     "height": 1080,
+     "codec": "hevc",
+     "codec_long": "H.265 / HEVC (High Efficiency Video Coding)",
+     "license": 2,
+     "license_title": "",
+     "license_object_url": "",
+     "license_author": "Goulart",
+     "license_author_url": "",
+     "license_derivative_source_url": "",
+     "author_history": [
+      "Goulart"
+     ]
+    }
+   ],
+   "author_history": [
+    "wger.de"
+   ],
+   "total_authors_history": [
+    "colundrum",
+    "jptjptjptjpt",
+    "wger.de",
+    "Goulart",
+    "FEFFO"
+   ]
+  },
+  {
+   "id": 1772,
+   "uuid": "5d8d3581-bce5-4a28-868f-8b299eaedbdd",
+   "created": "2025-12-23T03:18:37.928950+01:00",
+   "last_update": "2026-10-31T00:05:54.643291+01:00",
+   "last_update_global": "2026-10-31T00:05:54.643291+01:00",
+   "category": {
+    "id": 10,
+    "name": "Abs"
+   },
+   "muscles": [
+    {
+     "id": 6,
+     "name": "Rectus abdominis",
+     "name_en": "Abs",
+     "is_front": true,
+     "image_url_main": "https://wger.de/static/images/muscles/main/muscle-6.592f938fa8c7.svg",
+     "image_url_secondary": "https://wger.de/static/images/muscles/secondary/muscle-6.370f77c2860e.svg"
+    }
+   ],
+   "muscles_secondary": [],
+   "equipment": [
+    {
+     "id": 7,
+     "name": "none (bodyweight exercise)"
+    }
+   ],
+   "license": {
+    "id": 2,
+    "full_name": "Creative Commons Attribution Share Alike 4",
+    "short_name": "CC-BY-SA 4",
+    "url": "https://creativecommons.org/licenses/by-sa/4.0/deed.en"
+   },
+   "license_author": "eufvksruh",
+   "images": [],
+   "translations": [
+    {
+     "id": 4164,
+     "uuid": "f5b1b9a7-534c-450f-8d91-ed7b33d97be7",
+     "name": "Crunch inverso",
+     "exercise": 1772,
+     "description": "<ol>\n<li>Túmbate</li>\n<li>Coloca las manos cerca de los glúteos (a menudo ligeramente delante o debajo, o ambos)</li>\n<li>Eleva las piernas, pero alrededor del 70 % del recorrido deberías poder elevar también la pelvis</li>\n<li>(opcional/variable) Mantén 1/2 segundos en la parte superior</li>\n<li>Vuelve a la posición inicial</li>\n</ol>\n",
+     "description_source": "1. Túmbate\n2. Coloca las manos cerca de los glúteos (a menudo ligeramente delante o debajo, o ambos)\n3. Eleva las piernas, pero alrededor del 70 % del recorrido deberías poder elevar también la pelvis\n4. (opcional/variable) Mantén 1/2 segundos en la parte superior\n5. Vuelve a la posición inicial",
+     "created": "2026-06-19T17:57:21.402063+02:00",
+     "language": 4,
+     "aliases": [
+      {
+       "id": 659,
+       "uuid": "655a75a2-9082-4a80-8240-56ba3d113ae1",
+       "alias": "Encogimiento inverso"
+      }
+     ],
+     "notes": [],
+     "license": 2,
+     "license_title": "",
+     "license_object_url": "",
+     "license_author": "wger.de",
+     "license_author_url": "",
+     "license_derivative_source_url": "",
+     "author_history": [
+      "wger.de"
+     ]
+    },
+    {
+     "id": 2906,
+     "uuid": "d9bf5b38-7fea-4a76-9f9c-b66ecfec792a",
+     "name": "Reverse crunch",
+     "exercise": 1772,
+     "description": "<ol>\n<li>Lay down</li>\n<li>Place your hands near your butt (often slightly in front or under or both)</li>\n<li>Raise your legs, but about 70% of the way you should be able to also raise your pelvis</li>\n<li>(optional/variable) Hold 1/2 seconds at the top</li>\n<li>Go back to starting position</li>\n</ol>\n",
+     "description_source": "1. Lay down\n2. Place your hands near your butt (often slightly in front or under or both)\n3. Raise your legs, but about 70% of the way you should be able to also raise your pelvis\n4. (optional/variable) Hold 1/2 seconds at the top\n5. Go back to starting position",
+     "created": "2025-12-23T03:18:37.991781+01:00",
+     "language": 2,
+     "aliases": [],
+     "notes": [
+      {
+       "id": 559,
+       "uuid": "f66f91f5-1ef4-4eaa-bfb5-0c2788bb43cc",
+       "translation": 2906,
+       "comment": "Inclining (legs lower than head), or holding weight between/on your feet increases the difficulty"
+      }
+     ],
+     "license": 2,
+     "license_title": "",
+     "license_object_url": "",
+     "license_author": "eufvksruh",
+     "license_author_url": "",
+     "license_derivative_source_url": "",
+     "author_history": [
+      "eufvksruh"
+     ]
+    }
+   ],
+   "variation_group": "8f8b5cfb-7f26-45c5-bba5-aae58b3e039f",
+   "videos": [],
+   "author_history": [
+    "eufvksruh"
+   ],
+   "total_authors_history": [
+    "eufvksruh",
+    "wger.de"
+   ]
+  },
+  {
+   "id": 9,
+   "uuid": "1b020b3a-3732-4c7e-92fd-a0cec90ed69b",
+   "created": "2023-08-06T10:17:17.422900+02:00",
+   "last_update": "2026-07-23T12:24:53.482746+02:00",
+   "last_update_global": "2026-10-24T16:00:18.357676+02:00",
+   "category": {
+    "id": 10,
+    "name": "Abs"
+   },
+   "muscles": [
+    {
+     "id": 11,
+     "name": "Biceps femoris",
+     "name_en": "Hamstrings",
+     "is_front": false,
+     "image_url_main": "https://wger.de/static/images/muscles/main/muscle-11.54ef31755917.svg",
+     "image_url_secondary": "https://wger.de/static/images/muscles/secondary/muscle-11.a2bc76fe157a.svg"
+    },
+    {
+     "id": 8,
+     "name": "Gluteus maximus",
+     "name_en": "Glutes",
+     "is_front": false,
+     "image_url_main": "https://wger.de/static/images/muscles/main/muscle-8.fbdfb46f3bc0.svg",
+     "image_url_secondary": "https://wger.de/static/images/muscles/secondary/muscle-8.605e4e1a0277.svg"
+    }
+   ],
+   "muscles_secondary": [
+    {
+     "id": 10,
+     "name": "Quadriceps femoris",
+     "name_en": "Quads",
+     "is_front": true,
+     "image_url_main": "https://wger.de/static/images/muscles/main/muscle-10.b1445ea1acf6.svg",
+     "image_url_secondary": "https://wger.de/static/images/muscles/secondary/muscle-10.55e36d852778.svg"
+    },
+    {
+     "id": 6,
+     "name": "Rectus abdominis",
+     "name_en": "Abs",
+     "is_front": true,
+     "image_url_main": "https://wger.de/static/images/muscles/main/muscle-6.592f938fa8c7.svg",
+     "image_url_secondary": "https://wger.de/static/images/muscles/secondary/muscle-6.370f77c2860e.svg"
+    }
+   ],
+   "equipment": [
+    {
+     "id": 10,
+     "name": "Kettlebell"
+    }
+   ],
+   "license": {
+    "id": 2,
+    "full_name": "Creative Commons Attribution Share Alike 4",
+    "short_name": "CC-BY-SA 4",
+    "url": "https://creativecommons.org/licenses/by-sa/4.0/deed.en"
+   },
+   "license_author": "deusinvictus",
+   "images": [],
+   "translations": [
+    {
+     "id": 345,
+     "uuid": "c788d643-150a-4ac7-97ef-84643c6419bf",
+     "name": "2 Handed Kettlebell Swing",
+     "exercise": 9,
+     "description": "<ol>\n<li>Stand with your feet slightly wider than shoulder-width, the kettlebell on the floor about 20-30 cm in front of your toes.</li>\n<li>Hinge at the hips with a slight bend in the knees and a flat back, and grip the handle with both hands.</li>\n<li>Hike the kettlebell back between your legs, then drive your hips forward explosively so that it swings forward and up to chest or shoulder height (Russian style, not overhead). Your arms stay straight and relaxed, the power comes from the hips.</li>\n<li>Let the kettlebell swing back down, hinge again as it passes between your legs and go straight into the next rep.</li>\n</ol>\n",
+     "description_source": "1. Stand with your feet slightly wider than shoulder-width, the kettlebell on the floor about 20-30 cm in front of your toes.\n2. Hinge at the hips with a slight bend in the knees and a flat back, and grip the handle with both hands.\n3. Hike the kettlebell back between your legs, then drive your hips forward explosively so that it swings forward and up to chest or shoulder height (Russian style, not overhead). Your arms stay straight and relaxed, the power comes from the hips.\n4. Let the kettlebell swing back down, hinge again as it passes between your legs and go straight into the next rep.",
+     "created": "2023-08-06T10:17:17.349574+02:00",
+     "language": 2,
+     "aliases": [],
+     "notes": [],
+     "license": 2,
+     "license_title": "",
+     "license_object_url": "",
+     "license_author": "deusinvictus",
+     "license_author_url": "",
+     "license_derivative_source_url": "",
+     "author_history": [
+      "deusinvictus"
+     ]
+    }
+   ],
+   "variation_group": "a30b1f92-7b73-477e-abb0-e91993c5fb05",
+   "videos": [],
+   "author_history": [
+    "deusinvictus"
+   ],
+   "total_authors_history": [
+    "deusinvictus",
+    "jptjptjptjpt",
+    "aom44ja6w@mozmail.com"
+   ]
+  }
+ ]
+}

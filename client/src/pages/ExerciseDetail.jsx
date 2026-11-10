@@ -173,6 +173,26 @@ export default function ExerciseDetail() {
           </div>
         )}
 
+        {/* Credit for exercises imported from an open catalog (required by its license, e.g. CC-BY-SA). */}
+        {ex.source?.provider && (
+          <p className="text-xs text-gray-500">
+            Fuente:{' '}
+            <a href={ex.source.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-gray-300">
+              {ex.source.provider === 'wger' ? 'wger.de' : ex.source.provider}
+            </a>
+            {ex.source.author && <> · Texto: {ex.source.author}</>}
+            {ex.source.imageAuthor && ex.imageUrl && <> · Imagen: {ex.source.imageAuthor}</>}
+            {ex.source.license && (
+              <>
+                {' · '}
+                {ex.source.licenseUrl ? (
+                  <a href={ex.source.licenseUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-gray-300">{ex.source.license}</a>
+                ) : ex.source.license}
+              </>
+            )}
+          </p>
+        )}
+
         {/* ══════════ INSTRUCTIONS + TIPS GRID ══════════ */}
         <div className="grid md:grid-cols-2 gap-5">
           {/* Instructions */}

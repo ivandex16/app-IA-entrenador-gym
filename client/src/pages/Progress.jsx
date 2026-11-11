@@ -1,16 +1,17 @@
 import { useEffect, useState, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import html2canvas from 'html2canvas';
 import {
   LuDumbbell, LuFlame, LuTarget, LuScale, LuDownload, LuX,
   LuPlus, LuTrash2, LuSparkles, LuFileText,
-  LuActivity, LuCalendar, LuImage, LuCrown,
+  LuActivity, LuCalendar, LuImage,
   LuChartColumnIncreasing, LuArrowUp, LuArrowDown, LuTrendingUp, LuRotateCcw,
 } from 'react-icons/lu';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  AreaChart, Area,
+  AreaChart, Area, Cell,
 } from 'recharts';
 
 /* ─── muscle group translations ─── */
@@ -23,14 +24,28 @@ const ALL_GROUPS = ['chest', 'back', 'shoulders', 'legs', 'biceps', 'triceps', '
 /* The week is computed in the user's time zone (same as Entrenamientos). */
 const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
+/* ─── periods (URL ?periodo=semana|4s|12s ↔ API period=week|4w|12w) ─── */
+const PERIODS = [
+  { url: 'semana', api: 'week', label: 'Semana' },
+  { url: '4s', api: '4w', label: '4 semanas' },
+  { url: '12s', api: '12w', label: '12 semanas' },
+];
+const COMPARED_WITH = {
+  week: 'los mismos días de la semana pasada',
+  '4w': 'las 4 semanas anteriores',
+  '12w': 'las 12 semanas anteriores',
+};
+const SHARE_TITLE = { week: 'Resumen semanal de', '4w': 'Últimas 4 semanas de', '12w': 'Últimas 12 semanas de' };
+
 /* ─── helpers ─── */
 const fmtDate = (iso) => {
   const d = new Date(iso + 'T00:00:00');
   return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
 };
+const fmtRange = (r) => (r.from === r.to ? fmtDate(r.from) : `${fmtDate(r.from)} — ${fmtDate(r.to)}`);
 
 const TrendBadge = ({ value, suffix = '', invert = false }) => {
-  if (value == null) return null;
+  if (value == null || Number.isNaN(value)) return null;
   const positive = invert ? value < 0 : value > 0;
   const negative = invert ? value > 0 : value < 0;
   const color = positive
@@ -49,6 +64,9 @@ const TrendBadge = ({ value, suffix = '', invert = false }) => {
 
 export default function Progress() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const period = PERIODS.find((x) => x.url === searchParams.get('periodo')) || PERIODS[0];
+  const [loadingPeriod, setLoadingPeriod] = useState(false);
   const shareRef = useRef(null);
   const [report, setReport] = useState(null);
   const [weightData, setWeightData] = useState(null);
@@ -58,20 +76,32 @@ export default function Progress() {
   const [showShareCard, setShowShareCard] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
-  const loadReport = () =>
-    api
-      .get('/progress/weekly', { params: { tz: TIME_ZONE } })
+  const loadReport = (p = period.api) => {
+    setLoadingPeriod(true);
+    return api
+      .get('/progress/weekly', { params: { tz: TIME_ZONE, period: p } })
       .then((r) => {
         setReport(r.data);
         setLoadError(false);
       })
-      .catch(() => setLoadError(true));
+      .catch(() => setLoadError(true))
+      .finally(() => setLoadingPeriod(false));
+  };
   const loadWeight = () => api.get('/weight/summary').then((r) => setWeightData(r.data)).catch(() => {});
 
   useEffect(() => {
-    loadReport();
     loadWeight();
   }, []);
+  useEffect(() => {
+    loadReport(period.api);
+  }, [period.api]);
+
+  const choosePeriod = (p) => {
+    const next = new URLSearchParams(searchParams);
+    if (p.api === 'week') next.delete('periodo');
+    else next.set('periodo', p.url);
+    setSearchParams(next, { replace: true });
+  };
 
   const addWeight = async (e) => {
     e.preventDefault();
@@ -141,13 +171,18 @@ export default function Progress() {
     );
 
   const cw = report.currentWeek;
-  const pw = report.previousWeek;
   const comp = report.comparison;
 
-  const chartData = [
-    { name: 'Sem. Anterior', volumen: pw.totalVolume, entrenos: pw.workouts },
-    { name: 'Esta Semana', volumen: cw.totalVolume, entrenos: cw.workouts },
-  ];
+  const pType = report.period.type || 'week';
+  const isWeek = pType === 'week';
+  const chartData = (report.timeline || []).map((b) => ({
+    name: isWeek ? b.label : fmtDate(b.from),
+    rango: isWeek ? fmtDate(b.from) : `${fmtDate(b.from)} — ${fmtDate(b.to)}`,
+    volumen: b.volume,
+    entrenos: b.workouts,
+    future: b.future,
+  }));
+  const comparedRange = report.period.previous ? fmtRange(report.period.previous) : null;
 
   const trainedGroups = Object.keys(cw.muscleGroups || {});
 
@@ -158,19 +193,29 @@ export default function Progress() {
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-lime-400/10 rounded-full blur-[140px] pointer-events-none" />
         <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-cyan-500/10 rounded-full blur-[120px] pointer-events-none" />
 
-        <div className="relative max-w-6xl mx-auto px-4 pt-10 pb-9">
-          <div className="flex items-center gap-2 mb-2.5">
-            <span className="px-2.5 py-1 rounded-md bg-lime-400/10 border border-lime-400/20 text-lime-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-              <LuChartColumnIncreasing className="w-3.5 h-3.5 stroke-[2.5]" /> Progreso Semanal
-            </span>
-          </div>
-
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-3">
-            Tu Resumen de{' '}
+        <div className="relative max-w-6xl mx-auto px-4 pt-6 sm:pt-10 pb-6 sm:pb-9">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-3">
+            Tu{' '}
             <span className="bg-gradient-to-r from-white to-lime-400 bg-clip-text text-transparent font-black">
-              Rendimiento
+              Progreso
             </span>
           </h1>
+
+          {/* Period selector */}
+          <div role="radiogroup" aria-label="Periodo" className="inline-flex p-1 mb-3 rounded-xl bg-zinc-900/90 border border-white/10">
+            {PERIODS.map((p) => (
+              <button
+                key={p.api}
+                type="button"
+                role="radio"
+                aria-checked={p.api === period.api}
+                onClick={() => choosePeriod(p)}
+                className={`h-9 px-3.5 rounded-lg text-xs font-black transition ${p.api === period.api ? 'bg-lime-400 text-zinc-950' : 'text-zinc-300 hover:text-white'}`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
 
           <div className="flex flex-wrap items-center gap-3">
             {/* Badge de rango de fecha */}
@@ -191,48 +236,79 @@ export default function Progress() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 mt-8 space-y-7">
+      <div className={`max-w-6xl mx-auto px-4 mt-6 sm:mt-8 space-y-7 transition-opacity ${loadingPeriod ? 'opacity-60' : ''}`} aria-busy={loadingPeriod}>
 
-        {/* ═══════ MAIN KPI CARDS (SÓLIDAS Y ATLÉTICAS) ═══════ */}
-        <div data-tour="progress-kpis" className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-fadeInUp">
-          <KpiCard
-            icon={<LuDumbbell className="w-5 h-5 text-lime-400" />}
-            label="Entrenamientos"
-            value={cw.workouts}
-            trend={<TrendBadge value={comp.workoutsChange} />}
-          />
-          <KpiCard
-            icon={<LuChartColumnIncreasing className="w-5 h-5 text-cyan-400" />}
-            label="Volumen Total"
-            value={`${cw.totalVolume.toLocaleString()} kg`}
-            trend={<TrendBadge value={comp.volumeChange} suffix="%" />}
-          />
-          <KpiCard
-            icon={<LuFlame className="w-5 h-5 text-orange-400" />}
-            label="Calorías Quemadas"
-            value={`${cw.totalCalories || 0} kcal`}
-          />
-          <KpiCard
-            icon={<LuCrown className="w-5 h-5 text-amber-400" />}
-            label="Peso Máximo"
-            value={`${cw.maxWeight} kg`}
-            trend={<TrendBadge value={comp.maxWeightChange} suffix=" kg" />}
-          />
+        {/* ═══════ RESUMEN: ¿VOY BIEN? ═══════ */}
+        {(report.summary || report.insights.length > 0) && (
+          <div className="rounded-2xl border border-lime-400/20 bg-lime-400/[0.04] p-4 sm:p-5 space-y-3 animate-fadeInUp" aria-live="polite">
+            {report.summary && (
+              <p className="text-base sm:text-lg font-bold text-white leading-snug flex items-start gap-2.5">
+                <LuSparkles className="w-5 h-5 text-lime-400 shrink-0 mt-0.5" />
+                {report.summary}
+              </p>
+            )}
+            {report.insights.length > 0 && (
+              <ul className="space-y-2 sm:pl-7">
+                {report.insights.map((insight, idx) => {
+                  const [emoji, ...rest] = Array.from(insight);
+                  const text = rest.join('').replace(/^\uFE0F/, '').trim();
+                  return (
+                    <li key={idx} className="text-sm text-zinc-300 leading-relaxed flex items-start gap-2">
+                      <span className="shrink-0">{emoji}</span>
+                      <span>{text}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {/* ═══════ MAIN KPI CARDS ═══════ */}
+        <div className="space-y-2">
+          <div data-tour="progress-kpis" className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 animate-fadeInUp">
+            <KpiCard
+              icon={<LuDumbbell className="w-5 h-5 text-lime-400" />}
+              label="Entrenamientos"
+              value={cw.workouts}
+              trend={comp.hasPrevious !== false ? <TrendBadge value={comp.workoutsChange} /> : null}
+            />
+            <KpiCard
+              icon={<LuChartColumnIncreasing className="w-5 h-5 text-cyan-400" />}
+              label="Volumen Total"
+              value={`${cw.totalVolume.toLocaleString('es-CO')} kg`}
+              trend={<TrendBadge value={comp.volumePct ?? null} suffix="%" />}
+            />
+            <KpiCard
+              icon={<LuActivity className="w-5 h-5 text-emerald-400" />}
+              label="Series"
+              value={cw.totalSets}
+              trend={comp.hasPrevious !== false ? <TrendBadge value={comp.setsChange} /> : null}
+            />
+            <KpiCard
+              icon={<LuTarget className="w-5 h-5 text-amber-400" />}
+              label="Repeticiones"
+              value={cw.totalReps.toLocaleString('es-CO')}
+            />
+          </div>
+          {comparedRange && comp.hasPrevious !== false && (
+            <p className="text-[11px] sm:text-xs text-zinc-500 px-1">
+              Las flechas comparan con {COMPARED_WITH[pType]} ({comparedRange}).
+            </p>
+          )}
         </div>
 
-        {/* ═══════ SECONDARY KPI STRIP (COMPACTA) ═══════ */}
-        <div className="grid grid-cols-3 gap-3 bg-zinc-900/40 border border-white/5 rounded-2xl p-2.5 shadow-sm animate-fadeInUp">
-          <div className="bg-zinc-900/80 border border-white/5 rounded-xl p-3.5 text-center">
-            <p className="text-[10px] sm:text-xs text-zinc-400 uppercase tracking-wider font-bold mb-1">Series</p>
-            <p className="text-xl sm:text-2xl font-black text-white font-mono">{cw.totalSets}</p>
+        {/* ═══════ SECONDARY STRIP ═══════ */}
+        <div className="grid grid-cols-2 gap-3 bg-zinc-900/40 border border-white/5 rounded-2xl p-2.5 shadow-sm animate-fadeInUp">
+          <div className="bg-zinc-900/80 border border-white/5 rounded-xl p-3 text-center">
+            <p className="text-[10px] sm:text-xs text-zinc-400 uppercase tracking-wider font-bold mb-1">Ejercicios distintos</p>
+            <p className="text-lg sm:text-xl font-black text-white font-mono">{cw.exercisesPerformed.length}</p>
           </div>
-          <div className="bg-zinc-900/80 border border-white/5 rounded-xl p-3.5 text-center">
-            <p className="text-[10px] sm:text-xs text-zinc-400 uppercase tracking-wider font-bold mb-1">Repeticiones</p>
-            <p className="text-xl sm:text-2xl font-black text-white font-mono">{cw.totalReps}</p>
-          </div>
-          <div className="bg-zinc-900/80 border border-white/5 rounded-xl p-3.5 text-center">
-            <p className="text-[10px] sm:text-xs text-zinc-400 uppercase tracking-wider font-bold mb-1">Ejercicios</p>
-            <p className="text-xl sm:text-2xl font-black text-white font-mono">{cw.exercisesPerformed.length}</p>
+          <div className="bg-zinc-900/80 border border-white/5 rounded-xl p-3 text-center">
+            <p className="text-[10px] sm:text-xs text-zinc-400 uppercase tracking-wider font-bold mb-1 flex items-center justify-center gap-1">
+              <LuFlame className="w-3 h-3 text-orange-400" /> Calorías <span className="normal-case font-medium text-zinc-500">(est.)</span>
+            </p>
+            <p className="text-lg sm:text-xl font-black text-white font-mono">{(cw.totalCalories || 0).toLocaleString('es-CO')} <span className="text-xs font-normal text-zinc-400">kcal</span></p>
           </div>
         </div>
 
@@ -245,14 +321,14 @@ export default function Progress() {
                 <div className="w-8 h-8 rounded-xl bg-lime-400/10 border border-lime-400/20 flex items-center justify-center text-lime-400">
                   <LuChartColumnIncreasing className="w-4 h-4 stroke-[2.5]" />
                 </div>
-                Comparación de Volumen
+                {isWeek ? 'Volumen por día' : 'Volumen por semana'}
               </h2>
-              <span className="text-xs text-zinc-500 font-mono">kg totales</span>
+              <span className="hidden sm:inline text-xs text-zinc-500 font-mono">kg · series × reps × peso</span>
             </div>
 
             <div className="w-full h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} barGap={12}>
+                <BarChart data={chartData} barGap={8}>
                   <defs>
                     <linearGradient id="volGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#a3e635" />
@@ -283,9 +359,12 @@ export default function Progress() {
                     }}
                     labelStyle={{ color: '#fff', fontWeight: 'bold' }}
                     itemStyle={{ color: '#a3e635', fontWeight: 'bold' }}
-                    formatter={(v) => [`${v.toLocaleString()} kg`, 'Volumen']}
+                    labelFormatter={(_, items) => items?.[0]?.payload?.rango || ''}
+                    formatter={(v, _n, item) => [`${v.toLocaleString('es-CO')} kg · ${item.payload.entrenos} ${item.payload.entrenos === 1 ? 'sesión' : 'sesiones'}`, 'Volumen']}
                   />
-                  <Bar dataKey="volumen" fill="url(#volGrad)" radius={[8, 8, 0, 0]} maxBarSize={64} />
+                  <Bar dataKey="volumen" fill="url(#volGrad)" radius={[6, 6, 0, 0]} maxBarSize={48}>
+                    {chartData.map((d, i) => <Cell key={i} fillOpacity={d.future ? 0.15 : 1} />)}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -299,6 +378,7 @@ export default function Progress() {
                   <LuTarget className="w-4 h-4 stroke-[2.5]" />
                 </div>
                 Cobertura Muscular
+                <span className="hidden sm:inline text-xs font-medium text-zinc-500">{isWeek ? 'esta semana' : 'en el periodo'}</span>
               </h2>
               <span className="text-xs font-mono font-bold text-lime-400 bg-lime-400/10 border border-lime-400/20 px-2.5 py-0.5 rounded-full">
                 {trainedGroups.filter((g) => ALL_GROUPS.includes(g)).length}/{ALL_GROUPS.length}
@@ -348,33 +428,6 @@ export default function Progress() {
           </div>
         </div>
 
-        {/* ═══════ INSIGHTS INTELIGENTES ═══════ */}
-        {report.insights.length > 0 && (
-          <div className="animate-fadeInUp space-y-3">
-            <h2 className="font-extrabold text-base sm:text-lg text-white flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-amber-400">
-                <LuSparkles className="w-4 h-4" />
-              </div>
-              Observaciones Inteligentes
-            </h2>
-            <div className="grid md:grid-cols-2 gap-3.5">
-              {report.insights.map((insight, idx) => {
-                const emoji = insight.slice(0, 2);
-                const text = insight.slice(2).trim();
-                return (
-                  <div
-                    key={idx}
-                    className="rounded-2xl p-4 bg-zinc-900/60 border border-white/5 hover:border-white/10 transition-all flex items-start gap-3.5 shadow-sm"
-                  >
-                    <span className="text-2xl shrink-0 mt-0.5">{emoji}</span>
-                    <span className="text-sm text-zinc-300 leading-relaxed font-medium">{text}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {/* ═══════ EJERCICIOS REALIZADOS ═══════ */}
         {cw.exercisesPerformed.length > 0 && (
           <div className="bg-zinc-900/50 border border-white/5 rounded-2xl p-6 shadow-xl animate-fadeInUp space-y-3">
@@ -421,7 +474,7 @@ export default function Progress() {
               )}
               {report.weightProgress.previousWeekWeight != null && (
                 <div className="bg-zinc-900/60 border border-white/5 rounded-2xl p-4 text-center shadow-sm">
-                  <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Sem. Anterior</p>
+                  <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">{isWeek ? 'Sem. anterior' : 'Periodo anterior'}</p>
                   <p className="text-2xl font-black text-white font-mono mt-1">
                     {report.weightProgress.previousWeekWeight} <span className="text-xs font-normal text-zinc-400">kg</span>
                   </p>
@@ -645,7 +698,7 @@ export default function Progress() {
 
                   {/* Title */}
                   <div className="relative mb-5">
-                    <p className="text-[11px] text-zinc-500 uppercase tracking-widest mb-0.5 font-bold">Resumen Semanal de</p>
+                    <p className="text-[11px] text-zinc-500 uppercase tracking-widest mb-0.5 font-bold">{SHARE_TITLE[pType]}</p>
                     <p className="text-2xl font-black text-white tracking-tight">{user?.name || 'Mi Progreso'}</p>
                   </div>
 
@@ -660,8 +713,8 @@ export default function Progress() {
                     <ShareStat
                       icon="📊"
                       label="Volumen"
-                      value={`${cw.totalVolume.toLocaleString()} kg`}
-                      change={comp.volumeChange !== 0 ? `${comp.volumeChange > 0 ? '+' : ''}${comp.volumeChange}%` : null}
+                      value={`${cw.totalVolume.toLocaleString('es-CO')} kg`}
+                      change={comp.volumePct ? `${comp.volumePct > 0 ? '+' : ''}${comp.volumePct}%` : null}
                     />
                     <ShareStat
                       icon="🔥"
@@ -669,10 +722,10 @@ export default function Progress() {
                       value={`${cw.totalCalories || 0} kcal`}
                     />
                     <ShareStat
-                      icon="🏆"
-                      label="Peso Máx."
-                      value={`${cw.maxWeight} kg`}
-                      change={comp.maxWeightChange !== 0 ? `${comp.maxWeightChange > 0 ? '+' : ''}${comp.maxWeightChange} kg` : null}
+                      icon="💪"
+                      label="Series"
+                      value={cw.totalSets}
+                      change={comp.setsChange > 0 ? `+${comp.setsChange}` : null}
                     />
                   </div>
 
@@ -697,12 +750,7 @@ export default function Progress() {
 
                   {/* Stats bar */}
                   <div className="relative bg-zinc-900/90 rounded-xl p-3 mb-4 border border-white/10">
-                    <div className="flex justify-between text-center">
-                      <div>
-                        <p className="text-lg font-black text-white font-mono">{cw.totalSets}</p>
-                        <p className="text-[10px] text-zinc-400 uppercase font-bold">Series</p>
-                      </div>
-                      <div className="w-px bg-white/10" />
+                    <div className="flex justify-around text-center">
                       <div>
                         <p className="text-lg font-black text-white font-mono">{cw.totalReps}</p>
                         <p className="text-[10px] text-zinc-400 uppercase font-bold">Reps</p>

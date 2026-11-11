@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import html2canvas from 'html2canvas';
+import ExerciseProgress from '../components/progress/ExerciseProgress';
 import {
   LuDumbbell, LuFlame, LuTarget, LuScale, LuDownload, LuX,
   LuPlus, LuTrash2, LuSparkles, LuFileText,
@@ -67,6 +68,7 @@ export default function Progress() {
   const [searchParams, setSearchParams] = useSearchParams();
   const period = PERIODS.find((x) => x.url === searchParams.get('periodo')) || PERIODS[0];
   const [loadingPeriod, setLoadingPeriod] = useState(false);
+  const [records, setRecords] = useState([]);
   const shareRef = useRef(null);
   const [report, setReport] = useState(null);
   const [weightData, setWeightData] = useState(null);
@@ -247,6 +249,14 @@ export default function Progress() {
                 {report.summary}
               </p>
             )}
+            {records.length > 0 && (
+              <p className="text-sm text-amber-200 font-semibold sm:pl-7 flex items-start gap-2">
+                <span className="shrink-0">🏆</span>
+                <span>
+                  Récord personal en {records.length === 1 ? `${records[0].name}.` : `${records.length} ejercicios: ${records.slice(0, 3).map((r) => r.name).join(', ')}${records.length > 3 ? '…' : '.'}`}
+                </span>
+              </p>
+            )}
             {report.insights.length > 0 && (
               <ul className="space-y-2 sm:pl-7">
                 {report.insights.map((insight, idx) => {
@@ -311,6 +321,9 @@ export default function Progress() {
             <p className="text-lg sm:text-xl font-black text-white font-mono">{(cw.totalCalories || 0).toLocaleString('es-CO')} <span className="text-xs font-normal text-zinc-400">kcal</span></p>
           </div>
         </div>
+
+        {/* ═══════ PROGRESO POR EJERCICIO ═══════ */}
+        <ExerciseProgress period={period.api} onLoaded={(d) => setRecords(d.records || [])} />
 
         {/* ═══════ CHARTS ROW ═══════ */}
         <div className="grid lg:grid-cols-2 gap-6 animate-fadeInUp">

@@ -5,5 +5,6 @@ const ctrl = require('../controllers/progressController');
 router.use(protect);
 
 router.get('/weekly', ctrl.weeklyReport);
+router.get('/exercises', ctrl.exercises);
 
 module.exports = router;

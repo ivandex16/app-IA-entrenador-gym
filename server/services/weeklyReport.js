@@ -2,44 +2,28 @@ const WorkoutLog = require("../models/WorkoutLog");
 const { LEGACY_COMPLETED_FILTER } = require("../constants/workoutStatus");
 const WeightLog = require("../models/WeightLog");
 const Goal = require("../models/Goal");
+const { dayKey, weekBounds, queryWindow, inRange, safeTimeZone } = require("./progressDates");
 
 /**
  * Generate a weekly progress report for the authenticated user.
- * Compares current week (Mon→Sun) with previous week.
+ * Compares current week (Mon→Sun) with previous week, both as calendar weeks
+ * in the user's time zone (`tz`, IANA name sent by the browser).
  *
- * Returns: { currentWeek, previousWeek, comparison, insights }
+ * Returns: { period, currentWeek, previousWeek, comparison, insights, weightProgress }
  */
-const generateWeeklyReport = async (userId, referenceDate = new Date()) => {
-  // ── Date boundaries ──
-  const ref = new Date(referenceDate);
-  const dayOfWeek = ref.getDay() === 0 ? 7 : ref.getDay(); // Mon=1…Sun=7
-  const currentMonday = new Date(ref);
-  currentMonday.setDate(ref.getDate() - dayOfWeek + 1);
-  currentMonday.setHours(0, 0, 0, 0);
+const generateWeeklyReport = async (userId, referenceDate = new Date(), tz = "UTC") => {
+  const zone = safeTimeZone(tz);
+  const weeks = weekBounds(referenceDate, zone);
 
-  const currentSunday = new Date(currentMonday);
-  currentSunday.setDate(currentMonday.getDate() + 6);
-  currentSunday.setHours(23, 59, 59, 999);
-
-  const previousMonday = new Date(currentMonday);
-  previousMonday.setDate(currentMonday.getDate() - 7);
-  const previousSunday = new Date(currentMonday);
-  previousSunday.setDate(currentMonday.getDate() - 1);
-  previousSunday.setHours(23, 59, 59, 999);
-
-  // ── Fetch logs ──
-  const [currentLogs, previousLogs] = await Promise.all([
-    WorkoutLog.find({
-      user: userId,
-      date: { $gte: currentMonday, $lte: currentSunday },
-      ...LEGACY_COMPLETED_FILTER,
-    }).populate("exercises.exercise", "name muscleGroup"),
-    WorkoutLog.find({
-      user: userId,
-      date: { $gte: previousMonday, $lte: previousSunday },
-      ...LEGACY_COMPLETED_FILTER,
-    }).populate("exercises.exercise", "name muscleGroup"),
-  ]);
+  // ── Fetch logs (wide window, then exact calendar days in the user's zone) ──
+  const window = queryWindow(weeks.previous.from, weeks.current.to);
+  const logs = await WorkoutLog.find({
+    user: userId,
+    date: window,
+    ...LEGACY_COMPLETED_FILTER,
+  }).populate("exercises.exercise", "name muscleGroup");
+  const currentLogs = logs.filter((l) => inRange(dayKey(l.date, zone), weeks.current));
+  const previousLogs = logs.filter((l) => inRange(dayKey(l.date, zone), weeks.previous));
 
   const summarize = (logs) => {
     let totalVolume = 0; // sum of (reps × weight) across all sets
@@ -58,6 +42,8 @@ const generateWeeklyReport = async (userId, referenceDate = new Date()) => {
         exercisesPerformed.add(exName);
         muscleGroups[mg] = (muscleGroups[mg] || 0) + 1;
         entry.sets.forEach((s) => {
+          // Live sessions keep the planned sets that weren't done (completed: false).
+          if (s.completed === false) return;
           totalSets++;
           totalReps += s.reps;
           totalVolume += s.reps * s.weight;
@@ -136,15 +122,9 @@ const generateWeeklyReport = async (userId, referenceDate = new Date()) => {
     );
 
   // ── Weight progress ──
-  const weightLogs = await WeightLog.find({
-    user: userId,
-    date: { $gte: currentMonday, $lte: currentSunday },
-  }).sort("date");
-
-  const prevWeightLogs = await WeightLog.find({
-    user: userId,
-    date: { $gte: previousMonday, $lte: previousSunday },
-  }).sort("date");
+  const allWeightLogs = await WeightLog.find({ user: userId, date: window }).sort("date");
+  const weightLogs = allWeightLogs.filter((l) => inRange(dayKey(l.date, zone), weeks.current));
+  const prevWeightLogs = allWeightLogs.filter((l) => inRange(dayKey(l.date, zone), weeks.previous));
 
   let weightProgress = null;
   if (weightLogs.length > 0 || prevWeightLogs.length > 0) {
@@ -201,10 +181,7 @@ const generateWeeklyReport = async (userId, referenceDate = new Date()) => {
   }
 
   return {
-    period: {
-      from: currentMonday.toISOString().slice(0, 10),
-      to: currentSunday.toISOString().slice(0, 10),
-    },
+    period: { from: weeks.current.from, to: weeks.current.to },
     currentWeek: current,
     previousWeek: previous,
     comparison,

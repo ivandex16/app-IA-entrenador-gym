@@ -1,10 +1,11 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicOnlyRoute from './components/PublicOnlyRoute';
 import GuidedTour from './components/GuidedTour';
+import ErrorBoundary from './components/ErrorBoundary';
 import { useAuth } from './context/AuthContext';
 
 
@@ -28,6 +29,7 @@ import AdminDashboard from './pages/AdminDashboard';
 
 export default function App() {
   const { user, setUser } = useAuth();
+  const { pathname } = useLocation();
   const [tourActive, setTourActive] = useState(false);
 
   // Auto-start tour for new users who haven't completed it
@@ -48,6 +50,7 @@ export default function App() {
       <Toaster position="top-right" />
       <Navbar onStartTour={startTour} />
       <GuidedTour active={tourActive} onFinish={finishTour} />
+      <ErrorBoundary key={pathname}>
       <Routes>
         {/* Public */}
         <Route path="/" element={<Landing />} />
@@ -70,6 +73,7 @@ export default function App() {
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
       </Routes>
+      </ErrorBoundary>
     </>
   );
 }

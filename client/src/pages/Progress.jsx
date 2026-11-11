@@ -6,7 +6,7 @@ import {
   LuDumbbell, LuFlame, LuTarget, LuScale, LuDownload, LuX,
   LuPlus, LuTrash2, LuSparkles, LuFileText,
   LuActivity, LuCalendar, LuImage, LuCrown,
-  LuChartColumnIncreasing, LuArrowUp, LuArrowDown,
+  LuChartColumnIncreasing, LuArrowUp, LuArrowDown, LuTrendingUp, LuRotateCcw,
 } from 'react-icons/lu';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -19,6 +19,9 @@ const MG_ES = {
   legs: 'Piernas', biceps: 'Bíceps', triceps: 'Tríceps', abs: 'Abdominales',
 };
 const ALL_GROUPS = ['chest', 'back', 'shoulders', 'legs', 'biceps', 'triceps', 'abs'];
+
+/* The week is computed in the user's time zone (same as Entrenamientos). */
+const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
 /* ─── helpers ─── */
 const fmtDate = (iso) => {
@@ -53,11 +56,20 @@ export default function Progress() {
   const [weightNote, setWeightNote] = useState('');
   const [generating, setGenerating] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
-  const loadWeight = () => api.get('/weight/summary').then((r) => setWeightData(r.data));
+  const loadReport = () =>
+    api
+      .get('/progress/weekly', { params: { tz: TIME_ZONE } })
+      .then((r) => {
+        setReport(r.data);
+        setLoadError(false);
+      })
+      .catch(() => setLoadError(true));
+  const loadWeight = () => api.get('/weight/summary').then((r) => setWeightData(r.data)).catch(() => {});
 
   useEffect(() => {
-    api.get('/progress/weekly').then((r) => setReport(r.data));
+    loadReport();
     loadWeight();
   }, []);
 
@@ -68,12 +80,15 @@ export default function Progress() {
     setNewWeight('');
     setWeightNote('');
     loadWeight();
-    api.get('/progress/weekly').then((r) => setReport(r.data));
+    loadReport();
   };
 
-  const deleteWeight = async (id) => {
-    await api.delete(`/weight/${id}`);
+  const deleteWeight = async (log) => {
+    const when = new Date(log.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (!window.confirm(`¿Eliminar el registro de ${log.weight} kg del ${when}?`)) return;
+    await api.delete(`/weight/${log._id}`);
     loadWeight();
+    loadReport();
   };
 
   /* ── share image generation ── */
@@ -96,6 +111,24 @@ export default function Progress() {
       setGenerating(false);
     }
   };
+
+  if (!report && loadError)
+    return (
+      <div className="min-h-screen bg-[#08090D] flex items-center justify-center px-4">
+        <div role="alert" className="flex flex-col items-center gap-3 text-center">
+          <LuActivity className="w-10 h-10 text-zinc-500" />
+          <p className="text-zinc-200 text-sm font-semibold">No se pudo cargar tu progreso.</p>
+          <p className="text-zinc-500 text-xs">Revisa tu conexión e inténtalo de nuevo.</p>
+          <button
+            type="button"
+            onClick={() => { setLoadError(false); loadReport(); loadWeight(); }}
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-lime-400 hover:bg-lime-300 text-zinc-950 text-sm font-black"
+          >
+            <LuRotateCcw className="w-4 h-4" /> Reintentar
+          </button>
+        </div>
+      </div>
+    );
 
   if (!report)
     return (
@@ -484,7 +517,7 @@ export default function Progress() {
               </h3>
               <div className="w-full h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={weightData.logs.slice().reverse().map((l) => ({
+                  <AreaChart data={weightData.logs.map((l) => ({
                     date: new Date(l.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }),
                     peso: l.weight,
                   }))}>
@@ -530,7 +563,7 @@ export default function Progress() {
                 Historial de Peso
               </h3>
               <div className="max-h-48 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                {weightData.logs.slice(0, 20).map((l) => (
+                {weightData.logs.slice().reverse().slice(0, 20).map((l) => (
                   <div
                     key={l._id}
                     className="flex items-center justify-between bg-zinc-950 border border-white/5 rounded-xl px-4 py-2.5 hover:border-white/10 transition-all group"
@@ -546,9 +579,11 @@ export default function Progress() {
                     <div className="flex items-center gap-3">
                       {l.notes && <span className="text-xs text-zinc-500 max-w-[150px] truncate">{l.notes}</span>}
                       <button
-                        onClick={() => deleteWeight(l._id)}
-                        className="text-zinc-500 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-1"
+                        type="button"
+                        onClick={() => deleteWeight(l)}
+                        className="text-zinc-500 hover:text-red-400 transition-colors p-1.5 -m-1 rounded-lg lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100"
                         title="Eliminar registro"
+                        aria-label={`Eliminar registro de ${l.weight} kg`}
                       >
                         <LuTrash2 className="w-4 h-4" />
                       </button>

@@ -68,4 +68,51 @@ function queryWindow(fromYmd, toYmd) {
 
 const inRange = (ymd, range) => ymd >= range.from && ymd <= range.to;
 
-module.exports = { safeTimeZone, dayKey, addDays, weekBounds, queryWindow, inRange };
+const PERIODS = ['week', '4w', '12w'];
+const dayLabel = (ymd) => ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'][weekday(ymd)];
+
+/*
+ * Ranges compared fairly, ending today in the user's zone:
+ *  - week: Monday → today vs the same weekdays of the previous week
+ *          (on a Tuesday, Mon–Tue vs last Mon–Tue, never a full week);
+ *  - 4w / 12w: the last 28 / 84 days vs the 28 / 84 days before.
+ * `buckets` split the current range for the chart: days of the week, or
+ * 7-day blocks (oldest first) ending today.
+ */
+function periodRanges(type, ref, tz) {
+  const period = PERIODS.includes(type) ? type : 'week';
+  const { today, current: week } = weekBounds(ref, tz);
+  if (period === 'week') {
+    const elapsed = weekday(today); // 0 on Monday
+    const buckets = Array.from({ length: 7 }, (_, i) => {
+      const day = addDays(week.from, i);
+      return { from: day, to: day, label: dayLabel(day), future: day > today };
+    });
+    return {
+      type: period,
+      today,
+      current: { from: week.from, to: today },
+      previous: { from: addDays(week.from, -7), to: addDays(today, -7) },
+      display: { from: week.from, to: week.to },
+      daysElapsed: elapsed + 1,
+      buckets,
+    };
+  }
+  const weeks = period === '4w' ? 4 : 12;
+  const from = addDays(today, -(weeks * 7 - 1));
+  const buckets = Array.from({ length: weeks }, (_, i) => {
+    const b = addDays(from, i * 7);
+    return { from: b, to: addDays(b, 6), label: b };
+  });
+  return {
+    type: period,
+    today,
+    current: { from, to: today },
+    previous: { from: addDays(from, -weeks * 7), to: addDays(from, -1) },
+    display: { from, to: today },
+    daysElapsed: weeks * 7,
+    buckets,
+  };
+}
+
+module.exports = { safeTimeZone, dayKey, addDays, weekBounds, queryWindow, inRange, periodRanges, PERIODS };

@@ -3,6 +3,7 @@ const WorkoutLog = require('../models/WorkoutLog');
 const { LEGACY_COMPLETED_FILTER } = require('../constants/workoutStatus');
 const { dayKey, periodRanges, safeTimeZone } = require('../services/progressDates');
 const { buildExerciseProgress } = require('../services/exerciseProgress');
+const { buildConsistency } = require('../services/consistency');
 
 const readQuery = (q) => ({
   date: typeof q.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? q.date : new Date(),
@@ -41,6 +42,22 @@ exports.exercises = async (req, res, next) => {
       for (const e of log.exercises || []) entries.push({ day, exercise: e.exercise, sets: e.sets });
     }
     res.json(buildExerciseProgress(entries, { today: p.today, recordsRange: p.current }));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET /api/progress/consistency?tz=America/Bogota
+// Training days per week (last 12 calendar weeks) against the weekly goal of
+// the profile (User.weeklyFrequency), and the streak of weeks meeting it.
+exports.consistency = async (req, res, next) => {
+  try {
+    const { date, tz } = readQuery(req.query);
+    const zone = safeTimeZone(tz);
+    const p = periodRanges('week', date, zone);
+    const logs = await WorkoutLog.find({ user: req.user._id, ...LEGACY_COMPLETED_FILTER }).select('date').lean();
+    const days = logs.map((l) => dayKey(l.date, zone));
+    res.json(buildConsistency(days, { today: p.today, goal: req.user.weeklyFrequency }));
   } catch (err) {
     next(err);
   }

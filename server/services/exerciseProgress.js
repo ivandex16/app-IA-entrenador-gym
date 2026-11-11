@@ -61,10 +61,16 @@ function buildExerciseProgress(entries, { today, recordsRange }) {
     // Weighted if any completed set ever had weight; otherwise count reps.
     const weighted = sessions.some((s) => (s.sets || []).some((x) => x.completed !== false && x.weight > 0));
     const metric = weighted ? 'e1rm' : 'reps';
-    const points = sessions
-      .map((s) => ({ day: s.day, best: sessionBest(s.sets, metric) }))
-      .filter((p) => p.best)
-      .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+    // One point per calendar day (the best of that day): several sessions on
+    // the same day are one training day, not separate progress.
+    const byDay = new Map();
+    for (const s of sessions) {
+      const best = sessionBest(s.sets, metric);
+      if (!best) continue;
+      const prev = byDay.get(s.day);
+      if (!prev || best.value > prev.best.value) byDay.set(s.day, { day: s.day, best });
+    }
+    const points = [...byDay.values()].sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
     if (!points.length) continue;
 
     // Personal records: sessions that beat everything before them.

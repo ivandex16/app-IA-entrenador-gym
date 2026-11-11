@@ -44,6 +44,13 @@ describe('status per exercise', () => {
     expect(build([at(100, bench, [s(60, 8)])]).exercises).toHaveLength(0);
   });
 
+  test('several sessions on the same day are one point (the best of the day)', () => {
+    const r = build([at(2, bench, [s(60, 8)]), at(2, bench, [s(65, 8)]), at(2, bench, [s(62.5, 8)]), at(2, bench, [s(60, 10)])]);
+    expect(r.exercises[0]).toMatchObject({ sessions: 1, status: 'new' });
+    expect(r.exercises[0].points).toEqual([{ day: addDays(TODAY, -2), value: 82.5, weight: 65, reps: 8 }]);
+    expect(r.records).toHaveLength(0); // the same day can't beat itself
+  });
+
   test('exercises without weight use reps', () => {
     const r = build([at(50, pull, [s(0, 6)]), at(40, pull, [s(0, 7)]), at(10, pull, [s(0, 9)])]);
     expect(r.exercises[0]).toMatchObject({ metric: 'reps', status: 'improving', best: { value: 9 } });

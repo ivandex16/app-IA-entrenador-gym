@@ -4,6 +4,7 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import html2canvas from 'html2canvas';
 import ExerciseProgress from '../components/progress/ExerciseProgress';
+import Consistency from '../components/progress/Consistency';
 import {
   LuDumbbell, LuFlame, LuTarget, LuScale, LuDownload, LuX,
   LuPlus, LuTrash2, LuSparkles, LuFileText,
@@ -324,6 +325,9 @@ export default function Progress() {
 
         {/* ═══════ PROGRESO POR EJERCICIO ═══════ */}
         <ExerciseProgress period={period.api} onLoaded={(d) => setRecords(d.records || [])} />
+
+        {/* ═══════ CONSTANCIA ═══════ */}
+        <Consistency />
 
         {/* ═══════ CHARTS ROW ═══════ */}
         <div className="grid lg:grid-cols-2 gap-6 animate-fadeInUp">

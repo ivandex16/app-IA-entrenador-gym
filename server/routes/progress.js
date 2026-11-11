@@ -6,5 +6,6 @@ router.use(protect);
 
 router.get('/weekly', ctrl.weeklyReport);
 router.get('/exercises', ctrl.exercises);
+router.get('/consistency', ctrl.consistency);
 
 module.exports = router;

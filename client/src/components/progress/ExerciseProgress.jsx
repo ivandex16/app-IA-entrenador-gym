@@ -1,111 +1,186 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
-import { LuTrophy, LuChevronDown, LuInfo, LuRotateCcw, LuDumbbell } from 'react-icons/lu';
+import { LuTrophy, LuInfo, LuRotateCcw, LuDumbbell, LuSearch, LuChevronDown, LuCheck } from 'react-icons/lu';
 import api from '../../api/axios';
+import { searchExercises } from '../routines/imageImport/exerciseSearch';
 
 const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 const MUSCLE = {
   chest: 'Pecho', back: 'Espalda', shoulders: 'Hombros', biceps: 'Bíceps', triceps: 'Tríceps', legs: 'Piernas',
   glutes: 'Glúteos', abs: 'Abdomen', calves: 'Gemelos', forearms: 'Antebrazos', full_body: 'Cuerpo completo', cardio: 'Cardio',
 };
-export const STATUS = {
+const STATUS = {
   improving: { label: 'Mejorando', icon: '📈', cls: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/25' },
   stalled: { label: 'Estancado', icon: '➖', cls: 'text-amber-200 bg-amber-400/10 border-amber-400/25' },
   declining: { label: 'Bajando', icon: '📉', cls: 'text-rose-300 bg-rose-500/10 border-rose-500/25' },
-  new: { label: 'Nuevo', icon: '🆕', cls: 'text-sky-300 bg-sky-500/10 border-sky-500/25' },
+  new: { label: 'Sin datos para comparar', icon: '·', cls: 'text-zinc-400 bg-zinc-800 border-white/10' },
   paused: { label: 'Pausado', icon: '⏸', cls: 'text-zinc-400 bg-zinc-800 border-white/10' },
 };
-const FILTERS = ['improving', 'stalled', 'declining', 'new', 'paused'];
-const FILTER_LABEL = { improving: 'Mejorando', stalled: 'Estancados', declining: 'Bajando', new: 'Nuevos', paused: 'Pausados' };
-const SHOW = 8;
 
 const num = (v) => Number(v).toLocaleString('es-CO', { maximumFractionDigits: 1 });
 const fmtDay = (ymd) => new Date(`${ymd}T00:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
 const setText = (x) => (x.weight > 0 ? `${num(x.weight)} kg × ${x.reps}` : `${x.reps} reps`);
 const valueText = (e, v) => (e.metric === 'reps' ? `${v} reps` : `${num(v)} kg`);
+const pct = (v) => `${v > 0 ? '+' : ''}${v}%`;
 
-function Sparkline({ points, color }) {
-  if (points.length < 2) return <div className="w-20 h-8" aria-hidden="true" />;
+/* One status block of the summary: count + a few names (tap to see the chart). */
+function StatusBlock({ status, items, onPick, max = 3 }) {
+  const st = STATUS[status];
+  const shown = items.slice(0, max);
   return (
-    <div className="w-20 h-8 shrink-0" aria-hidden="true">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={points}>
-          <YAxis hide domain={['dataMin', 'dataMax']} />
-          <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false} isAnimationActive={false} />
-        </LineChart>
-      </ResponsiveContainer>
+    <div className={`rounded-xl border p-3 ${st.cls}`}>
+      <p className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
+        <span aria-hidden="true">{st.icon}</span> {st.label} <span className="font-mono">{items.length}</span>
+      </p>
+      {items.length === 0 ? (
+        <p className="mt-1.5 text-xs text-zinc-500">Ninguno</p>
+      ) : (
+        <ul className="mt-1.5 space-y-1">
+          {shown.map((e) => (
+            <li key={e.id}>
+              <button type="button" onClick={() => onPick(e.id)} className="w-full flex items-center justify-between gap-2 text-left text-xs text-zinc-200 hover:text-white">
+                <span className="truncate">{e.name}</span>
+                {e.changePct != null && <span className="shrink-0 font-mono font-bold">{pct(e.changePct)}</span>}
+              </button>
+            </li>
+          ))}
+          {items.length > max && <li className="text-[11px] text-zinc-500">y {items.length - max} más</li>}
+        </ul>
+      )}
     </div>
   );
 }
 
-function DetailChart({ exercise }) {
-  const data = exercise.points.map((p) => ({ ...p, label: fmtDay(p.day) }));
-  return (
-    <div className="h-44 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-          <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#a1a1aa' }} tickLine={false} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} minTickGap={16} />
-          <YAxis tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} axisLine={false} domain={['auto', 'auto']} />
-          <ReferenceLine y={exercise.best.value} stroke="#fbbf24" strokeDasharray="4 4" />
-          <Tooltip
-            contentStyle={{ backgroundColor: '#090a0f', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
-            labelStyle={{ color: '#fff', fontWeight: 'bold' }}
-            formatter={(v, _n, item) => [`${valueText(exercise, v)} · ${setText(item.payload)}`, exercise.metric === 'reps' ? 'Repeticiones' : '1RM estimado']}
-          />
-          <Line type="monotone" dataKey="value" stroke="#a3e635" strokeWidth={2.5} dot={{ r: 3, fill: '#a3e635' }} activeDot={{ r: 5 }} />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
+/* Searchable selector of the exercise to look at (one at a time). */
+function ExerciseSelect({ exercises, value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const box = useRef(null);
+  const results = useMemo(() => searchExercises(exercises, query, 50), [exercises, query]);
+  const selected = exercises.find((e) => e.id === value);
 
-function ExerciseRow({ exercise, open, onToggle }) {
-  const st = STATUS[exercise.status];
-  const color = exercise.status === 'improving' ? '#34d399' : exercise.status === 'declining' ? '#fb7185' : '#a1a1aa';
-  const shown = exercise.current || exercise.best;
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (ev) => { if (!box.current?.contains(ev.target)) setOpen(false); };
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [open]);
+
   return (
-    <li className="rounded-2xl border border-white/5 bg-zinc-900/60 overflow-hidden">
-      <button type="button" onClick={onToggle} aria-expanded={open} className="w-full text-left p-3 sm:p-4 flex items-center gap-3 hover:bg-white/[0.02]">
-        <div className="flex-1 min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="font-bold text-sm text-white truncate max-w-full">{exercise.name}</span>
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${st.cls}`}>{st.icon} {st.label}{exercise.changePct != null && exercise.status !== 'new' ? ` ${exercise.changePct > 0 ? '+' : ''}${exercise.changePct}%` : ''}</span>
-          </div>
-          <p className="text-xs text-zinc-400">
-            {exercise.metric === 'reps' ? 'Máx.' : '1RM est.'} <span className="font-mono font-bold text-zinc-200">{valueText(exercise, shown.value)}</span>
-            {exercise.metric !== 'reps' && <><span className="text-zinc-600"> · </span>{setText(shown)}</>}
-            {exercise.metric === 'reps' && <span className="text-zinc-500"> en una serie</span>}
-          </p>
-          <p className="text-[11px] text-zinc-500">{MUSCLE[exercise.muscleGroup] || exercise.muscleGroup} · {exercise.sessions} {exercise.sessions === 1 ? 'sesión' : 'sesiones'} · última {fmtDay(exercise.lastDay)}</p>
-        </div>
-        <Sparkline points={exercise.points} color={color} />
-        <LuChevronDown className={`w-4 h-4 text-zinc-500 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+    <div ref={box} className="relative">
+      <button
+        type="button"
+        onClick={() => { setQuery(''); setOpen((o) => !o); }}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="Elegir ejercicio"
+        className="w-full h-11 bg-zinc-950 border border-white/10 rounded-xl pl-3 pr-9 text-left text-sm font-bold text-white truncate focus:border-lime-400/60 outline-none"
+      >
+        {selected ? selected.name : 'Elige un ejercicio'}
+        <LuChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="px-3 sm:px-4 pb-4 space-y-2 border-t border-white/5 pt-3">
-          <DetailChart exercise={exercise} />
-          <p className="text-xs text-zinc-400 flex items-center gap-1.5">
-            <LuTrophy className="w-3.5 h-3.5 text-amber-300" />
-            Récord: <span className="font-bold text-zinc-200">{setText(exercise.best)}</span>
-            {exercise.metric !== 'reps' && <> (1RM est. {num(exercise.best.value)} kg)</>} el {fmtDay(exercise.best.day)}
-          </p>
+        <div className="absolute z-40 left-0 right-0 mt-1 rounded-xl border border-white/15 bg-zinc-900 shadow-2xl shadow-black/60 overflow-hidden">
+          <div className="relative border-b border-white/10">
+            <LuSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(ev) => setQuery(ev.target.value)}
+              onKeyDown={(ev) => {
+                if (ev.key === 'Escape') setOpen(false);
+                if (ev.key === 'Enter' && results[0]) { onChange(results[0].id); setOpen(false); }
+              }}
+              placeholder="Buscar ejercicio…"
+              aria-label="Buscar ejercicio"
+              className="w-full h-10 bg-transparent pl-9 pr-3 text-sm text-white placeholder:text-zinc-500 outline-none"
+            />
+          </div>
+          <ul role="listbox" className="max-h-[min(16rem,40vh)] overflow-y-auto py-1 text-sm">
+            {results.map((e) => (
+              <li key={e.id}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={e.id === value}
+                  onClick={() => { onChange(e.id); setOpen(false); }}
+                  className="w-full mx-0 px-3 py-2 text-left flex items-center gap-2 text-zinc-200 hover:bg-white/10"
+                >
+                  <span className="flex-1 min-w-0 truncate">{e.name}</span>
+                  <span className="shrink-0 text-[11px] text-zinc-500">{e.sessions} {e.sessions === 1 ? 'día' : 'días'}</span>
+                  {e.id === value && <LuCheck className="w-4 h-4 text-lime-400 shrink-0" />}
+                </button>
+              </li>
+            ))}
+            {results.length === 0 && <li className="px-3 py-3 text-xs text-zinc-400">No hay ejercicios con “{query}”.</li>}
+          </ul>
         </div>
       )}
-    </li>
+    </div>
+  );
+}
+
+/* The chosen exercise: status, best mark, chart, record and last days. */
+function ExerciseDetail({ exercise }) {
+  const st = STATUS[exercise.status];
+  const data = exercise.points.map((p) => ({ ...p, label: fmtDay(p.day) }));
+  const last = exercise.points.slice(-3).reverse();
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className={`font-bold px-2 py-0.5 rounded-md border ${st.cls}`}>{st.icon} {st.label}{exercise.changePct != null ? ` ${pct(exercise.changePct)}` : ''}</span>
+        <span className="text-zinc-400">{MUSCLE[exercise.muscleGroup] || exercise.muscleGroup} · {exercise.sessions} {exercise.sessions === 1 ? 'día entrenado' : 'días entrenados'} en 12 semanas</span>
+      </div>
+
+      {data.length >= 2 ? (
+        <div className="h-48 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#a1a1aa' }} tickLine={false} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} minTickGap={18} />
+              <YAxis tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} axisLine={false} domain={['auto', 'auto']} />
+              <ReferenceLine y={exercise.best.value} stroke="#fbbf24" strokeDasharray="4 4" />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#090a0f', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
+                labelStyle={{ color: '#fff', fontWeight: 'bold' }}
+                formatter={(v, _n, item) => [`${valueText(exercise, v)} · ${setText(item.payload)}`, exercise.metric === 'reps' ? 'Repeticiones' : '1RM estimado']}
+              />
+              <Line type="monotone" dataKey="value" stroke="#a3e635" strokeWidth={2.5} dot={{ r: 3, fill: '#a3e635' }} activeDot={{ r: 5 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <p className="rounded-xl border border-dashed border-white/10 p-4 text-center text-xs text-zinc-400">
+          Solo hay un día registrado de este ejercicio. El gráfico aparece cuando lo hagas en otro día.
+        </p>
+      )}
+
+      <div className="grid sm:grid-cols-2 gap-2 text-xs">
+        <div className="rounded-xl bg-zinc-950 border border-white/5 p-3">
+          <p className="text-zinc-500 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1"><LuTrophy className="w-3 h-3 text-amber-300" /> Récord</p>
+          <p className="mt-1 text-zinc-200"><b className="text-white">{setText(exercise.best)}</b>{exercise.metric !== 'reps' && <> · 1RM est. {num(exercise.best.value)} kg</>} · {fmtDay(exercise.best.day)}</p>
+        </div>
+        <div className="rounded-xl bg-zinc-950 border border-white/5 p-3">
+          <p className="text-zinc-500 font-bold uppercase tracking-wider text-[10px]">Últimos días</p>
+          <ul className="mt-1 space-y-0.5 text-zinc-300">
+            {last.map((p) => <li key={p.day}><span className="text-zinc-500">{fmtDay(p.day)}</span> · {setText(p)}</li>)}
+          </ul>
+        </div>
+      </div>
+    </div>
   );
 }
 
 /*
- * "Progreso por ejercicio": is each exercise improving, stalled or going down
- * (last 12 weeks), plus the personal records of the selected period.
+ * "Progreso por ejercicio", fixed size whatever the history: a summary of
+ * which exercises go up, stay or go down (only those with enough data), and
+ * one exercise at a time, chosen with a searchable selector.
  */
 export default function ExerciseProgress({ period, onLoaded }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(false);
-  const [filter, setFilter] = useState('all');
-  const [openId, setOpenId] = useState(null);
-  const [showAll, setShowAll] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+  const detailRef = useRef(null);
 
   const load = () => {
     setError(false);
@@ -119,95 +194,106 @@ export default function ExerciseProgress({ period, onLoaded }) {
   };
   useEffect(load, [period]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const list = useMemo(() => (data ? data.exercises.filter((e) => filter === 'all' || e.status === filter) : []), [data, filter]);
-  const visible = showAll ? list : list.slice(0, SHOW);
+  const groups = useMemo(() => {
+    const by = (s) => (data?.exercises || []).filter((e) => e.status === s);
+    return {
+      improving: by('improving').sort((a, b) => b.changePct - a.changePct),
+      stalled: by('stalled'),
+      declining: by('declining').sort((a, b) => a.changePct - b.changePct),
+      waiting: by('new').length,
+      paused: by('paused').length,
+    };
+  }, [data]);
+  // Selector: most trained first.
+  const options = useMemo(() => [...(data?.exercises || [])].sort((a, b) => b.sessions - a.sessions || a.name.localeCompare(b.name, 'es')), [data]);
+  const selected = options.find((e) => e.id === selectedId) || options[0] || null;
+  const comparable = groups.improving.length + groups.stalled.length + groups.declining.length;
+
+  const pick = (id) => {
+    setSelectedId(id);
+    setTimeout(() => detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+  };
 
   return (
-    <section className="space-y-3 animate-fadeInUp" aria-label="Progreso por ejercicio">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="font-extrabold text-base sm:text-lg text-white flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-lime-400/10 border border-lime-400/20 flex items-center justify-center text-lime-400">
-              <LuDumbbell className="w-4 h-4" />
-            </div>
-            Progreso por ejercicio
-          </h2>
-          <p className="text-xs text-zinc-500 mt-1">Últimas 12 semanas · se compara tu mejor marca de las últimas 4 semanas con la anterior</p>
-        </div>
+    <section className="bg-zinc-900/50 border border-white/5 rounded-2xl p-4 sm:p-6 shadow-xl space-y-4 animate-fadeInUp" aria-label="Progreso por ejercicio">
+      <div>
+        <h2 className="font-extrabold text-base sm:text-lg text-white flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-lime-400/10 border border-lime-400/20 flex items-center justify-center text-lime-400">
+            <LuDumbbell className="w-4 h-4" />
+          </div>
+          Progreso por ejercicio
+        </h2>
+        <p className="text-xs text-zinc-500 mt-1">¿En qué ejercicios subes tu marca? Últimas 12 semanas.</p>
       </div>
 
       {error && (
-        <div role="alert" className="rounded-xl border border-white/10 bg-zinc-900/60 p-4 text-sm text-zinc-300 flex flex-wrap items-center gap-3">
+        <div role="alert" className="rounded-xl border border-white/10 bg-zinc-950 p-4 text-sm text-zinc-300 flex flex-wrap items-center gap-3">
           No se pudo cargar el progreso por ejercicio.
           <button type="button" onClick={load} className="inline-flex items-center gap-1.5 text-xs font-bold text-lime-300 hover:text-lime-200"><LuRotateCcw className="w-3.5 h-3.5" /> Reintentar</button>
         </div>
       )}
 
-      {!data && !error && (
-        <div className="space-y-2" aria-hidden="true">
-          {[0, 1, 2].map((i) => <div key={i} className="h-[76px] rounded-2xl bg-zinc-900/60 border border-white/5 animate-pulse" />)}
-        </div>
+      {!data && !error && <div className="h-40 rounded-xl bg-zinc-950/60 animate-pulse" aria-hidden="true" />}
+
+      {data && data.exercises.length === 0 && (
+        <p className="rounded-xl border border-dashed border-white/10 p-5 text-center text-sm text-zinc-400">
+          Aún no hay entrenamientos en las últimas 12 semanas.
+        </p>
       )}
 
-      {data && (
+      {data && data.exercises.length > 0 && (
         <>
-          {data.records.length > 0 && (
-            <div className="rounded-2xl border border-amber-400/25 bg-amber-400/[0.05] p-3 sm:p-4 space-y-2">
-              <p className="text-sm font-bold text-amber-200 flex items-center gap-2">
-                <LuTrophy className="w-4 h-4" /> Récord personal en {data.records.length} {data.records.length === 1 ? 'ejercicio' : 'ejercicios'} en este periodo
-              </p>
-              <ul className="space-y-1">
-                {data.records.slice(0, 5).map((r) => (
-                  <li key={`${r.exerciseId}-${r.day}`} className="text-xs text-zinc-300 flex flex-wrap gap-x-1.5">
-                    <span className="font-bold text-white">{r.name}</span>
-                    <span>{setText(r)}{r.metric !== 'reps' ? ` (1RM est. ${num(r.value)} kg, antes ${num(r.previous)})` : ` (antes ${r.previous})`}</span>
-                    <span className="text-zinc-500">· {fmtDay(r.day)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {data.exercises.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/10 bg-zinc-900/40 p-6 text-center text-sm text-zinc-400">
-              Aún no hay entrenamientos en las últimas 12 semanas. Cuando repitas un ejercicio en varias sesiones verás aquí si mejoras.
+          {/* 1. Summary */}
+          {comparable > 0 ? (
+            <div className="grid gap-2 sm:grid-cols-3">
+              <StatusBlock status="improving" items={groups.improving} onPick={pick} />
+              <StatusBlock status="stalled" items={groups.stalled} onPick={pick} />
+              <StatusBlock status="declining" items={groups.declining} onPick={pick} />
             </div>
           ) : (
-            <>
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5" role="group" aria-label="Filtrar por estado">
-                {[['all', `Todos ${data.exercises.length}`], ...FILTERS.filter((f) => data.counts[f] > 0).map((f) => [f, `${STATUS[f].icon} ${FILTER_LABEL[f]} ${data.counts[f]}`])].map(([f, label]) => (
-                  <button
-                    key={f}
-                    type="button"
-                    aria-pressed={filter === f}
-                    onClick={() => { setFilter(f); setShowAll(false); }}
-                    className={`shrink-0 h-8 px-3 rounded-lg text-xs font-bold border transition ${filter === f ? 'bg-zinc-100 text-zinc-950 border-zinc-100' : 'bg-zinc-900 text-zinc-300 border-white/10 hover:text-white'}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+            <p className="rounded-xl border border-white/10 bg-zinc-950 p-4 text-sm text-zinc-300">
+              Todavía no hay con qué comparar. Cuando repitas tus ejercicios en <b>semanas distintas</b> verás aquí en cuáles mejoras, en cuáles estás estancado y en cuáles bajas.
+            </p>
+          )}
+          {comparable > 0 && (groups.waiting > 0 || groups.paused > 0) && (
+            <p className="text-[11px] text-zinc-500">
+              {groups.waiting > 0 && <>{groups.waiting} {groups.waiting === 1 ? 'ejercicio aún sin datos suficientes' : 'ejercicios aún sin datos suficientes'} para comparar</>}
+              {groups.waiting > 0 && groups.paused > 0 && ' · '}
+              {groups.paused > 0 && <>{groups.paused} sin hacer en las últimas 4 semanas</>}
+            </p>
+          )}
 
-              <ul className="space-y-2">
-                {visible.map((e) => (
-                  <ExerciseRow key={e.id} exercise={e} open={openId === e.id} onToggle={() => setOpenId(openId === e.id ? null : e.id)} />
+          {/* 2. Records of the period (compact) */}
+          {data.records.length > 0 && (
+            <p className="text-xs text-amber-200 flex items-start gap-2">
+              <LuTrophy className="w-4 h-4 shrink-0" />
+              <span>
+                Récord en este periodo:{' '}
+                {data.records.slice(0, 3).map((r, i) => (
+                  <span key={r.exerciseId}>
+                    {i > 0 && ', '}
+                    <button type="button" onClick={() => pick(r.exerciseId)} className="font-bold underline-offset-2 hover:underline">{r.name}</button> ({setText(r)})
+                  </span>
                 ))}
-              </ul>
-              {list.length > SHOW && (
-                <button type="button" onClick={() => setShowAll((v) => !v)} className="w-full h-10 rounded-xl border border-white/10 text-xs font-bold text-zinc-300 hover:text-white">
-                  {showAll ? 'Ver menos' : `Ver todos (${list.length})`}
-                </button>
-              )}
-            </>
+                {data.records.length > 3 && ` y ${data.records.length - 3} más`}
+              </span>
+            </p>
+          )}
+
+          {/* 3. One exercise at a time */}
+          {selected && (
+            <div ref={detailRef} className="rounded-xl border border-white/10 bg-zinc-950/50 p-3 sm:p-4 space-y-3">
+              <ExerciseSelect exercises={options} value={selected.id} onChange={setSelectedId} />
+              <ExerciseDetail exercise={selected} />
+            </div>
           )}
 
           <details className="text-xs text-zinc-500">
             <summary className="cursor-pointer inline-flex items-center gap-1 hover:text-zinc-300"><LuInfo className="w-3.5 h-3.5" /> ¿Cómo se calcula?</summary>
             <ul className="mt-2 list-disc pl-5 space-y-1">
-              <li><b>1RM estimado</b>: el peso que podrías levantar una vez, calculado con tu mejor serie de cada sesión (peso × (1 + reps / 30), fórmula de Epley). Permite comparar series con distinto peso y repeticiones.</li>
-              <li><b>Mejorando</b>: tu mejor marca de las últimas 4 semanas supera en un 2 % o más a la de antes. <b>Bajando</b>: está un 5 % o más por debajo. <b>Estancado</b>: entre medias.</li>
-              <li><b>Nuevo</b>: menos de 3 sesiones o nada antes de las últimas 4 semanas. <b>Pausado</b>: no lo haces desde hace más de 4 semanas.</li>
-              <li><b>Récord personal</b>: una sesión que supera tu mejor marca de todo el historial. En ejercicios sin peso se usan las repeticiones.</li>
+              <li>De cada día que entrenas un ejercicio se toma tu <b>mejor serie</b> y se calcula el <b>1RM estimado</b> (el peso que podrías levantar una vez: peso × (1 + reps / 30)). Así se comparan series con distinto peso y repeticiones. En ejercicios sin peso se usan las repeticiones.</li>
+              <li><b>Mejorando</b>: tu mejor marca de las últimas 4 semanas supera en un 2 % o más a la de antes. <b>Bajando</b>: un 5 % o más por debajo. <b>Estancado</b>: entre medias.</li>
+              <li>Hace falta haberlo hecho en al menos 3 días, alguno de ellos antes de las últimas 4 semanas, para poder comparar.</li>
             </ul>
           </details>
         </>
